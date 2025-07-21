@@ -1,0 +1,269 @@
+"""Scoring service for NIST CSF 2.0 metrics with gap-to-target calculations."""
+
+import os
+from typing import Dict, List, Optional, Tuple
+from sqlalchemy.orm import Session
+from ..models import Metric, CSFFunction, MetricDirection
+from ..schemas import FunctionScore, RiskRating
+
+
+def compute_metric_score(metric: Metric) -> Optional[float]:
+    """
+    Compute performance score for a single metric based on gap-to-target methodology.
+    
+    Returns:
+        Float between 0.0 and 1.0, or None if unable to calculate
+    """
+    if metric.current_value is None or not metric.active:
+        return None
+    
+    current = float(metric.current_value)
+    target = float(metric.target_value) if metric.target_value else None
+    
+    if metric.direction == MetricDirection.BINARY:
+        # Binary metrics: 1 if true/met, 0 otherwise
+        return 1.0 if bool(current) else 0.0
+    
+    if target is None:
+        # Can't calculate score without target
+        return None
+    
+    if metric.direction == MetricDirection.HIGHER_IS_BETTER:
+        # Higher values are better (e.g., compliance percentage)
+        score = min(1.0, max(0.0, current / target)) if target > 0 else 0.0
+        
+    elif metric.direction == MetricDirection.LOWER_IS_BETTER:
+        # Lower values are better (e.g., incident count, MTTD)
+        if target == 0:
+            score = 1.0 if current == 0 else 0.0
+        else:
+            score = max(0.0, min(1.0, 1.0 - (current / target)))
+            
+    elif metric.direction == MetricDirection.TARGET_RANGE:
+        # Value should be within tolerance range
+        low = float(metric.tolerance_low) if metric.tolerance_low else target
+        high = float(metric.tolerance_high) if metric.tolerance_high else target
+        
+        if low <= current <= high:
+            score = 1.0
+        else:
+            # Linear penalty outside range (2x distance from range -> 0)
+            distance = min(abs(current - low), abs(current - high))
+            range_span = max(high - low, 1.0)  # Avoid division by zero
+            penalty_factor = min(2.0, distance / range_span)
+            score = max(0.0, 1.0 - penalty_factor)
+    else:
+        return None
+    
+    return score
+
+
+def compute_gap_to_target(metric: Metric) -> Optional[float]:
+    """
+    Compute gap to target for a metric.
+    
+    Returns:
+        Gap as percentage (negative means below target, positive means above)
+    """
+    if (metric.current_value is None or 
+        metric.target_value is None or 
+        not metric.active or 
+        metric.direction == MetricDirection.BINARY):
+        return None
+    
+    current = float(metric.current_value)
+    target = float(metric.target_value)
+    
+    if target == 0:
+        return None
+    
+    gap_pct = ((current - target) / target) * 100
+    
+    # Adjust sign based on direction
+    if metric.direction == MetricDirection.LOWER_IS_BETTER:
+        gap_pct = -gap_pct  # Flip sign for lower-is-better metrics
+    
+    return gap_pct
+
+
+def get_risk_rating(score_pct: float) -> RiskRating:
+    """
+    Map function score percentage to risk rating using configurable thresholds.
+    """
+    # Get thresholds from environment or use defaults
+    threshold_low = float(os.getenv("RISK_THRESHOLD_LOW", "85.0"))
+    threshold_moderate = float(os.getenv("RISK_THRESHOLD_MODERATE", "65.0"))
+    threshold_elevated = float(os.getenv("RISK_THRESHOLD_ELEVATED", "40.0"))
+    
+    if score_pct >= threshold_low:
+        return RiskRating.LOW
+    elif score_pct >= threshold_moderate:
+        return RiskRating.MODERATE
+    elif score_pct >= threshold_elevated:
+        return RiskRating.ELEVATED
+    else:
+        return RiskRating.HIGH
+
+
+def compute_function_scores(db: Session) -> List[FunctionScore]:
+    """
+    Compute scores for all CSF functions using weighted gap-to-target methodology.
+    
+    Returns:
+        List of FunctionScore objects with computed scores and risk ratings
+    """
+    function_scores = []
+    
+    for csf_function in CSFFunction:
+        # Get all active metrics for this function
+        metrics = (
+            db.query(Metric)
+            .filter(Metric.csf_function == csf_function)
+            .filter(Metric.active == True)
+            .all()
+        )
+        
+        if not metrics:
+            # No metrics for this function
+            function_scores.append(FunctionScore(
+                function=csf_function,
+                score_pct=0.0,
+                risk_rating=RiskRating.HIGH,
+                metrics_count=0,
+                metrics_below_target_count=0,
+                weighted_score=0.0,
+            ))
+            continue
+        
+        # Compute weighted score
+        total_weight = 0.0
+        weighted_sum = 0.0
+        metrics_below_target = 0
+        scoreable_metrics = 0
+        
+        for metric in metrics:
+            weight = float(metric.weight or 1.0)
+            score = compute_metric_score(metric)
+            
+            if score is not None:
+                scoreable_metrics += 1
+                total_weight += weight
+                weighted_sum += score * weight
+                
+                # Count metrics below target (score < 0.9 is considered below target)
+                if score < 0.9:
+                    metrics_below_target += 1
+        
+        if total_weight == 0 or scoreable_metrics == 0:
+            # No scoreable metrics
+            weighted_score = 0.0
+            score_pct = 0.0
+        else:
+            weighted_score = weighted_sum / total_weight
+            score_pct = weighted_score * 100
+        
+        risk_rating = get_risk_rating(score_pct)
+        
+        function_scores.append(FunctionScore(
+            function=csf_function,
+            score_pct=round(score_pct, 1),
+            risk_rating=risk_rating,
+            metrics_count=len(metrics),
+            metrics_below_target_count=metrics_below_target,
+            weighted_score=round(weighted_score, 3),
+        ))
+    
+    return function_scores
+
+
+def compute_overall_score(function_scores: List[FunctionScore]) -> Tuple[float, RiskRating]:
+    """
+    Compute overall organizational score across all functions.
+    
+    Args:
+        function_scores: List of function scores
+        
+    Returns:
+        Tuple of (overall_score_pct, overall_risk_rating)
+    """
+    if not function_scores:
+        return 0.0, RiskRating.HIGH
+    
+    # Filter out functions with no metrics
+    valid_scores = [fs for fs in function_scores if fs.metrics_count > 0]
+    
+    if not valid_scores:
+        return 0.0, RiskRating.HIGH
+    
+    # Simple average across functions (could be weighted by function importance)
+    total_score = sum(fs.weighted_score for fs in valid_scores)
+    overall_weighted_score = total_score / len(valid_scores)
+    overall_score_pct = overall_weighted_score * 100
+    
+    overall_risk_rating = get_risk_rating(overall_score_pct)
+    
+    return round(overall_score_pct, 1), overall_risk_rating
+
+
+def get_metrics_needing_attention(db: Session, limit: int = 10) -> List[Dict]:
+    """
+    Get metrics that need attention (lowest scoring, highest priority).
+    
+    Args:
+        db: Database session
+        limit: Maximum number of metrics to return
+        
+    Returns:
+        List of metric dictionaries with scores and gaps
+    """
+    metrics = (
+        db.query(Metric)
+        .filter(Metric.active == True)
+        .filter(Metric.current_value != None)
+        .all()
+    )
+    
+    scored_metrics = []
+    for metric in metrics:
+        score = compute_metric_score(metric)
+        gap = compute_gap_to_target(metric)
+        
+        if score is not None:
+            scored_metrics.append({
+                "id": str(metric.id),
+                "name": metric.name,
+                "csf_function": metric.csf_function.value,
+                "priority_rank": metric.priority_rank,
+                "score": score,
+                "score_pct": score * 100,
+                "gap_to_target_pct": gap,
+                "current_value": float(metric.current_value),
+                "target_value": float(metric.target_value) if metric.target_value else None,
+                "current_label": metric.current_label,
+                "owner_function": metric.owner_function,
+            })
+    
+    # Sort by priority (1=high) and score (low scores first)
+    scored_metrics.sort(key=lambda x: (x["priority_rank"], x["score"]))
+    
+    return scored_metrics[:limit]
+
+
+def recalculate_all_scores(db: Session) -> Dict:
+    """
+    Recalculate all scores and return summary statistics.
+    
+    This function can be called after weight changes or target updates
+    to refresh all calculated scores.
+    """
+    function_scores = compute_function_scores(db)
+    overall_score_pct, overall_risk_rating = compute_overall_score(function_scores)
+    attention_metrics = get_metrics_needing_attention(db, limit=5)
+    
+    return {
+        "function_scores": [fs.model_dump() for fs in function_scores],
+        "overall_score_pct": overall_score_pct,
+        "overall_risk_rating": overall_risk_rating.value,
+        "metrics_needing_attention": attention_metrics,
+        "recalculated_at": "now",  # Could use actual timestamp
+    }
