@@ -1,6 +1,15 @@
 // API client for NIST CSF 2.0 Metrics Application
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
+
+// Extend AxiosRequestConfig to include our custom metadata
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    metadata?: {
+      startTime: number;
+    };
+  }
+}
 import {
   Metric,
   MetricListResponse,
@@ -17,45 +26,200 @@ import {
 
 class APIClient {
   private client: AxiosInstance;
+  private baseURL: string;
 
   constructor() {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+    // Determine the correct API base URL
+    this.baseURL = this.determineBaseURL();
+    
+    console.log('🔧 Initializing API Client:', {
+      baseURL: this.baseURL,
+      environment: import.meta.env.NODE_ENV,
+      viteApiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+      timestamp: new Date().toISOString(),
+    });
     
     this.client = axios.create({
-      baseURL,
+      baseURL: this.baseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    // Request interceptor
+    // Request interceptor with enhanced logging
     this.client.interceptors.request.use(
       (config) => {
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        const method = config.method?.toUpperCase();
+        const url = config.url;
+        const fullUrl = `${config.baseURL}${url}`;
+        
+        console.log(`🚀 API Request: ${method} ${url}`, {
+          fullUrl,
+          method,
+          baseURL: config.baseURL,
+          timeout: config.timeout,
+          timestamp: new Date().toISOString(),
+        });
+        
+        // Add request timestamp for performance tracking
+        config.metadata = { startTime: Date.now() };
+        
         return config;
       },
       (error) => {
+        console.error('❌ API Request Error:', error);
         return Promise.reject(error);
       }
     );
 
-    // Response interceptor
+    // Response interceptor with enhanced error handling
     this.client.interceptors.response.use(
       (response) => {
+        const duration = Date.now() - (response.config.metadata?.startTime || 0);
+        const method = response.config.method?.toUpperCase();
+        const url = response.config.url;
+        
+        console.log(`✅ API Response: ${method} ${url} (${response.status}) - ${duration}ms`, {
+          status: response.status,
+          statusText: response.statusText,
+          duration,
+          dataSize: JSON.stringify(response.data).length,
+        });
+        
         return response;
       },
       (error) => {
-        console.error('API Error:', error.response?.data || error.message);
+        const duration = Date.now() - (error.config?.metadata?.startTime || 0);
+        const method = error.config?.method?.toUpperCase();
+        const url = error.config?.url;
+        const fullUrl = `${error.config?.baseURL}${url}`;
+        
+        // Enhanced error logging
+        const errorInfo = {
+          message: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          method,
+          url,
+          fullUrl,
+          duration,
+          baseURL: error.config?.baseURL,
+          timeout: error.config?.timeout,
+          responseData: error.response?.data,
+          timestamp: new Date().toISOString(),
+        };
+
+        console.error(`❌ API Response Error: ${method} ${url}`, errorInfo);
+        
+        // Add connection-specific error messages
+        if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+          console.error('🔌 Connection Error: Cannot reach the backend API server');
+          console.error('💡 Troubleshooting tips:');
+          console.error('   1. Check if backend is running on http://localhost:8000');
+          console.error('   2. Verify CORS settings allow requests from this origin');
+          console.error('   3. Check if database is connected and running');
+        }
+
+        if (error.response?.status === 404) {
+          console.error('🔍 Not Found: The requested API endpoint does not exist');
+          console.error(`   Expected URL: ${fullUrl}`);
+        }
+
+        if (error.response?.status >= 500) {
+          console.error('🔥 Server Error: Backend API encountered an internal error');
+          console.error('   Check backend logs for more details');
+        }
+
         return Promise.reject(error);
       }
     );
   }
 
-  // Health check
+
+  // Enhanced method with retry logic
+  private async makeRequest<T>(requestFn: () => Promise<T>, operation: string): Promise<T> {
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 ${operation} (attempt ${attempt}/${maxRetries})`);
+        const result = await requestFn();
+        if (attempt > 1) {
+          console.log(`✅ ${operation} succeeded on retry attempt ${attempt}`);
+        }
+        return result;
+      } catch (error: any) {
+        const isLastAttempt = attempt === maxRetries;
+        const shouldRetry = this.shouldRetryRequest(error);
+
+        if (shouldRetry && !isLastAttempt) {
+          const delay = retryDelay * attempt;
+          console.log(`⏳ ${operation} failed (attempt ${attempt}), retrying in ${delay}ms...`, {
+            error: error.message,
+            status: error.response?.status,
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error(`❌ ${operation} failed after ${attempt} attempts:`, error);
+          throw error;
+        }
+      }
+    }
+
+    throw new Error(`${operation} failed after ${maxRetries} attempts`);
+  }
+
+  private shouldRetryRequest(error: any): boolean {
+    // Don't retry on client errors (4xx) except for 408 (timeout) and 429 (rate limit)
+    if (error.response?.status >= 400 && error.response?.status < 500) {
+      return error.response.status === 408 || error.response.status === 429;
+    }
+
+    // Retry on network errors or server errors (5xx)
+    return !error.response || error.response.status >= 500 || error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK';
+  }
+
+  // Intelligently determine the correct API base URL
+  private determineBaseURL(): string {
+    // 1. For development, use Vite proxy (relative URL)
+    const currentHost = window.location.hostname;
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+      // Use relative URL to leverage Vite proxy configuration
+      // This avoids CORS issues by making requests appear same-origin
+      const proxyUrl = '/api/v1';
+      console.log('🏠 Development environment: Using Vite proxy at', proxyUrl);
+      console.log('🔧 Proxy will forward to backend container via Docker network');
+      return proxyUrl;
+    }
+
+    // 2. Check environment variable for production override
+    if (import.meta.env.VITE_API_BASE_URL) {
+      console.log('🔗 Using API URL from environment:', import.meta.env.VITE_API_BASE_URL);
+      return import.meta.env.VITE_API_BASE_URL;
+    }
+
+    // 3. Production fallback - assume API is on same host with /api/v1 path
+    const currentProtocol = window.location.protocol;
+    const prodApiUrl = `${currentProtocol}//${currentHost}/api/v1`;
+    console.log('🌐 Production environment assumed, using:', prodApiUrl);
+    return prodApiUrl;
+  }
+
+  // Health check with retry logic
   async getHealth(): Promise<HealthResponse> {
-    const response = await this.client.get<HealthResponse>('/health');
-    return response.data;
+    return this.makeRequest(
+      async () => {
+        // Note: Health endpoint is at /health (not /api/v1/health)
+        // Create a temporary client without the baseURL for this specific call
+        const healthResponse = await axios.get<HealthResponse>('/health', {
+          timeout: 10000,
+        });
+        return healthResponse.data;
+      },
+      'Health Check'
+    );
   }
 
   // Metrics endpoints
@@ -137,8 +301,13 @@ class APIClient {
   }
 
   async getDashboardSummary(): Promise<DashboardSummary> {
-    const response = await this.client.get<DashboardSummary>('/scores/dashboard/summary');
-    return response.data;
+    return this.makeRequest(
+      async () => {
+        const response = await this.client.get<DashboardSummary>('/scores/dashboard/summary');
+        return response.data;
+      },
+      'Dashboard Summary Fetch'
+    );
   }
 
   async getFunctionTrend(functionCode: string, days = 30): Promise<any> {
@@ -147,8 +316,13 @@ class APIClient {
   }
 
   async recalculateScores(): Promise<any> {
-    const response = await this.client.post('/scores/recalculate');
-    return response.data;
+    return this.makeRequest(
+      async () => {
+        const response = await this.client.post('/scores/recalculate');
+        return response.data;
+      },
+      'Score Recalculation'
+    );
   }
 
   async getRiskThresholds(): Promise<any> {

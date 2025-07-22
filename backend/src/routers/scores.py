@@ -63,7 +63,7 @@ async def get_function_score(
 
 
 @router.get("/metrics/attention")
-async def get_metrics_needing_attention(
+async def get_metrics_attention_endpoint(
     limit: int = 10,
     db: Session = Depends(get_db),
 ) -> List[Dict[str, Any]]:
