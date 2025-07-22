@@ -79,11 +79,13 @@ function App() {
               component="main"
               sx={{
                 flexGrow: 1,
-                p: 3,
-                width: { sm: `calc(100% - 240px)` },
-                ml: { sm: `240px` },
+                p: { xs: 2, sm: 3 },
                 minHeight: '100vh',
                 backgroundColor: 'background.default',
+                overflow: 'auto',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
               }}
             >
               <Routes>
