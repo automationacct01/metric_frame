@@ -234,53 +234,53 @@ class APIClient {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await this.client.get<MetricListResponse>(`/metrics?${params.toString()}`);
+    const response = await this.client.get<MetricListResponse>(`/metrics/?${params.toString()}`);
     return response.data;
   }
 
   async getMetric(id: string): Promise<Metric> {
-    const response = await this.client.get<Metric>(`/metrics/${id}`);
+    const response = await this.client.get<Metric>(`/metrics/${id}/`);
     return response.data;
   }
 
   async createMetric(metric: Omit<Metric, 'id' | 'created_at' | 'updated_at'>): Promise<Metric> {
-    const response = await this.client.post<Metric>('/metrics', metric);
+    const response = await this.client.post<Metric>('/metrics/', metric);
     return response.data;
   }
 
   async updateMetric(id: string, updates: Partial<Metric>): Promise<Metric> {
-    const response = await this.client.put<Metric>(`/metrics/${id}`, updates);
+    const response = await this.client.put<Metric>(`/metrics/${id}/`, updates);
     return response.data;
   }
 
   async patchMetric(id: string, updates: Partial<Metric>): Promise<Metric> {
-    const response = await this.client.patch<Metric>(`/metrics/${id}`, updates);
+    const response = await this.client.patch<Metric>(`/metrics/${id}/`, updates);
     return response.data;
   }
 
   async deleteMetric(id: string, hardDelete = false): Promise<{ message: string }> {
     const params = hardDelete ? '?hard_delete=true' : '';
-    const response = await this.client.delete<{ message: string }>(`/metrics/${id}${params}`);
+    const response = await this.client.delete<{ message: string }>(`/metrics/${id}/${params}`);
     return response.data;
   }
 
   async addMetricValue(id: string, history: Omit<MetricHistory, 'id' | 'metric_id'>): Promise<MetricHistory> {
-    const response = await this.client.post<MetricHistory>(`/metrics/${id}/values`, history);
+    const response = await this.client.post<MetricHistory>(`/metrics/${id}/values/`, history);
     return response.data;
   }
 
   async getMetricHistory(id: string, limit = 50, offset = 0): Promise<MetricHistory[]> {
-    const response = await this.client.get<MetricHistory[]>(`/metrics/${id}/history?limit=${limit}&offset=${offset}`);
+    const response = await this.client.get<MetricHistory[]>(`/metrics/${id}/history/?limit=${limit}&offset=${offset}`);
     return response.data;
   }
 
   async getCSFFunctions(): Promise<any> {
-    const response = await this.client.get('/metrics/functions/list');
+    const response = await this.client.get('/metrics/functions/list/');
     return response.data;
   }
 
   async getMetricsSummary(): Promise<any> {
-    const response = await this.client.get('/metrics/stats/summary');
+    const response = await this.client.get('/metrics/stats/summary/');
     return response.data;
   }
 

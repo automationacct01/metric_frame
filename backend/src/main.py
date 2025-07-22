@@ -36,6 +36,7 @@ app = FastAPI(
     description="API for managing cybersecurity Key Risk Indicators aligned to NIST Cybersecurity Framework 2.0",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # Configure CORS

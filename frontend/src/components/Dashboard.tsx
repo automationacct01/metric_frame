@@ -34,6 +34,7 @@ import {
 
 import apiClient from '../api/client';
 import ScoreCard from './ScoreCard';
+import { ContentFrame } from './layout';
 import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse } from '../types';
 
 interface DetailedError {
@@ -274,9 +275,9 @@ export default function Dashboard() {
   const overallRiskColor = RISK_RATING_COLORS[dashboard.overall_risk_rating];
 
   return (
-    <Box>
+    <ContentFrame>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             Cybersecurity Risk Dashboard
@@ -303,12 +304,12 @@ export default function Dashboard() {
       </Box>
 
       {/* Overall Score Summary */}
-      <Card sx={{ mb: 3, border: `2px solid ${overallRiskColor}30` }}>
-        <CardContent>
-          <Grid container spacing={3} alignItems="center">
+      <Card sx={{ mb: 4, border: `2px solid ${overallRiskColor}30` }}>
+        <CardContent sx={{ py: 4 }}>
+          <Grid container spacing={4} alignItems="center">
             <Grid item xs={12} md={4}>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h2" sx={{ fontWeight: 700, color: overallRiskColor, mb: 1 }}>
+                <Typography variant="h1" sx={{ fontWeight: 700, color: overallRiskColor, mb: 2, fontSize: '3.5rem' }}>
                   {dashboard.overall_score_pct.toFixed(1)}%
                 </Typography>
                 <Chip
@@ -317,21 +318,22 @@ export default function Dashboard() {
                     backgroundColor: `${overallRiskColor}20`,
                     color: overallRiskColor,
                     fontWeight: 600,
-                    fontSize: '0.9rem',
-                    px: 2,
+                    fontSize: '1rem',
+                    px: 3,
+                    py: 1,
                   }}
                 />
               </Box>
             </Grid>
             
             <Grid item xs={12} md={8}>
-              <Grid container spacing={2}>
+              <Grid container spacing={3}>
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
                       {dashboard.total_metrics}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       Total Metrics
                     </Typography>
                   </Box>
@@ -339,10 +341,10 @@ export default function Dashboard() {
                 
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: 'success.main', mb: 1 }}>
                       {dashboard.metrics_at_target_pct.toFixed(0)}%
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       At Target
                     </Typography>
                   </Box>
@@ -350,10 +352,10 @@ export default function Dashboard() {
                 
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: 'warning.main', mb: 1 }}>
                       {dashboard.metrics_below_target}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       Below Target
                     </Typography>
                   </Box>
@@ -361,10 +363,10 @@ export default function Dashboard() {
                 
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: 'error.main', mb: 1 }}>
                       {dashboard.risk_distribution.high + dashboard.risk_distribution.elevated}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       High Risk Functions
                     </Typography>
                   </Box>
@@ -376,13 +378,13 @@ export default function Dashboard() {
       </Card>
 
       {/* CSF Function Scores */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <AssessmentIcon />
           NIST CSF 2.0 Function Scores
         </Typography>
         
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           {dashboard.function_scores.map((functionScore) => (
             <Grid item xs={12} sm={6} md={4} key={functionScore.function}>
               <ScoreCard
@@ -496,6 +498,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
-    </Box>
+    </ContentFrame>
   );
 }

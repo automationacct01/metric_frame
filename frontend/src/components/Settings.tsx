@@ -28,6 +28,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
+import { ContentFrame } from './layout';
 import { RISK_RATING_COLORS, RiskRating } from '../types';
 
 interface RiskThresholds {
@@ -239,7 +240,7 @@ export default function Settings() {
   };
 
   return (
-    <Box>
+    <ContentFrame>
       <Typography variant="h4" component="h1" gutterBottom>
         Settings
       </Typography>
@@ -535,6 +536,6 @@ export default function Settings() {
           {state.snackbarMessage}
         </Alert>
       </Snackbar>
-    </Box>
+    </ContentFrame>
   );
 }

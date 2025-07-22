@@ -38,6 +38,7 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
+import { ContentFrame } from './layout';
 import { AIChatRequest, AIAction } from '../types';
 
 interface ChatMessage {
@@ -264,7 +265,7 @@ export default function AIChat() {
   };
 
   return (
-    <Box>
+    <ContentFrame>
       <Typography variant="h4" component="h1" gutterBottom>
         AI Assistant
       </Typography>
@@ -540,6 +541,6 @@ export default function AIChat() {
           {state.snackbarMessage}
         </Alert>
       </Snackbar>
-    </Box>
+    </ContentFrame>
   );
 }
