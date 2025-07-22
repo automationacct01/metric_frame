@@ -40,6 +40,8 @@ export interface Metric {
   csf_function: CSFFunction;
   csf_category_code?: string;
   csf_subcategory_code?: string;
+  csf_category_name?: string;
+  csf_subcategory_outcome?: string;
   priority_rank: number;
   weight: number;
   direction: MetricDirection;
@@ -70,6 +72,40 @@ export interface MetricHistory {
   source_ref?: string;
 }
 
+export interface CategoryScore {
+  category_code: string;
+  category_name: string;
+  category_description?: string;
+  score_pct: number;
+  risk_rating: RiskRating;
+  metrics_count: number;
+  metrics_below_target_count: number;
+  weighted_score: number;
+}
+
+export interface CategoryDetailScore extends CategoryScore {
+  metrics: CategoryMetric[];
+}
+
+export interface CategoryMetric {
+  id: string;
+  name: string;
+  score_pct?: number;
+  gap_to_target_pct?: number;
+  current_value?: number;
+  target_value?: number;
+  priority_rank: number;
+  owner_function?: string;
+}
+
+export interface CategoryScoresResponse {
+  function_code: string;
+  function_name: string;
+  category_scores: CategoryScore[];
+  total_categories: number;
+  last_updated: string;
+}
+
 export interface FunctionScore {
   function: CSFFunction;
   score_pct: number;
@@ -96,6 +132,8 @@ export interface MetricListResponse {
 
 export interface MetricFilters {
   function?: CSFFunction;
+  category_code?: string;
+  subcategory_code?: string;
   priority_rank?: number;
   active?: boolean;
   search?: string;
@@ -195,3 +233,34 @@ export const PRIORITY_NAMES: Record<number, string> = {
   2: 'Medium', 
   3: 'Low'
 };
+
+// CSF Reference Types
+export interface CSFSubcategory {
+  code: string;
+  outcome: string;
+}
+
+export interface CSFCategory {
+  code: string;
+  name: string;
+  description: string;
+  subcategories: CSFSubcategory[];
+}
+
+export interface CSFFunctionDetails {
+  code: string;
+  name: string;
+  description: string;
+  categories: CSFCategory[];
+}
+
+export interface CSFValidationResponse {
+  valid: boolean;
+  message?: string;
+}
+
+export interface CSFSuggestionResponse {
+  category_code: string;
+  category_name: string;
+  confidence_score: number;
+}

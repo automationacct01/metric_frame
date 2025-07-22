@@ -2,7 +2,11 @@
 
 from typing import List, Optional
 from uuid import UUID
+import csv
+import io
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
@@ -308,3 +312,105 @@ async def get_metrics_summary(db: Session = Depends(get_db)):
         "priority_breakdown": priority_counts,
         "data_completeness_pct": round((metrics_with_values / total_metrics) * 100, 1) if total_metrics > 0 else 0,
     }
+
+
+@router.get("/export/csv")
+async def export_metrics_csv(
+    function: Optional[CSFFunction] = None,
+    category_code: Optional[str] = None,
+    subcategory_code: Optional[str] = None,
+    priority_rank: Optional[int] = Query(None, ge=1, le=3),
+    active: Optional[bool] = None,
+    search: Optional[str] = None,
+    owner_function: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Export metrics to CSV with all available columns."""
+    
+    # Build the same query as list_metrics but without pagination
+    query = db.query(Metric)
+    
+    # Apply the same filters as list_metrics
+    filters = []
+    if function:
+        filters.append(Metric.csf_function == function)
+    if category_code:
+        filters.append(Metric.csf_category_code == category_code)
+    if subcategory_code:
+        filters.append(Metric.csf_subcategory_code == subcategory_code)
+    if priority_rank:
+        filters.append(Metric.priority_rank == priority_rank)
+    if active is not None:
+        filters.append(Metric.active == active)
+    if owner_function:
+        filters.append(Metric.owner_function.ilike(f"%{owner_function}%"))
+    if search:
+        search_filter = or_(
+            Metric.name.ilike(f"%{search}%"),
+            Metric.description.ilike(f"%{search}%"),
+            Metric.formula.ilike(f"%{search}%"),
+            Metric.notes.ilike(f"%{search}%"),
+        )
+        filters.append(search_filter)
+    
+    if filters:
+        query = query.filter(and_(*filters))
+    
+    # Order by name for consistent export
+    metrics = query.order_by(Metric.name).all()
+    
+    # Create CSV content
+    output = io.StringIO()
+    fieldnames = [
+        'name', 'description', 'formula', 'csf_function', 'csf_category_code', 
+        'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
+        'priority_rank', 'weight', 'direction', 'target_value', 'target_units',
+        'tolerance_low', 'tolerance_high', 'owner_function', 'data_source', 
+        'collection_frequency', 'current_value', 'current_label', 
+        'last_collected_at', 'notes', 'active', 'created_at', 'updated_at'
+    ]
+    
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    
+    for metric in metrics:
+        writer.writerow({
+            'name': metric.name or '',
+            'description': metric.description or '',
+            'formula': metric.formula or '',
+            'csf_function': metric.csf_function.value if metric.csf_function else '',
+            'csf_category_code': metric.csf_category_code or '',
+            'csf_subcategory_code': metric.csf_subcategory_code or '',
+            'csf_category_name': metric.csf_category_name or '',
+            'csf_subcategory_outcome': metric.csf_subcategory_outcome or '',
+            'priority_rank': metric.priority_rank or '',
+            'weight': float(metric.weight) if metric.weight is not None else '',
+            'direction': metric.direction.value if metric.direction else '',
+            'target_value': float(metric.target_value) if metric.target_value is not None else '',
+            'target_units': metric.target_units or '',
+            'tolerance_low': float(metric.tolerance_low) if metric.tolerance_low is not None else '',
+            'tolerance_high': float(metric.tolerance_high) if metric.tolerance_high is not None else '',
+            'owner_function': metric.owner_function or '',
+            'data_source': metric.data_source or '',
+            'collection_frequency': metric.collection_frequency.value if metric.collection_frequency else '',
+            'current_value': float(metric.current_value) if metric.current_value is not None else '',
+            'current_label': metric.current_label or '',
+            'last_collected_at': metric.last_collected_at.isoformat() if metric.last_collected_at else '',
+            'notes': metric.notes or '',
+            'active': metric.active,
+            'created_at': metric.created_at.isoformat() if metric.created_at else '',
+            'updated_at': metric.updated_at.isoformat() if metric.updated_at else '',
+        })
+    
+    output.seek(0)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"metrics_export_{timestamp}.csv"
+    
+    # Return CSV as streaming response
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

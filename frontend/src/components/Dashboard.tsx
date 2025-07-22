@@ -389,11 +389,6 @@ export default function Dashboard() {
             <Grid item xs={12} sm={6} md={4} key={functionScore.function}>
               <ScoreCard
                 functionScore={functionScore}
-                onClick={() => {
-                  // Navigate to filtered metrics view
-                  // This would be implemented with router navigation
-                  console.log(`Clicked on ${functionScore.function} function`);
-                }}
               />
             </Grid>
           ))}

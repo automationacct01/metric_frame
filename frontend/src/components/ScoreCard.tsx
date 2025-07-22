@@ -12,6 +12,7 @@ import {
   TrendingDown,
   Info as InfoIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 import { 
   FunctionScore, 
@@ -33,6 +34,7 @@ export default function ScoreCard({
   showTrend = false, 
   trend 
 }: ScoreCardProps) {
+  const navigate = useNavigate();
   const { function: csfFunction, score_pct, risk_rating, metrics_count, metrics_below_target_count } = functionScore;
   
   const functionName = CSF_FUNCTION_NAMES[csfFunction];
@@ -42,18 +44,27 @@ export default function ScoreCard({
   const metricsAtTarget = metrics_count - metrics_below_target_count;
   const atTargetPercentage = metrics_count > 0 ? (metricsAtTarget / metrics_count) * 100 : 0;
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      // Navigate to function detail page
+      navigate(`/functions/${csfFunction}`);
+    }
+  };
+
   return (
     <Card
       sx={{
-        cursor: onClick ? 'pointer' : 'default',
+        cursor: 'pointer',
         transition: 'all 0.2s ease-in-out',
-        '&:hover': onClick ? {
+        '&:hover': {
           transform: 'translateY(-2px)',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        } : {},
+        },
         border: `2px solid ${riskColor}20`,
       }}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>

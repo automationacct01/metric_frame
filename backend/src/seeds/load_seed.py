@@ -22,7 +22,7 @@ def create_tables():
     print("✅ Database tables created/verified")
 
 
-def load_metrics_from_csv(csv_file: str = "seed_metrics_200.csv"):
+def load_metrics_from_csv(csv_file: str = "seed_metrics_200_enhanced.csv"):
     """Load metrics from CSV file into database."""
     
     csv_path = Path(__file__).parent / csv_file
@@ -53,6 +53,10 @@ def load_metrics_from_csv(csv_file: str = "seed_metrics_200.csv"):
                         'description': row['description'].strip() if row['description'] else None,
                         'formula': row['formula'].strip() if row['formula'] else None,
                         'csf_function': CSFFunction(row['csf_function'].strip()),
+                        'csf_category_code': row['csf_category_code'].strip() if row.get('csf_category_code') and row['csf_category_code'].strip() not in ['', 'None'] else None,
+                        'csf_subcategory_code': row['csf_subcategory_code'].strip() if row.get('csf_subcategory_code') and row['csf_subcategory_code'].strip() not in ['', 'None'] else None,
+                        'csf_category_name': row['csf_category_name'].strip() if row.get('csf_category_name') and row['csf_category_name'].strip() not in ['', 'None'] else None,
+                        'csf_subcategory_outcome': row['csf_subcategory_outcome'].strip() if row.get('csf_subcategory_outcome') and row['csf_subcategory_outcome'].strip() not in ['', 'None'] else None,
                         'priority_rank': int(row['priority_rank']),
                         'direction': MetricDirection(row['direction'].strip()),
                         'target_value': float(row['target_value']) if row['target_value'] else None,
@@ -255,7 +259,7 @@ def main():
         create_tables()
         
         # Load metrics from CSV
-        csv_file = sys.argv[1] if len(sys.argv) > 1 else "seed_metrics_200.csv"
+        csv_file = sys.argv[1] if len(sys.argv) > 1 else "seed_metrics_200_enhanced.csv"
         load_metrics_from_csv(csv_file)
         
         # Add sample history

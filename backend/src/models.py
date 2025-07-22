@@ -65,6 +65,8 @@ class Metric(Base):
     csf_function = Column(Enum(CSFFunction), nullable=False, index=True)
     csf_category_code = Column(String(20))
     csf_subcategory_code = Column(String(20))
+    csf_category_name = Column(String(120))
+    csf_subcategory_outcome = Column(Text)
     
     # Priority and weighting
     priority_rank = Column(Integer, default=2, index=True)  # 1=High, 2=Med, 3=Low
@@ -161,5 +163,6 @@ class User(Base):
 # Create composite indices for better query performance
 Index("idx_metrics_function_priority", Metric.csf_function, Metric.priority_rank)
 Index("idx_metrics_active_function", Metric.active, Metric.csf_function)
+Index("idx_metrics_csf_category", Metric.csf_category_code, Metric.csf_subcategory_code)
 Index("idx_history_metric_collected", MetricHistory.metric_id, MetricHistory.collected_at.desc())
 Index("idx_ai_changes_applied", AIChangeLog.applied, AIChangeLog.created_at.desc())

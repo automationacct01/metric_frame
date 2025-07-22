@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import MetricsGrid from './components/MetricsGrid';
 import AIChat from './components/AIChat';
 import Settings from './components/Settings';
+import FunctionDetail from './components/FunctionDetail';
 
 // Create MUI theme
 const theme = createTheme({
@@ -91,6 +92,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/functions/:functionCode" element={<FunctionDetail />} />
                 <Route path="/metrics" element={<MetricsGrid />} />
                 <Route path="/ai-assistant" element={<AIChat />} />
                 <Route path="/settings" element={<Settings />} />
