@@ -69,10 +69,10 @@ export default function MetricsGrid() {
     loading: true,
     error: null,
     total: 0,
-    pageSize: 25,
+    pageSize: 100,
     page: 0,
     filters: {
-      limit: 25,
+      limit: 100,
       offset: 0,
     },
     selectedMetric: null,
@@ -96,10 +96,15 @@ export default function MetricsGrid() {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
+      // If pageSize is -1 (All), use a high limit to get all metrics
+      const isShowAll = state.pageSize === -1;
+      const limit = isShowAll ? 1000 : state.pageSize;
+      const offset = isShowAll ? 0 : state.page * state.pageSize;
+      
       const response = await apiClient.getMetrics({
         ...state.filters,
-        limit: state.pageSize,
-        offset: state.page * state.pageSize,
+        limit,
+        offset,
       });
       
       setState(prev => ({
@@ -224,9 +229,27 @@ export default function MetricsGrid() {
 
   const columns: GridColDef[] = [
     {
+      field: 'metric_number',
+      headerName: 'ID',
+      width: 80,
+      renderCell: (params: GridRenderCellParams) => (
+        <Chip
+          label={params.value || 'N/A'}
+          size="small"
+          sx={{ 
+            fontFamily: 'monospace', 
+            fontWeight: 600,
+            backgroundColor: '#f5f5f5',
+            color: '#666666',
+            border: '1px solid #e0e0e0'
+          }}
+        />
+      ),
+    },
+    {
       field: 'name',
       headerName: 'Metric Name',
-      width: 320,
+      width: 300,
       renderCell: (params: GridRenderCellParams) => (
         <Tooltip title={params.row.description || 'No description'}>
           <div style={{ 
@@ -542,26 +565,33 @@ export default function MetricsGrid() {
       )}
 
       {/* Data Grid */}
-      <Paper sx={{ height: 600, width: '100%' }}>
+      <Paper sx={{ height: state.pageSize === -1 ? 'auto' : 600, width: '100%' }}>
         <DataGrid
           rows={state.metrics}
           columns={columns}
           initialState={{
             pagination: {
               paginationModel: {
-                pageSize: state.pageSize,
+                pageSize: state.pageSize === -1 ? state.total : state.pageSize,
               },
             },
           }}
-          pageSizeOptions={[10, 25, 50, 100]}
+          pageSizeOptions={[10, 25, 50, 100, { value: -1, label: 'All' }]}
           rowCount={state.total}
-          paginationMode="server"
+          paginationMode={state.pageSize === -1 ? 'client' : 'server'}
           loading={state.loading}
           onPaginationModelChange={(model) => {
-            setState(prev => ({ ...prev, page: model.page, pageSize: model.pageSize }));
+            const newPageSize = model.pageSize === -1 ? -1 : model.pageSize;
+            setState(prev => ({ 
+              ...prev, 
+              page: newPageSize === -1 ? 0 : model.page, 
+              pageSize: newPageSize 
+            }));
           }}
           disableRowSelectionOnClick
           getRowId={(row) => row.id}
+          autoHeight={state.pageSize === -1}
+          hideFooterPagination={state.pageSize === -1}
         />
       </Paper>
 

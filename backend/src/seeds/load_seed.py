@@ -49,6 +49,7 @@ def load_metrics_from_csv(csv_file: str = "seed_metrics_200_enhanced.csv"):
                 try:
                     # Parse and validate data
                     metric_data = {
+                        'metric_number': f"M{metrics_loaded + 1:03d}",  # Generate sequential metric number
                         'name': row['name'].strip(),
                         'description': row['description'].strip() if row['description'] else None,
                         'formula': row['formula'].strip() if row['formula'] else None,

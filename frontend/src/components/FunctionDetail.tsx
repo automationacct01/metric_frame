@@ -370,6 +370,7 @@ export default function FunctionDetail() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell>ID</TableCell>
                     <TableCell>Metric</TableCell>
                     <TableCell>Priority</TableCell>
                     <TableCell align="right">Current</TableCell>
@@ -381,6 +382,20 @@ export default function FunctionDetail() {
                 <TableBody>
                   {attentionMetrics.slice(0, 5).map((metric: any) => (
                     <TableRow key={metric.id} hover>
+                      <TableCell>
+                        <Chip
+                          label={metric.metric_number || 'N/A'}
+                          size="small"
+                          sx={{ 
+                            fontFamily: 'monospace', 
+                            fontWeight: 600,
+                            backgroundColor: '#f5f5f5',
+                            color: '#666666',
+                            border: '1px solid #e0e0e0'
+                          }}
+                        />
+                      </TableCell>
+                      
                       <TableCell>
                         <Tooltip title={metric.name} placement="top">
                           <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>

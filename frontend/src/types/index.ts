@@ -33,6 +33,7 @@ export enum RiskRating {
 
 export interface Metric {
   id: string;
+  metric_number?: string;
   name: string;
   description?: string;
   formula?: string;
