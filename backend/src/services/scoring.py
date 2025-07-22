@@ -232,6 +232,7 @@ def get_metrics_needing_attention(db: Session, limit: int = 10) -> List[Dict]:
         if score is not None:
             scored_metrics.append({
                 "id": str(metric.id),
+                "metric_number": metric.metric_number,
                 "name": metric.name,
                 "csf_function": metric.csf_function.value,
                 "priority_rank": metric.priority_rank,

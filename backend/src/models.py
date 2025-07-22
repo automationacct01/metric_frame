@@ -56,6 +56,7 @@ class Metric(Base):
     __tablename__ = "metrics"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    metric_number = Column(String(10), unique=True, index=True)
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     formula = Column(Text)

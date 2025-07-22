@@ -45,6 +45,7 @@ class RiskRating(str, Enum):
 # Base schemas
 class MetricBase(BaseModel):
     """Base metric schema."""
+    metric_number: Optional[str] = Field(None, max_length=10)
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     formula: Optional[str] = None
@@ -77,6 +78,7 @@ class MetricCreate(MetricBase):
 
 class MetricUpdate(BaseModel):
     """Schema for updating a metric (partial updates allowed)."""
+    metric_number: Optional[str] = Field(None, max_length=10)
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     formula: Optional[str] = None

@@ -68,7 +68,7 @@ async def list_metrics(
     # Apply pagination and ordering
     items = (
         query
-        .order_by(Metric.priority_rank, Metric.csf_function, Metric.name)
+        .order_by(Metric.priority_rank, Metric.metric_number)
         .offset(offset)
         .limit(limit)
         .all()
@@ -356,13 +356,13 @@ async def export_metrics_csv(
     if filters:
         query = query.filter(and_(*filters))
     
-    # Order by name for consistent export
-    metrics = query.order_by(Metric.name).all()
+    # Order by metric_number for consistent export
+    metrics = query.order_by(Metric.metric_number).all()
     
     # Create CSV content
     output = io.StringIO()
     fieldnames = [
-        'name', 'description', 'formula', 'csf_function', 'csf_category_code', 
+        'metric_number', 'name', 'description', 'formula', 'csf_function', 'csf_category_code', 
         'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
         'priority_rank', 'weight', 'direction', 'target_value', 'target_units',
         'tolerance_low', 'tolerance_high', 'owner_function', 'data_source', 
@@ -375,6 +375,7 @@ async def export_metrics_csv(
     
     for metric in metrics:
         writer.writerow({
+            'metric_number': metric.metric_number or '',
             'name': metric.name or '',
             'description': metric.description or '',
             'formula': metric.formula or '',
