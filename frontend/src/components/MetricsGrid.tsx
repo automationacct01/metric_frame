@@ -187,19 +187,30 @@ export default function MetricsGrid() {
 
   const handleExport = async () => {
     try {
+      setState(prev => ({ ...prev, loading: true }));
+      showSnackbar('Preparing export...', 'info');
+      
       const blob = await apiClient.exportMetricsCSV(state.filters);
+      
+      // Extract filename from Content-Disposition header or generate one
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      const filename = `metrics_export_${timestamp}.csv`;
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'metrics.csv';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      showSnackbar('Metrics exported successfully', 'success');
+      
+      showSnackbar(`Export completed: ${filename}`, 'success');
     } catch (error) {
       console.error('Failed to export metrics:', error);
-      showSnackbar('Failed to export metrics', 'error');
+      showSnackbar('Failed to export metrics. Please try again.', 'error');
+    } finally {
+      setState(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -215,10 +226,17 @@ export default function MetricsGrid() {
     {
       field: 'name',
       headerName: 'Metric Name',
-      width: 250,
+      width: 320,
       renderCell: (params: GridRenderCellParams) => (
         <Tooltip title={params.row.description || 'No description'}>
-          <span>{params.value}</span>
+          <div style={{ 
+            whiteSpace: 'normal', 
+            wordWrap: 'break-word',
+            lineHeight: '1.2',
+            padding: '4px 0'
+          }}>
+            {params.value}
+          </div>
         </Tooltip>
       ),
     },
@@ -233,6 +251,36 @@ export default function MetricsGrid() {
           color="primary"
         />
       ),
+    },
+    {
+      field: 'csf_category_name',
+      headerName: 'CSF Category',
+      width: 200,
+      renderCell: (params: GridRenderCellParams) => {
+        const categoryName = params.row.csf_category_name;
+        const categoryCode = params.row.csf_category_code;
+        
+        if (!categoryName && !categoryCode) return <span>-</span>;
+        
+        const displayText = categoryName || categoryCode;
+        const tooltipText = categoryName && categoryCode ? `${categoryName} (${categoryCode})` : displayText;
+        
+        return (
+          <Tooltip title={tooltipText}>
+            <Chip
+              label={displayText}
+              size="small"
+              sx={{ 
+                backgroundColor: '#8a73ff',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: '#7c4dff'
+                }
+              }}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       field: 'priority_rank',

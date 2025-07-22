@@ -315,6 +315,16 @@ class APIClient {
     return response.data;
   }
 
+  async getFunctionCategories(functionCode: string): Promise<any> {
+    const response = await this.client.get(`/scores/functions/${functionCode}/categories`);
+    return response.data;
+  }
+
+  async getCategoryDetails(categoryCode: string): Promise<any> {
+    const response = await this.client.get(`/scores/categories/${categoryCode}`);
+    return response.data;
+  }
+
   async recalculateScores(): Promise<any> {
     return this.makeRequest(
       async () => {
@@ -366,12 +376,16 @@ class APIClient {
     return response.data;
   }
 
-  // CSV Import/Export (future implementation)
+  // CSV Export with all filters
   async exportMetricsCSV(filters?: MetricFilters): Promise<Blob> {
     const params = new URLSearchParams();
     if (filters?.function) params.append('function', filters.function);
+    if (filters?.category_code) params.append('category_code', filters.category_code);
+    if (filters?.subcategory_code) params.append('subcategory_code', filters.subcategory_code);
     if (filters?.priority_rank) params.append('priority_rank', filters.priority_rank.toString());
     if (filters?.active !== undefined) params.append('active', filters.active.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.owner_function) params.append('owner_function', filters.owner_function);
 
     const response = await this.client.get(`/metrics/export/csv?${params.toString()}`, {
       responseType: 'blob',

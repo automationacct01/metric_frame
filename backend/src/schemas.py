@@ -52,6 +52,8 @@ class MetricBase(BaseModel):
     csf_function: CSFFunction
     csf_category_code: Optional[str] = Field(None, max_length=20)
     csf_subcategory_code: Optional[str] = Field(None, max_length=20)
+    csf_category_name: Optional[str] = Field(None, max_length=120)
+    csf_subcategory_outcome: Optional[str] = None
     priority_rank: int = Field(2, ge=1, le=3)
     weight: float = Field(1.0, ge=0.0, le=10.0)
     direction: MetricDirection
@@ -82,6 +84,8 @@ class MetricUpdate(BaseModel):
     csf_function: Optional[CSFFunction] = None
     csf_category_code: Optional[str] = Field(None, max_length=20)
     csf_subcategory_code: Optional[str] = Field(None, max_length=20)
+    csf_category_name: Optional[str] = Field(None, max_length=120)
+    csf_subcategory_outcome: Optional[str] = None
     priority_rank: Optional[int] = Field(None, ge=1, le=3)
     weight: Optional[float] = Field(None, ge=0.0, le=10.0)
     direction: Optional[MetricDirection] = None
@@ -135,6 +139,32 @@ class MetricHistoryResponse(MetricHistoryBase):
 
 
 # Scoring schemas
+class CategoryScore(BaseModel):
+    """Score for a CSF category."""
+    category_code: str
+    category_name: str
+    category_description: Optional[str] = None
+    score_pct: float = Field(..., ge=0.0, le=100.0)
+    risk_rating: RiskRating
+    metrics_count: int = Field(..., ge=0)
+    metrics_below_target_count: int = Field(..., ge=0)
+    weighted_score: float = Field(..., ge=0.0, le=1.0)
+
+
+class CategoryDetailScore(CategoryScore):
+    """Detailed category score with metrics breakdown."""
+    metrics: List[Dict[str, Any]] = []
+
+
+class CategoryScoresResponse(BaseModel):
+    """Response for function category scores."""
+    function_code: str
+    function_name: str
+    category_scores: List[CategoryScore]
+    total_categories: int
+    last_updated: datetime
+
+
 class FunctionScore(BaseModel):
     """Score for a CSF function."""
     function: CSFFunction
@@ -201,6 +231,8 @@ class AIChangeLogResponse(BaseModel):
 class MetricFilters(BaseModel):
     """Filters for metric queries."""
     function: Optional[CSFFunction] = None
+    category_code: Optional[str] = Field(None, max_length=20)
+    subcategory_code: Optional[str] = Field(None, max_length=20)
     priority_rank: Optional[int] = Field(None, ge=1, le=3)
     active: Optional[bool] = None
     search: Optional[str] = Field(None, max_length=255)

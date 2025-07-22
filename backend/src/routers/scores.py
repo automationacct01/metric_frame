@@ -6,15 +6,31 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..schemas import FunctionScore, ScoresResponse
+from ..schemas import FunctionScore, ScoresResponse, CategoryScore, CategoryScoresResponse, CategoryDetailScore
 from ..services.scoring import (
     compute_function_scores,
     compute_overall_score,
     get_metrics_needing_attention,
     recalculate_all_scores,
+    compute_category_scores,
+    compute_category_score,
+    get_category_metrics_summary,
 )
 
 router = APIRouter()
+
+
+def _get_function_name(function_code: str) -> str:
+    """Get human-readable name for function code."""
+    function_names = {
+        "gv": "Govern",
+        "id": "Identify", 
+        "pr": "Protect",
+        "de": "Detect",
+        "rs": "Respond",
+        "rc": "Recover"
+    }
+    return function_names.get(function_code, function_code.upper())
 
 
 @router.get("/", response_model=ScoresResponse)
@@ -60,6 +76,84 @@ async def get_function_score(
             return score
     
     raise HTTPException(status_code=404, detail="Function score not found")
+
+
+@router.get("/functions/{function_code}/categories", response_model=CategoryScoresResponse)
+async def get_function_categories(
+    function_code: str,
+    db: Session = Depends(get_db),
+):
+    """Get category scores for a specific CSF function."""
+    
+    # Validate function code
+    valid_functions = ["gv", "id", "pr", "de", "rs", "rc"]
+    if function_code not in valid_functions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid function code. Must be one of: {valid_functions}"
+        )
+    
+    # Get category scores
+    category_scores_data = compute_category_scores(db, function_code)
+    
+    if not category_scores_data:
+        return CategoryScoresResponse(
+            function_code=function_code,
+            function_name=_get_function_name(function_code),
+            category_scores=[],
+            total_categories=0,
+            last_updated=datetime.utcnow()
+        )
+    
+    # Convert to Pydantic models
+    category_scores = []
+    for cat_data in category_scores_data:
+        category_scores.append(CategoryScore(
+            category_code=cat_data['category_code'],
+            category_name=cat_data['category_name'],
+            category_description=cat_data['category_description'],
+            score_pct=cat_data['score_pct'],
+            risk_rating=cat_data['risk_rating'],
+            metrics_count=cat_data['metrics_count'],
+            metrics_below_target_count=cat_data['metrics_below_target_count'],
+            weighted_score=cat_data['weighted_score'],
+        ))
+    
+    return CategoryScoresResponse(
+        function_code=function_code,
+        function_name=_get_function_name(function_code),
+        category_scores=category_scores,
+        total_categories=len(category_scores),
+        last_updated=datetime.utcnow()
+    )
+
+
+@router.get("/categories/{category_code}", response_model=CategoryDetailScore)
+async def get_category_details(
+    category_code: str,
+    db: Session = Depends(get_db),
+):
+    """Get detailed score and metrics for a specific category."""
+    
+    category_data = compute_category_score(db, category_code)
+    
+    if not category_data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Category '{category_code}' not found or has no metrics"
+        )
+    
+    return CategoryDetailScore(
+        category_code=category_data['category_code'],
+        category_name=category_data['category_name'],
+        category_description=category_data['category_description'],
+        score_pct=category_data['score_pct'],
+        risk_rating=category_data['risk_rating'],
+        metrics_count=category_data['metrics_count'],
+        metrics_below_target_count=category_data['metrics_below_target_count'],
+        weighted_score=category_data['weighted_score'],
+        metrics=category_data['metrics'],
+    )
 
 
 @router.get("/metrics/attention")
