@@ -3,10 +3,12 @@
 import os
 import json
 from typing import Dict, List, Optional, Any
+from uuid import UUID
 from openai import OpenAI
 from anthropic import Anthropic
+from sqlalchemy.orm import Session
 
-from ..schemas import CSFFunction, MetricDirection, CollectionFrequency
+from ..schemas import CSFFunction, MetricDirection, CollectionFrequency, CatalogMappingSuggestion
 
 
 class AIClient:
@@ -308,5 +310,131 @@ Keep narrative concise (1-2 paragraphs per function with significant gaps)."""
             return False
 
 
+    async def generate_csf_mappings(
+        self,
+        catalog_id: UUID,
+        db: Session
+    ) -> List[CatalogMappingSuggestion]:
+        """Generate CSF mapping suggestions for catalog items using AI."""
+        
+        from ..models import MetricCatalogItem
+        
+        # Get catalog items that need mapping
+        items = db.query(MetricCatalogItem).filter(
+            MetricCatalogItem.catalog_id == catalog_id
+        ).all()
+        
+        if not items:
+            return []
+        
+        # Prepare context for AI
+        metrics_context = []
+        for item in items:
+            metrics_context.append({
+                "id": str(item.id),
+                "name": item.name,
+                "description": item.description or "",
+                "formula": item.formula or "",
+                "direction": item.direction.value,
+                "owner_function": item.owner_function or "",
+                "data_source": item.data_source or ""
+            })
+        
+        # Build AI prompt for CSF mapping
+        system_prompt = """You are a NIST CSF 2.0 expert. Map cybersecurity metrics to appropriate CSF functions and categories.
+
+NIST CSF 2.0 Functions and Categories:
+- GOVERN (gv): GV.OC (Oversight & Control), GV.RM (Risk Management), GV.SC (Supply Chain), GV.PO (Policy), GV.OV (Oversight)
+- IDENTIFY (id): ID.AM (Asset Management), ID.RA (Risk Assessment), ID.IM (Improvement), ID.GV (Governance)
+- PROTECT (pr): PR.AA (Access Control), PR.AT (Awareness), PR.DS (Data Security), PR.IP (Information Protection), PR.MA (Maintenance), PR.PT (Protective Technology)
+- DETECT (de): DE.AE (Anomalies and Events), DE.CM (Continuous Monitoring), DE.DP (Detection Processes)
+- RESPOND (rs): RS.RP (Response Planning), RS.CO (Communications), RS.AN (Analysis), RS.MI (Mitigation), RS.IM (Improvements)
+- RECOVER (rc): RC.RP (Recovery Planning), RC.IM (Improvements), RC.CO (Communications)
+
+Respond with JSON mapping each metric to its best CSF function with confidence score:
+
+{
+  "mappings": [
+    {
+      "catalog_item_id": "uuid",
+      "metric_name": "string",
+      "suggested_function": "gv|id|pr|de|rs|rc",
+      "suggested_category": "category_code",
+      "suggested_subcategory": "subcategory_code",
+      "confidence_score": 0.8,
+      "reasoning": "Brief explanation"
+    }
+  ]
+}
+
+Focus on the metric's primary purpose and main data source to determine the best fit."""
+        
+        user_prompt = f"Map these cybersecurity metrics to NIST CSF 2.0 functions:\n\n{json.dumps(metrics_context, indent=2)}"
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        try:
+            # Call AI service
+            if self.model.startswith("gpt") and self.openai_client:
+                response = await self._call_openai(messages, "mapping")
+            elif self.model.startswith("claude") and self.anthropic_client:
+                response = await self._call_anthropic(messages, "mapping")
+            else:
+                if self.openai_client:
+                    response = await self._call_openai(messages, "mapping")
+                else:
+                    raise Exception("No AI service available")
+            
+            # Parse response
+            parsed_response = json.loads(response)
+            mappings = []
+            
+            for mapping_data in parsed_response.get("mappings", []):
+                try:
+                    # Convert function string to enum
+                    func_str = mapping_data.get("suggested_function", "").lower()
+                    csf_function_map = {
+                        "gv": CSFFunction.GOVERN,
+                        "id": CSFFunction.IDENTIFY,
+                        "pr": CSFFunction.PROTECT,
+                        "de": CSFFunction.DETECT,
+                        "rs": CSFFunction.RESPOND,
+                        "rc": CSFFunction.RECOVER
+                    }
+                    
+                    csf_function = csf_function_map.get(func_str)
+                    if not csf_function:
+                        continue
+                    
+                    mapping = CatalogMappingSuggestion(
+                        catalog_item_id=UUID(mapping_data["catalog_item_id"]),
+                        metric_name=mapping_data["metric_name"],
+                        suggested_function=csf_function,
+                        suggested_category=mapping_data.get("suggested_category"),
+                        suggested_subcategory=mapping_data.get("suggested_subcategory"),
+                        confidence_score=float(mapping_data.get("confidence_score", 0.5)),
+                        reasoning=mapping_data.get("reasoning")
+                    )
+                    mappings.append(mapping)
+                
+                except Exception as e:
+                    # Skip invalid mappings
+                    continue
+            
+            return mappings
+            
+        except Exception as e:
+            # Return empty list if AI mapping fails
+            return []
+
+
 # Global AI client instance
 ai_client = AIClient()
+
+
+async def generate_csf_mapping_suggestions(catalog_id: UUID, db: Session) -> List[CatalogMappingSuggestion]:
+    """Generate CSF mapping suggestions for a catalog."""
+    return await ai_client.generate_csf_mappings(catalog_id, db)

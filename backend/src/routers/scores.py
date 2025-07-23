@@ -1,8 +1,9 @@
 """API endpoints for scoring and risk assessment."""
 
 from datetime import datetime
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Dict, Any, Optional
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -16,6 +17,7 @@ from ..services.scoring import (
     compute_category_score,
     get_category_metrics_summary,
 )
+from ..services.catalog_scoring import get_catalog_scoring_service
 
 router = APIRouter()
 
@@ -34,7 +36,11 @@ def _get_function_name(function_code: str) -> str:
 
 
 @router.get("/", response_model=ScoresResponse)
-async def get_current_scores(db: Session = Depends(get_db)):
+async def get_current_scores(
+    catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
+    owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
+    db: Session = Depends(get_db)
+):
     """
     Get current risk scores for all CSF functions.
     
@@ -42,8 +48,13 @@ async def get_current_scores(db: Session = Depends(get_db)):
     - Score and risk rating for each CSF function
     - Overall organizational score
     - Timestamp of calculation
+    
+    If catalog_id is provided, uses that catalog. If owner is provided, 
+    uses the active catalog for that owner. Otherwise uses default metrics.
     """
-    function_scores = compute_function_scores(db)
+    # Use catalog-aware scoring service
+    scoring_service = get_catalog_scoring_service(db)
+    function_scores = scoring_service.compute_function_scores(catalog_id, owner)
     overall_score_pct, overall_risk_rating = compute_overall_score(function_scores)
     
     return ScoresResponse(
@@ -81,6 +92,8 @@ async def get_function_score(
 @router.get("/functions/{function_code}/categories", response_model=CategoryScoresResponse)
 async def get_function_categories(
     function_code: str,
+    catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
+    owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
     db: Session = Depends(get_db),
 ):
     """Get category scores for a specific CSF function."""
@@ -93,8 +106,9 @@ async def get_function_categories(
             detail=f"Invalid function code. Must be one of: {valid_functions}"
         )
     
-    # Get category scores
-    category_scores_data = compute_category_scores(db, function_code)
+    # Get category scores using catalog-aware service
+    scoring_service = get_catalog_scoring_service(db)
+    category_scores_data = scoring_service.compute_category_scores(function_code, catalog_id, owner)
     
     if not category_scores_data:
         return CategoryScoresResponse(
@@ -171,23 +185,29 @@ async def get_metrics_attention_endpoint(
 
 
 @router.get("/dashboard/summary")
-async def get_dashboard_summary(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def get_dashboard_summary(
+    catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
+    owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """
     Get comprehensive dashboard summary with all key metrics.
     
     This endpoint provides all the data needed for the executive dashboard
     including function scores, overall score, and metrics needing attention.
     """
-    function_scores = compute_function_scores(db)
+    # Use catalog-aware scoring service
+    scoring_service = get_catalog_scoring_service(db)
+    function_scores = scoring_service.compute_function_scores(catalog_id, owner)
     overall_score_pct, overall_risk_rating = compute_overall_score(function_scores)
-    attention_metrics = get_metrics_needing_attention(db, limit=5)
+    attention_metrics = get_metrics_needing_attention(db, limit=5)  # TODO: Make this catalog-aware
     
     # Calculate some additional summary stats
     total_metrics = sum(fs.metrics_count for fs in function_scores)
     total_below_target = sum(fs.metrics_below_target_count for fs in function_scores)
     
-    # Count risk ratings
-    risk_counts = {"low": 0, "moderate": 0, "elevated": 0, "high": 0}
+    # Count risk ratings (5-level system)
+    risk_counts = {"very_low": 0, "low": 0, "medium": 0, "high": 0, "very_high": 0}
     for fs in function_scores:
         risk_counts[fs.risk_rating.value] += 1
     
@@ -269,15 +289,17 @@ async def get_risk_thresholds():
     
     return {
         "thresholds": {
-            "low": float(os.getenv("RISK_THRESHOLD_LOW", "85.0")),
-            "moderate": float(os.getenv("RISK_THRESHOLD_MODERATE", "65.0")),
-            "elevated": float(os.getenv("RISK_THRESHOLD_ELEVATED", "40.0")),
+            "very_low": float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0")),
+            "low": float(os.getenv("RISK_THRESHOLD_LOW", "75.0")),
+            "medium": float(os.getenv("RISK_THRESHOLD_MEDIUM", "50.0")),
+            "high": float(os.getenv("RISK_THRESHOLD_HIGH", "30.0")),
         },
         "description": {
-            "low": "≥85% - Low risk, good performance",
-            "moderate": "65-84% - Moderate risk, some gaps",
-            "elevated": "40-64% - Elevated risk, significant gaps", 
-            "high": "<40% - High risk, major gaps",
+            "very_low": "≥90% - Very low risk, excellent performance",
+            "low": "75-89% - Low risk, good performance",
+            "medium": "50-74% - Medium risk, moderate gaps",
+            "high": "30-49% - High risk, significant gaps", 
+            "very_high": "<30% - Very high risk, critical gaps",
         },
-        "note": "Thresholds can be configured via environment variables",
+        "note": "5-level risk thresholds can be configured via environment variables",
     }

@@ -1,0 +1,11 @@
+metric_id,name,description,direction,target_value,target_units,priority_rank,weight,owner_function,data_source,current_value
+SEC-001,Multi-Factor Authentication Coverage,Percentage of user accounts protected with MFA,higher_is_better,100.0,%,1,1.0,IAM,Identity Management System,85.5
+SEC-002,Mean Time to Detect Critical Incidents,Average time to detect high-severity security incidents,lower_is_better,4.0,hours,1,1.0,SOC,SIEM Platform,6.2
+SEC-003,Patch Management Compliance,Percentage of systems with current security patches,higher_is_better,95.0,%,1,1.0,IT Operations,Vulnerability Scanner,92.3
+SEC-004,Backup Recovery Success Rate,Percentage of successful backup recovery tests,higher_is_better,98.0,%,2,0.8,IT Operations,Backup System,96.7
+SEC-005,Security Training Completion,Percentage of employees completing annual security training,higher_is_better,95.0,%,2,0.6,HR,Training Platform,88.9
+SEC-006,Privileged Account Review Frequency,Number of privileged account reviews per year,higher_is_better,4.0,per year,1,1.0,IAM,Identity Management System,3.0
+SEC-007,Mean Time to Respond to Incidents,Average time from incident detection to containment,lower_is_better,24.0,hours,1,1.0,SOC,Incident Response System,18.5
+SEC-008,Data Loss Prevention Alerts,Number of DLP policy violations per month,lower_is_better,10.0,per month,2,0.7,Data Security,DLP System,15.0
+SEC-009,Vulnerability Remediation Time,Average time to remediate critical vulnerabilities,lower_is_better,7.0,days,1,1.0,Security,Vulnerability Management,5.2
+SEC-010,Business Continuity Plan Testing,Number of BCP tests conducted per year,higher_is_better,2.0,per year,2,0.8,Risk Management,BCP System,1.0

@@ -404,6 +404,89 @@ class APIClient {
     });
     return response.data;
   }
+
+  // Catalog endpoints
+  async getCatalogs(owner?: string, activeOnly = false): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (owner) params.append('owner', owner);
+    if (activeOnly) params.append('active_only', 'true');
+
+    const response = await this.client.get<any[]>(`/catalogs/?${params.toString()}`);
+    return response.data;
+  }
+
+  async getCatalog(catalogId: string): Promise<any> {
+    const response = await this.client.get(`/catalogs/${catalogId}`);
+    return response.data;
+  }
+
+  async uploadCatalog(file: File, catalogName: string, description?: string, owner?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('catalog_name', catalogName);
+    if (description) formData.append('description', description);
+    if (owner) formData.append('owner', owner);
+
+    const response = await this.client.post('/catalogs/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async getCatalogMappings(catalogId: string): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/mappings`);
+    return response.data;
+  }
+
+  async saveCatalogMappings(catalogId: string, mappings: any[]): Promise<any> {
+    const response = await this.client.post(`/catalogs/${catalogId}/mappings`, mappings);
+    return response.data;
+  }
+
+  async activateCatalog(catalogId: string, activate = true): Promise<any> {
+    const response = await this.client.post(`/catalogs/${catalogId}/activate`, { activate });
+    return response.data;
+  }
+
+  async deleteCatalog(catalogId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/catalogs/${catalogId}`);
+    return response.data;
+  }
+
+  // Catalog-aware scoring methods
+  async getScoresWithCatalog(catalogId?: string, owner?: string): Promise<ScoresResponse> {
+    const params = new URLSearchParams();
+    if (catalogId) params.append('catalog_id', catalogId);
+    if (owner) params.append('owner', owner);
+
+    const response = await this.client.get<ScoresResponse>(`/scores?${params.toString()}`);
+    return response.data;
+  }
+
+  async getDashboardSummaryWithCatalog(catalogId?: string, owner?: string): Promise<DashboardSummary> {
+    return this.makeRequest(
+      async () => {
+        const params = new URLSearchParams();
+        if (catalogId) params.append('catalog_id', catalogId);
+        if (owner) params.append('owner', owner);
+
+        const response = await this.client.get<DashboardSummary>(`/scores/dashboard/summary?${params.toString()}`);
+        return response.data;
+      },
+      'Dashboard Summary with Catalog Fetch'
+    );
+  }
+
+  async getFunctionCategoriesWithCatalog(functionCode: string, catalogId?: string, owner?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (catalogId) params.append('catalog_id', catalogId);
+    if (owner) params.append('owner', owner);
+
+    const response = await this.client.get(`/scores/functions/${functionCode}/categories?${params.toString()}`);
+    return response.data;
+  }
 }
 
 // Create and export singleton instance

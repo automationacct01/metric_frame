@@ -36,10 +36,11 @@ class CollectionFrequency(str, Enum):
 
 class RiskRating(str, Enum):
     """Risk rating levels."""
+    VERY_LOW = "very_low"
     LOW = "low"
-    MODERATE = "moderate"
-    ELEVATED = "elevated"
+    MEDIUM = "medium"
     HIGH = "high"
+    VERY_HIGH = "very_high"
 
 
 # Base schemas
@@ -250,6 +251,128 @@ class MetricListResponse(BaseModel):
     limit: int
     offset: int
     has_more: bool
+
+
+# Catalog schemas
+class MetricCatalogBase(BaseModel):
+    """Base metric catalog schema."""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    owner: Optional[str] = Field(None, max_length=255)
+
+
+class MetricCatalogCreate(MetricCatalogBase):
+    """Schema for creating a new catalog."""
+    pass
+
+
+class MetricCatalogResponse(MetricCatalogBase):
+    """Schema for catalog responses."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    active: bool = False
+    is_default: bool = False
+    file_format: Optional[str] = None
+    original_filename: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    items_count: Optional[int] = None
+
+
+class MetricCatalogItemBase(BaseModel):
+    """Base catalog item schema."""
+    metric_id: str = Field(..., max_length=100)
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    formula: Optional[str] = None
+    direction: MetricDirection
+    target_value: Optional[float] = None
+    target_units: Optional[str] = Field(None, max_length=50)
+    tolerance_low: Optional[float] = None
+    tolerance_high: Optional[float] = None
+    priority_rank: int = Field(2, ge=1, le=3)
+    weight: float = Field(1.0, ge=0.0, le=10.0)
+    owner_function: Optional[str] = Field(None, max_length=100)
+    data_source: Optional[str] = Field(None, max_length=200)
+    collection_frequency: Optional[CollectionFrequency] = None
+    current_value: Optional[float] = None
+    current_label: Optional[str] = Field(None, max_length=100)
+
+
+class MetricCatalogItemCreate(MetricCatalogItemBase):
+    """Schema for creating catalog items."""
+    original_row_data: Optional[Dict[str, Any]] = None
+    import_notes: Optional[str] = None
+
+
+class MetricCatalogItemResponse(MetricCatalogItemBase):
+    """Schema for catalog item responses."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    catalog_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class MetricCatalogCSFMappingBase(BaseModel):
+    """Base CSF mapping schema."""
+    csf_function: CSFFunction
+    csf_category_code: Optional[str] = Field(None, max_length=20)
+    csf_subcategory_code: Optional[str] = Field(None, max_length=20)
+    csf_category_name: Optional[str] = Field(None, max_length=120)
+    csf_subcategory_outcome: Optional[str] = None
+    confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    mapping_method: Optional[str] = Field(None, max_length=50)
+    mapping_notes: Optional[str] = None
+
+
+class MetricCatalogCSFMappingCreate(MetricCatalogCSFMappingBase):
+    """Schema for creating CSF mappings."""
+    catalog_item_id: UUID
+
+
+class MetricCatalogCSFMappingResponse(MetricCatalogCSFMappingBase):
+    """Schema for CSF mapping responses."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    catalog_id: UUID
+    catalog_item_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class CatalogImportRequest(BaseModel):
+    """Schema for catalog import requests."""
+    catalog_name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    file_format: str = Field(..., pattern=r"^(csv|json)$")
+
+
+class CatalogImportResponse(BaseModel):
+    """Schema for catalog import responses."""
+    catalog_id: UUID
+    items_imported: int
+    import_errors: List[str] = []
+    suggested_mappings: List[Dict[str, Any]] = []
+
+
+class CatalogMappingSuggestion(BaseModel):
+    """Schema for CSF mapping suggestions."""
+    catalog_item_id: UUID
+    metric_name: str
+    suggested_function: CSFFunction
+    suggested_category: Optional[str] = None
+    suggested_subcategory: Optional[str] = None
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    reasoning: Optional[str] = None
+
+
+class CatalogActivationRequest(BaseModel):
+    """Schema for catalog activation."""
+    activate: bool = True
 
 
 # Health check schema

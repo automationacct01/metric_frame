@@ -65,7 +65,15 @@ The application will automatically:
 - **Function Scores**: Performance metrics for each NIST CSF 2.0 function
 - **Risk Ratings**: Color-coded Low/Moderate/Elevated/High risk levels
 - **Attention Metrics**: Top metrics requiring immediate focus
+- **Catalog Switching**: Toggle between default and custom metrics catalogs
 - **Trend Analysis**: Historical performance tracking (future enhancement)
+
+### Bring Your Own Catalog 🆕
+- **Custom Metrics Import**: Upload CSV/JSON files with your organization's metrics
+- **AI-Powered CSF Mapping**: Automatic suggestions for mapping metrics to NIST CSF 2.0 functions
+- **Flexible Field Mapping**: Map your file columns to standard metric fields
+- **Multi-Catalog Support**: Switch between different metrics catalogs seamlessly
+- **Zero Code Changes**: Use existing dashboard and scoring with your own metrics
 
 ### Scoring Methodology
 - **Gap-to-Target**: Transparent calculation based on current vs target values

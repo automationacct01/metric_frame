@@ -41,11 +41,16 @@ import apiClient from '../api/client';
 import { ContentFrame } from './layout';
 import {
   CategoryScoresResponse,
+  FunctionScore,
   CSF_FUNCTION_NAMES,
   CSF_FUNCTION_DESCRIPTIONS,
   RISK_RATING_COLORS,
   PRIORITY_NAMES,
 } from '../types';
+
+const formatRiskRating = (riskRating: string): string => {
+  return riskRating.replace('_', ' ').toUpperCase();
+};
 
 export default function FunctionDetail() {
   const { functionCode } = useParams<{ functionCode: string }>();
@@ -56,6 +61,13 @@ export default function FunctionDetail() {
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery<CategoryScoresResponse>({
     queryKey: ['function-categories', functionCode],
     queryFn: () => apiClient.getFunctionCategories(functionCode!),
+    enabled: !!functionCode,
+  });
+
+  // Fetch function score
+  const { data: functionScore, isLoading: functionScoreLoading } = useQuery<FunctionScore>({
+    queryKey: ['function-score', functionCode],
+    queryFn: () => apiClient.getFunctionScore(functionCode!),
     enabled: !!functionCode,
   });
 
@@ -85,7 +97,7 @@ export default function FunctionDetail() {
   const functionName = CSF_FUNCTION_NAMES[functionCode as keyof typeof CSF_FUNCTION_NAMES];
   const functionDescription = CSF_FUNCTION_DESCRIPTIONS[functionCode as keyof typeof CSF_FUNCTION_DESCRIPTIONS];
 
-  if (categoriesLoading) {
+  if (categoriesLoading || functionScoreLoading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 2 }}>
         <CircularProgress size={60} />
@@ -96,7 +108,7 @@ export default function FunctionDetail() {
     );
   }
 
-  if (categoriesError || !categoryData) {
+  if (categoriesError || !categoryData || !functionScore) {
     return (
       <Box sx={{ mt: 2 }}>
         <Alert severity="error">
@@ -115,10 +127,11 @@ export default function FunctionDetail() {
   }
 
   const getRiskColor = (score: number): string => {
-    if (score >= 85) return RISK_RATING_COLORS['low'];
-    if (score >= 65) return RISK_RATING_COLORS['moderate'];
-    if (score >= 40) return RISK_RATING_COLORS['elevated'];
-    return RISK_RATING_COLORS['high'];
+    if (score >= 90) return RISK_RATING_COLORS['very_low'];
+    if (score >= 75) return RISK_RATING_COLORS['low'];
+    if (score >= 50) return RISK_RATING_COLORS['medium'];
+    if (score >= 30) return RISK_RATING_COLORS['high'];
+    return RISK_RATING_COLORS['very_high'];
   };
 
   return (
@@ -156,6 +169,72 @@ export default function FunctionDetail() {
         </Box>
       </Box>
 
+      {/* Overall Function Score Display */}
+      <Card sx={{ mb: 4, border: `2px solid ${RISK_RATING_COLORS[functionScore.risk_rating]}20` }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                Overall {functionName} Function Score
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Aggregated score across all {categoryData.total_categories} categories
+              </Typography>
+            </Box>
+            
+            <Chip
+              label={formatRiskRating(functionScore.risk_rating)}
+              size="medium"
+              sx={{
+                backgroundColor: `${RISK_RATING_COLORS[functionScore.risk_rating]}20`,
+                color: RISK_RATING_COLORS[functionScore.risk_rating],
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                px: 2,
+                py: 1,
+              }}
+            />
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Typography 
+              variant="h2" 
+              sx={{ 
+                fontWeight: 700, 
+                color: RISK_RATING_COLORS[functionScore.risk_rating],
+                minWidth: '120px'
+              }}
+            >
+              {functionScore.score_pct.toFixed(1)}%
+            </Typography>
+            
+            <Box sx={{ flex: 1 }}>
+              <LinearProgress
+                variant="determinate"
+                value={functionScore.score_pct}
+                sx={{
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: 'grey.200',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: RISK_RATING_COLORS[functionScore.risk_rating],
+                    borderRadius: 6,
+                  },
+                }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {functionScore.metrics_count} total metrics
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {functionScore.metrics_below_target_count} below target
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* Function Summary Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -175,7 +254,7 @@ export default function FunctionDetail() {
                 Categories At Risk
               </Typography>
               <Typography variant="h5" color="error">
-                {categoryData.category_scores.filter(c => c.score_pct < 65).length}
+                {categoryData.category_scores.filter(c => c.score_pct < 50).length}
               </Typography>
             </CardContent>
           </Card>
@@ -299,7 +378,7 @@ export default function FunctionDetail() {
                       </Box>
                       
                       <Chip
-                        label={category.risk_rating.toUpperCase()}
+                        label={formatRiskRating(category.risk_rating)}
                         size="small"
                         sx={{
                           backgroundColor: `${getRiskColor(category.score_pct)}20`,
@@ -437,9 +516,10 @@ export default function FunctionDetail() {
                         <Typography
                           variant="body2"
                           sx={{
-                            color: metric.score_pct < 40 ? 'error.main' : 
-                                   metric.score_pct < 65 ? 'warning.main' : 
-                                   metric.score_pct < 85 ? 'info.main' : 'success.main',
+                            color: metric.score_pct < 30 ? 'error.main' : 
+                                   metric.score_pct < 50 ? 'warning.main' : 
+                                   metric.score_pct < 75 ? 'info.main' : 
+                                   metric.score_pct < 90 ? 'success.main' : 'success.dark',
                             fontWeight: 600,
                           }}
                         >

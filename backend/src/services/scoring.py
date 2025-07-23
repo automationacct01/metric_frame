@@ -89,21 +89,24 @@ def compute_gap_to_target(metric: Metric) -> Optional[float]:
 
 def get_risk_rating(score_pct: float) -> RiskRating:
     """
-    Map function score percentage to risk rating using configurable thresholds.
+    Map function score percentage to risk rating using configurable 5-level thresholds.
     """
-    # Get thresholds from environment or use defaults
-    threshold_low = float(os.getenv("RISK_THRESHOLD_LOW", "85.0"))
-    threshold_moderate = float(os.getenv("RISK_THRESHOLD_MODERATE", "65.0"))
-    threshold_elevated = float(os.getenv("RISK_THRESHOLD_ELEVATED", "40.0"))
+    # Get thresholds from environment or use new 5-level defaults
+    threshold_very_low = float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0"))
+    threshold_low = float(os.getenv("RISK_THRESHOLD_LOW", "75.0"))
+    threshold_medium = float(os.getenv("RISK_THRESHOLD_MEDIUM", "50.0"))
+    threshold_high = float(os.getenv("RISK_THRESHOLD_HIGH", "30.0"))
     
-    if score_pct >= threshold_low:
+    if score_pct >= threshold_very_low:
+        return RiskRating.VERY_LOW
+    elif score_pct >= threshold_low:
         return RiskRating.LOW
-    elif score_pct >= threshold_moderate:
-        return RiskRating.MODERATE
-    elif score_pct >= threshold_elevated:
-        return RiskRating.ELEVATED
-    else:
+    elif score_pct >= threshold_medium:
+        return RiskRating.MEDIUM
+    elif score_pct >= threshold_high:
         return RiskRating.HIGH
+    else:
+        return RiskRating.VERY_HIGH
 
 
 def compute_function_scores(db: Session) -> List[FunctionScore]:
@@ -129,7 +132,7 @@ def compute_function_scores(db: Session) -> List[FunctionScore]:
             function_scores.append(FunctionScore(
                 function=csf_function,
                 score_pct=0.0,
-                risk_rating=RiskRating.HIGH,
+                risk_rating=RiskRating.VERY_HIGH,
                 metrics_count=0,
                 metrics_below_target_count=0,
                 weighted_score=0.0,
@@ -188,13 +191,13 @@ def compute_overall_score(function_scores: List[FunctionScore]) -> Tuple[float, 
         Tuple of (overall_score_pct, overall_risk_rating)
     """
     if not function_scores:
-        return 0.0, RiskRating.HIGH
+        return 0.0, RiskRating.VERY_HIGH
     
     # Filter out functions with no metrics
     valid_scores = [fs for fs in function_scores if fs.metrics_count > 0]
     
     if not valid_scores:
-        return 0.0, RiskRating.HIGH
+        return 0.0, RiskRating.VERY_HIGH
     
     # Simple average across functions (could be weighted by function importance)
     total_score = sum(fs.weighted_score for fs in valid_scores)
