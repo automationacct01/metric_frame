@@ -18,6 +18,8 @@ import {
   SmartToy as AIIcon,
   Settings as SettingsIcon,
   Security as SecurityIcon,
+  Upload as UploadIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material';
 
 import { NavItem } from '../types';
@@ -34,6 +36,16 @@ const navItems: NavItem[] = [
     label: 'Metrics Catalog',
     path: '/metrics',
     icon: MetricsIcon,
+  },
+  {
+    label: 'Import Catalog',
+    path: '/catalog-wizard',
+    icon: UploadIcon,
+  },
+  {
+    label: 'Manage Catalogs',
+    path: '/catalog-manager',
+    icon: StorageIcon,
   },
   {
     label: 'AI Assistant',

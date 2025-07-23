@@ -25,10 +25,11 @@ export enum CollectionFrequency {
 }
 
 export enum RiskRating {
+  VERY_LOW = 'very_low',
   LOW = 'low',
-  MODERATE = 'moderate',
-  ELEVATED = 'elevated',
-  HIGH = 'high'
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  VERY_HIGH = 'very_high'
 }
 
 export interface Metric {
@@ -223,10 +224,11 @@ export const CSF_FUNCTION_DESCRIPTIONS: Record<CSFFunction, string> = {
 };
 
 export const RISK_RATING_COLORS: Record<RiskRating, string> = {
-  [RiskRating.LOW]: '#4caf50',      // Green
-  [RiskRating.MODERATE]: '#ff9800', // Orange
-  [RiskRating.ELEVATED]: '#ff5722', // Deep Orange  
-  [RiskRating.HIGH]: '#f44336'      // Red
+  [RiskRating.VERY_LOW]: '#2e7d32',  // Dark Green
+  [RiskRating.LOW]: '#66bb6a',       // Light Green
+  [RiskRating.MEDIUM]: '#ff9800',    // Orange
+  [RiskRating.HIGH]: '#f44336',      // Light Red
+  [RiskRating.VERY_HIGH]: '#d32f2f'  // Dark Red
 };
 
 export const PRIORITY_NAMES: Record<number, string> = {

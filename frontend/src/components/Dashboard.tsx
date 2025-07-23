@@ -34,6 +34,7 @@ import {
 
 import apiClient from '../api/client';
 import ScoreCard from './ScoreCard';
+import CatalogSelector from './CatalogSelector';
 import { ContentFrame } from './layout';
 import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse } from '../types';
 
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailedError, setDetailedError] = useState<DetailedError | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
 
   // Health check query
   const { data: health } = useQuery<HealthResponse>({
@@ -68,12 +70,14 @@ export default function Dashboard() {
 
   // Fetch dashboard data with enhanced error handling
   const { data: dashboard, isLoading, error, refetch } = useQuery<DashboardSummary>({
-    queryKey: ['dashboard-summary'],
+    queryKey: ['dashboard-summary', selectedCatalogId],
     queryFn: async () => {
       try {
-        console.log('🔄 Fetching dashboard data...');
+        console.log('🔄 Fetching dashboard data...', { catalogId: selectedCatalogId });
         const startTime = Date.now();
-        const data = await apiClient.getDashboardSummary();
+        const data = selectedCatalogId 
+          ? await apiClient.getDashboardSummaryWithCatalog(selectedCatalogId)
+          : await apiClient.getDashboardSummary();
         const endTime = Date.now();
         console.log(`✅ Dashboard data loaded in ${endTime - startTime}ms`, data);
         setDetailedError(null); // Clear any previous errors
@@ -288,6 +292,10 @@ export default function Dashboard() {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <CatalogSelector
+            selectedCatalogId={selectedCatalogId}
+            onCatalogChange={setSelectedCatalogId}
+          />
           <Typography variant="caption" color="text.secondary">
             Last updated: {new Date(dashboard.last_updated).toLocaleString()}
           </Typography>
@@ -364,7 +372,7 @@ export default function Dashboard() {
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'error.main', mb: 1 }}>
-                      {dashboard.risk_distribution.high + dashboard.risk_distribution.elevated}
+                      {(dashboard.risk_distribution.high || 0) + (dashboard.risk_distribution.very_high || 0)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       High Risk Functions

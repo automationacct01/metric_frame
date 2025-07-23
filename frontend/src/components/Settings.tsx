@@ -32,10 +32,10 @@ import { ContentFrame } from './layout';
 import { RISK_RATING_COLORS, RiskRating } from '../types';
 
 interface RiskThresholds {
-  low_threshold: number;
-  moderate_threshold: number;
-  elevated_threshold: number;
-  high_threshold: number;
+  very_low: number;
+  low: number;
+  medium: number;
+  high: number;
 }
 
 interface AppSettings {
@@ -63,10 +63,10 @@ interface SettingsState {
 
 const DEFAULT_SETTINGS: AppSettings = {
   riskThresholds: {
-    low_threshold: 85,
-    moderate_threshold: 65,
-    elevated_threshold: 40,
-    high_threshold: 0,
+    very_low: 90,
+    low: 75,
+    medium: 50,
+    high: 30,
   },
   refreshInterval: 300000, // 5 minutes
   autoRefresh: true,
@@ -104,14 +104,15 @@ export default function Settings() {
     
     try {
       // Load risk thresholds from API
-      const riskThresholds = await apiClient.getRiskThresholds();
+      const riskThresholdsResponse = await apiClient.getRiskThresholds();
+      const riskThresholds = riskThresholdsResponse?.thresholds || DEFAULT_SETTINGS.riskThresholds;
       
       // Load other settings from localStorage or use defaults
       const storedSettings = localStorage.getItem('appSettings');
       const localSettings = storedSettings ? JSON.parse(storedSettings) : {};
       
       const settings: AppSettings = {
-        riskThresholds: riskThresholds || DEFAULT_SETTINGS.riskThresholds,
+        riskThresholds: riskThresholds,
         refreshInterval: localSettings.refreshInterval || DEFAULT_SETTINGS.refreshInterval,
         autoRefresh: localSettings.autoRefresh !== undefined ? localSettings.autoRefresh : DEFAULT_SETTINGS.autoRefresh,
         showNotifications: localSettings.showNotifications !== undefined ? localSettings.showNotifications : DEFAULT_SETTINGS.showNotifications,
@@ -231,12 +232,13 @@ export default function Settings() {
     return `${value / 3600000}h`;
   };
 
-  const getRiskRatingFromScore = (score: number): string => {
+  const getRiskRatingFromScore = (score: number): RiskRating => {
     const { riskThresholds } = state.settings;
-    if (score >= riskThresholds.low_threshold) return 'Low';
-    if (score >= riskThresholds.moderate_threshold) return 'Moderate';
-    if (score >= riskThresholds.elevated_threshold) return 'Elevated';
-    return 'High';
+    if (score >= riskThresholds.very_low) return RiskRating.VERY_LOW;
+    if (score >= riskThresholds.low) return RiskRating.LOW;
+    if (score >= riskThresholds.medium) return RiskRating.MEDIUM;
+    if (score >= riskThresholds.high) return RiskRating.HIGH;
+    return RiskRating.VERY_HIGH;
   };
 
   return (
@@ -267,101 +269,266 @@ export default function Settings() {
               }
             />
             <CardContent>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ mb: 3 }}>
-                    <Typography gutterBottom>
-                      Low Risk (≥{state.settings.riskThresholds.low_threshold}%)
+              {/* Threshold Overview */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+                  Current Thresholds Overview
+                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  height: 20, 
+                  borderRadius: 2, 
+                  overflow: 'hidden',
+                  boxShadow: 1,
+                  mb: 2
+                }}>
+                  <Box sx={{ 
+                    backgroundColor: RISK_RATING_COLORS[RiskRating.VERY_LOW], 
+                    flexGrow: 100 - state.settings.riskThresholds.very_low,
+                    minWidth: 10
+                  }} />
+                  <Box sx={{ 
+                    backgroundColor: RISK_RATING_COLORS[RiskRating.LOW], 
+                    flexGrow: state.settings.riskThresholds.very_low - state.settings.riskThresholds.low,
+                    minWidth: 10
+                  }} />
+                  <Box sx={{ 
+                    backgroundColor: RISK_RATING_COLORS[RiskRating.MEDIUM], 
+                    flexGrow: state.settings.riskThresholds.low - state.settings.riskThresholds.medium,
+                    minWidth: 10
+                  }} />
+                  <Box sx={{ 
+                    backgroundColor: RISK_RATING_COLORS[RiskRating.HIGH], 
+                    flexGrow: state.settings.riskThresholds.medium - state.settings.riskThresholds.high,
+                    minWidth: 10
+                  }} />
+                  <Box sx={{ 
+                    backgroundColor: RISK_RATING_COLORS[RiskRating.VERY_HIGH], 
+                    flexGrow: state.settings.riskThresholds.high,
+                    minWidth: 10
+                  }} />
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', typography: 'caption', color: 'text.secondary' }}>
+                  <span>0%</span>
+                  <span>{state.settings.riskThresholds.high}%</span>
+                  <span>{state.settings.riskThresholds.medium}%</span>
+                  <span>{state.settings.riskThresholds.low}%</span>
+                  <span>{state.settings.riskThresholds.very_low}%</span>
+                  <span>100%</span>
+                </Box>
+              </Box>
+
+              {/* Threshold Configuration */}
+              <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+                {/* Very Low Risk Threshold */}
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      backgroundColor: RISK_RATING_COLORS[RiskRating.VERY_LOW],
+                      mr: 2
+                    }} />
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      Very Low Risk Threshold
                     </Typography>
-                    <Slider
-                      value={state.settings.riskThresholds.low_threshold}
-                      onChange={(_, value) => handleRiskThresholdChange('low_threshold', value as number)}
-                      min={70}
-                      max={100}
-                      marks={[
-                        { value: 70, label: '70%' },
-                        { value: 85, label: '85%' },
-                        { value: 100, label: '100%' },
-                      ]}
-                      valueLabelDisplay="auto"
-                      sx={{ color: RISK_RATING_COLORS[RiskRating.LOW] }}
-                    />
                   </Box>
-                  
-                  <Box sx={{ mb: 3 }}>
-                    <Typography gutterBottom>
-                      Moderate Risk ({state.settings.riskThresholds.moderate_threshold}%-{state.settings.riskThresholds.low_threshold - 1}%)
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Scores ≥{state.settings.riskThresholds.very_low}% are considered very low risk
+                  </Typography>
+                  <Slider
+                    value={state.settings.riskThresholds.very_low}
+                    onChange={(_, value) => handleRiskThresholdChange('very_low', value as number)}
+                    min={85}
+                    max={100}
+                    marks={[
+                      { value: 85, label: '85%' },
+                      { value: 90, label: '90%' },
+                      { value: 95, label: '95%' },
+                      { value: 100, label: '100%' },
+                    ]}
+                    valueLabelDisplay="auto"
+                    sx={{ 
+                      color: RISK_RATING_COLORS[RiskRating.VERY_LOW],
+                      '& .MuiSlider-track': { height: 6 },
+                      '& .MuiSlider-rail': { height: 6 },
+                    }}
+                  />
+                </Box>
+
+                {/* Low Risk Threshold */}
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      backgroundColor: RISK_RATING_COLORS[RiskRating.LOW],
+                      mr: 2
+                    }} />
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      Low Risk Threshold
                     </Typography>
-                    <Slider
-                      value={state.settings.riskThresholds.moderate_threshold}
-                      onChange={(_, value) => handleRiskThresholdChange('moderate_threshold', value as number)}
-                      min={50}
-                      max={state.settings.riskThresholds.low_threshold - 1}
-                      marks={[
-                        { value: 50, label: '50%' },
-                        { value: 65, label: '65%' },
-                        { value: state.settings.riskThresholds.low_threshold - 1, label: `${state.settings.riskThresholds.low_threshold - 1}%` },
-                      ]}
-                      valueLabelDisplay="auto"
-                      sx={{ color: RISK_RATING_COLORS[RiskRating.MODERATE] }}
-                    />
                   </Box>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ mb: 3 }}>
-                    <Typography gutterBottom>
-                      Elevated Risk ({state.settings.riskThresholds.elevated_threshold}%-{state.settings.riskThresholds.moderate_threshold - 1}%)
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Scores {state.settings.riskThresholds.low}%–{state.settings.riskThresholds.very_low - 1}% are considered low risk
+                  </Typography>
+                  <Slider
+                    value={state.settings.riskThresholds.low}
+                    onChange={(_, value) => handleRiskThresholdChange('low', value as number)}
+                    min={65}
+                    max={state.settings.riskThresholds.very_low - 1}
+                    marks={[
+                      { value: 65, label: '65%' },
+                      { value: 75, label: '75%' },
+                      { value: 85, label: '85%' },
+                    ]}
+                    valueLabelDisplay="auto"
+                    sx={{ 
+                      color: RISK_RATING_COLORS[RiskRating.LOW],
+                      '& .MuiSlider-track': { height: 6 },
+                      '& .MuiSlider-rail': { height: 6 },
+                    }}
+                  />
+                </Box>
+
+                {/* Medium Risk Threshold */}
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      backgroundColor: RISK_RATING_COLORS[RiskRating.MEDIUM],
+                      mr: 2
+                    }} />
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      Medium Risk Threshold
                     </Typography>
-                    <Slider
-                      value={state.settings.riskThresholds.elevated_threshold}
-                      onChange={(_, value) => handleRiskThresholdChange('elevated_threshold', value as number)}
-                      min={20}
-                      max={state.settings.riskThresholds.moderate_threshold - 1}
-                      marks={[
-                        { value: 20, label: '20%' },
-                        { value: 40, label: '40%' },
-                        { value: state.settings.riskThresholds.moderate_threshold - 1, label: `${state.settings.riskThresholds.moderate_threshold - 1}%` },
-                      ]}
-                      valueLabelDisplay="auto"
-                      sx={{ color: RISK_RATING_COLORS[RiskRating.ELEVATED] }}
-                    />
                   </Box>
-                  
-                  <Box sx={{ mb: 2 }}>
-                    <Typography gutterBottom>
-                      High Risk (&lt;{state.settings.riskThresholds.elevated_threshold}%)
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Scores {state.settings.riskThresholds.medium}%–{state.settings.riskThresholds.low - 1}% are considered medium risk
+                  </Typography>
+                  <Slider
+                    value={state.settings.riskThresholds.medium}
+                    onChange={(_, value) => handleRiskThresholdChange('medium', value as number)}
+                    min={40}
+                    max={state.settings.riskThresholds.low - 1}
+                    marks={[
+                      { value: 40, label: '40%' },
+                      { value: 50, label: '50%' },
+                      { value: 60, label: '60%' },
+                    ]}
+                    valueLabelDisplay="auto"
+                    sx={{ 
+                      color: RISK_RATING_COLORS[RiskRating.MEDIUM],
+                      '& .MuiSlider-track': { height: 6 },
+                      '& .MuiSlider-rail': { height: 6 },
+                    }}
+                  />
+                </Box>
+
+                {/* High Risk Threshold */}
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      backgroundColor: RISK_RATING_COLORS[RiskRating.HIGH],
+                      mr: 2
+                    }} />
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      High Risk Threshold
                     </Typography>
-                    <Chip 
-                      label={`< ${state.settings.riskThresholds.elevated_threshold}%`}
-                      sx={{ 
-                        backgroundColor: RISK_RATING_COLORS[RiskRating.HIGH],
-                        color: 'white'
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Scores {state.settings.riskThresholds.high}%–{state.settings.riskThresholds.medium - 1}% are considered high risk
+                  </Typography>
+                  <Slider
+                    value={state.settings.riskThresholds.high}
+                    onChange={(_, value) => handleRiskThresholdChange('high', value as number)}
+                    min={10}
+                    max={state.settings.riskThresholds.medium - 1}
+                    marks={[
+                      { value: 10, label: '10%' },
+                      { value: 30, label: '30%' },
+                      { value: 40, label: '40%' },
+                    ]}
+                    valueLabelDisplay="auto"
+                    sx={{ 
+                      color: RISK_RATING_COLORS[RiskRating.HIGH],
+                      '& .MuiSlider-track': { height: 6 },
+                      '& .MuiSlider-rail': { height: 6 },
+                    }}
+                  />
+                </Box>
+
+                {/* Very High Risk Indicator */}
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      backgroundColor: RISK_RATING_COLORS[RiskRating.VERY_HIGH],
+                      mr: 2
+                    }} />
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      Very High Risk
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Scores &lt;{state.settings.riskThresholds.high}% are automatically considered very high risk
+                  </Typography>
+                  <Box sx={{ 
+                    p: 2, 
+                    backgroundColor: 'grey.100', 
+                    borderRadius: 1,
+                    border: `2px solid ${RISK_RATING_COLORS[RiskRating.VERY_HIGH]}`,
+                    textAlign: 'center'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ color: RISK_RATING_COLORS[RiskRating.VERY_HIGH] }}>
+                      &lt; {state.settings.riskThresholds.high}% = Very High Risk
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Preview Section */}
+              <Divider sx={{ my: 4 }} />
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+                  Risk Level Examples
+                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 2, 
+                  flexWrap: 'wrap', 
+                  justifyContent: 'center',
+                  maxWidth: 600,
+                  mx: 'auto'
+                }}>
+                  {[95, 82, 65, 40, 20].map((score) => (
+                    <Chip
+                      key={score}
+                      label={`${score}% = ${getRiskRatingFromScore(score).charAt(0).toUpperCase() + getRiskRatingFromScore(score).slice(1).toLowerCase().replace('_', ' ')}`}
+                      sx={{
+                        backgroundColor: RISK_RATING_COLORS[getRiskRatingFromScore(score)],
+                        color: 'white',
+                        fontSize: '0.875rem',
+                        fontWeight: 'medium',
+                        py: 1,
+                        px: 2,
                       }}
                     />
-                  </Box>
-                </Grid>
-                
-                {/* Preview */}
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="h6" gutterBottom>Preview</Typography>
-                  <Box display="flex" gap={1} flexWrap="wrap">
-                    {[95, 75, 55, 25].map((score) => (
-                      <Chip
-                        key={score}
-                        label={`${score}% = ${getRiskRatingFromScore(score)}`}
-                        sx={{
-                          backgroundColor: RISK_RATING_COLORS[
-                            getRiskRatingFromScore(score).toLowerCase() as keyof typeof RISK_RATING_COLORS
-                          ],
-                          color: 'white',
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Grid>
-              </Grid>
+                  ))}
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  These examples show how different scores map to risk levels with your current thresholds
+                </Typography>
+              </Box>
             </CardContent>
           </Card>
         </Grid>

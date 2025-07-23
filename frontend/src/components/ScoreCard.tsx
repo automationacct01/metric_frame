@@ -21,6 +21,10 @@ import {
   RISK_RATING_COLORS 
 } from '../types';
 
+const formatRiskRating = (riskRating: string): string => {
+  return riskRating.replace('_', ' ').toUpperCase();
+};
+
 interface ScoreCardProps {
   functionScore: FunctionScore;
   onClick?: () => void;
@@ -91,7 +95,7 @@ export default function ScoreCard({
               </Box>
             )}
             
-            <Tooltip title={`Risk Level: ${risk_rating.toUpperCase()}`}>
+            <Tooltip title={`Risk Level: ${formatRiskRating(risk_rating)}`}>
               <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
             </Tooltip>
           </Box>
@@ -105,7 +109,7 @@ export default function ScoreCard({
             </Typography>
             
             <Chip
-              label={risk_rating.toUpperCase()}
+              label={formatRiskRating(risk_rating)}
               size="small"
               sx={{
                 backgroundColor: `${riskColor}20`,
