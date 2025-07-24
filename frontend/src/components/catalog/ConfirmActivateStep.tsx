@@ -31,20 +31,35 @@ interface ConfirmActivateStepProps {
 }
 
 const ConfirmActivateStep: React.FC<ConfirmActivateStepProps> = ({ state }) => {
-  // Mock catalog summary data
+  // Calculate function distribution from confirmed mappings
+  const calculateFunctionDistribution = () => {
+    const distribution: Record<string, number> = {
+      gv: 0,
+      id: 0,
+      pr: 0,
+      de: 0,
+      rs: 0,
+      rc: 0,
+    };
+    
+    if (state.confirmedMappings) {
+      state.confirmedMappings.forEach((mapping: any) => {
+        if (mapping.csf_function && distribution.hasOwnProperty(mapping.csf_function)) {
+          distribution[mapping.csf_function]++;
+        }
+      });
+    }
+    
+    return distribution;
+  };
+
+  // Dynamic catalog summary data
   const catalogSummary = {
     name: state.catalogName || 'Custom Metrics Catalog',
     description: state.description || 'Imported cybersecurity metrics',
-    totalMetrics: 25,
+    totalMetrics: state.itemsImported || 0,
     mappedMetrics: state.confirmedMappings?.length || 0,
-    functionDistribution: {
-      gv: 4,
-      id: 6,
-      pr: 8,
-      de: 3,
-      rs: 2,
-      rc: 2,
-    },
+    functionDistribution: calculateFunctionDistribution(),
   };
 
   const functionNames = {
@@ -151,7 +166,7 @@ const ConfirmActivateStep: React.FC<ConfirmActivateStepProps> = ({ state }) => {
                   </ListItemIcon>
                   <ListItemText
                     primary="Coverage"
-                    secondary={`${((catalogSummary.mappedMetrics / catalogSummary.totalMetrics) * 100).toFixed(1)}% of metrics have CSF mappings`}
+                    secondary={`${catalogSummary.totalMetrics > 0 ? ((catalogSummary.mappedMetrics / catalogSummary.totalMetrics) * 100).toFixed(1) : '0.0'}% of metrics have CSF mappings`}
                   />
                 </ListItem>
               </List>

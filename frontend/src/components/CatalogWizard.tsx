@@ -40,6 +40,7 @@ interface CatalogWizardState {
   description: string;
   catalogId: string | null;
   uploadErrors: string[];
+  itemsImported: number;
   
   // Field mapping step
   parsedData: ParsedCSVData | null;
@@ -52,6 +53,7 @@ interface CatalogWizardState {
   // Enhancement step
   enhancedMetrics: any[];
   acceptedEnhancements: any[];
+  enhancementAttempted: boolean;
   
   // Final step
   isActivating: boolean;
@@ -70,12 +72,14 @@ const CatalogWizard: React.FC = () => {
     description: '',
     catalogId: null,
     uploadErrors: [],
+    itemsImported: 0,
     parsedData: null,
     fieldMappings: {},
     suggestedMappings: [],
     confirmedMappings: [],
     enhancedMetrics: [],
     acceptedEnhancements: [],
+    enhancementAttempted: false,
     isActivating: false,
     activationComplete: false,
   });
@@ -96,12 +100,14 @@ const CatalogWizard: React.FC = () => {
       description: '',
       catalogId: null,
       uploadErrors: [],
+      itemsImported: 0,
       parsedData: null,
       fieldMappings: {},
       suggestedMappings: [],
       confirmedMappings: [],
       enhancedMetrics: [],
       acceptedEnhancements: [],
+      enhancementAttempted: false,
       isActivating: false,
       activationComplete: false,
     });
@@ -148,6 +154,7 @@ const CatalogWizard: React.FC = () => {
             uploadErrors: uploadResult.import_errors || [],
             suggestedMappings: uploadResult.suggested_mappings || [],
             parsedData: parsedData,
+            itemsImported: uploadResult.items_imported,
           });
           
           return true;
@@ -270,7 +277,10 @@ const CatalogWizard: React.FC = () => {
       case 2:
         return wizardState.confirmedMappings.length > 0;
       case 3:
-        return wizardState.acceptedEnhancements.length > 0 || wizardState.enhancedMetrics.length === 0;
+        return (activeStep > 3) && (
+          wizardState.acceptedEnhancements.length > 0 || 
+          (wizardState.enhancementAttempted && wizardState.enhancedMetrics.length === 0)
+        );
       case 4:
         return wizardState.activationComplete;
       default:
