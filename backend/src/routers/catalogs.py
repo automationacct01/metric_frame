@@ -9,7 +9,7 @@ from uuid import UUID
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from ..db import get_db
 from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency
@@ -21,7 +21,9 @@ from ..schemas import (
     CatalogMappingSuggestion,
     CatalogActivationRequest,
     MetricCatalogCSFMappingCreate,
-    MetricCatalogCSFMappingResponse
+    MetricCatalogCSFMappingResponse,
+    MetricResponse,
+    MetricListResponse
 )
 from ..services.ai_client import generate_csf_mapping_suggestions, generate_metric_enhancement_suggestions
 
@@ -380,3 +382,124 @@ async def delete_catalog(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete catalog: {str(e)}")
+
+
+def safe_float(value) -> float | None:
+    """Safely convert a value to float, handling None, Decimal, and invalid values."""
+    if value is None:
+        return None
+    try:
+        float_val = float(value)
+        # Check for NaN, infinity
+        if not (float_val == float_val) or float_val == float('inf') or float_val == float('-inf'):
+            return None
+        return float_val
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatalogCSFMapping = None) -> dict:
+    """Convert a catalog item to metric format for API response."""
+    
+    # Generate a synthetic metric number if not available
+    metric_number = f"C{str(item.id)[:8]}"
+    
+    metric_data = {
+        "id": item.id,
+        "metric_number": metric_number,
+        "name": item.name,
+        "description": item.description,
+        "formula": item.formula,
+        "calc_expr_json": None,
+        "csf_function": mapping.csf_function if mapping else None,
+        "csf_category_code": mapping.csf_category_code if mapping else None,
+        "csf_subcategory_code": mapping.csf_subcategory_code if mapping else None,
+        "csf_category_name": mapping.csf_category_name if mapping else None,
+        "csf_subcategory_outcome": mapping.csf_subcategory_outcome if mapping else None,
+        "priority_rank": item.priority_rank,
+        "weight": safe_float(item.weight) or 1.0,
+        "direction": item.direction,
+        "target_value": safe_float(item.target_value),
+        "target_units": item.target_units,
+        "tolerance_low": safe_float(item.tolerance_low),
+        "tolerance_high": safe_float(item.tolerance_high),
+        "owner_function": item.owner_function,
+        "data_source": item.data_source,
+        "collection_frequency": item.collection_frequency,
+        "last_collected_at": None,
+        "current_value": safe_float(item.current_value),
+        "current_label": item.current_label,
+        "notes": item.import_notes,
+        "active": True,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "metric_score": None,
+        "gap_to_target": None
+    }
+    
+    return metric_data
+
+
+@router.get("/active/metrics", response_model=MetricListResponse)
+async def get_active_catalog_metrics(
+    owner: str = "admin",
+    function: Optional[CSFFunction] = None,
+    priority_rank: Optional[int] = None,
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Get metrics from the active catalog for the specified owner."""
+    
+    # Find active catalog for the owner
+    active_catalog = db.query(MetricCatalog).filter(
+        MetricCatalog.owner == owner,
+        MetricCatalog.active == True
+    ).first()
+    
+    if not active_catalog:
+        raise HTTPException(status_code=404, detail="No active catalog found for this owner")
+    
+    # Query catalog items with their CSF mappings
+    query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
+        MetricCatalogItem.catalog_id == active_catalog.id
+    ).outerjoin(
+        MetricCatalogCSFMapping,
+        MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
+    )
+    
+    # Apply filters
+    if function:
+        query = query.filter(MetricCatalogCSFMapping.csf_function == function)
+    if priority_rank:
+        query = query.filter(MetricCatalogItem.priority_rank == priority_rank)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                MetricCatalogItem.name.ilike(search_term),
+                MetricCatalogItem.description.ilike(search_term)
+            )
+        )
+    
+    # Get total count before pagination
+    total = query.count()
+    
+    # Apply pagination
+    items = query.offset(offset).limit(limit).all()
+    
+    # Convert to metric format
+    metrics = []
+    for item, mapping in items:
+        metric_data = convert_catalog_item_to_metric(item, mapping)
+        metrics.append(MetricResponse(**metric_data))
+    
+    has_more = (offset + limit) < total
+    
+    return MetricListResponse(
+        items=metrics,
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=has_more
+    )

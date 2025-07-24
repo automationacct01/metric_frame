@@ -22,6 +22,7 @@ import {
   Grid,
   Card,
   CardContent,
+  CircularProgress,
 } from '@mui/material';
 import {
   DataGrid,
@@ -61,6 +62,8 @@ interface MetricsGridState {
   snackbarOpen: boolean;
   snackbarMessage: string;
   snackbarSeverity: 'success' | 'error' | 'warning' | 'info';
+  activeCatalog: any | null;
+  catalogLoading: boolean;
 }
 
 export default function MetricsGrid() {
@@ -81,6 +84,8 @@ export default function MetricsGrid() {
     snackbarOpen: false,
     snackbarMessage: '',
     snackbarSeverity: 'info',
+    activeCatalog: null,
+    catalogLoading: true,
   });
 
   const showSnackbar = (message: string, severity: typeof state.snackbarSeverity = 'info') => {
@@ -92,6 +97,31 @@ export default function MetricsGrid() {
     }));
   };
 
+  const loadActiveCatalog = useCallback(async () => {
+    setState(prev => ({ ...prev, catalogLoading: true }));
+    
+    try {
+      const catalogs = await apiClient.getCatalogs('admin', true);
+      const activeCatalog = catalogs.find(c => c.active && !c.is_default);
+      
+      setState(prev => ({
+        ...prev,
+        activeCatalog,
+        catalogLoading: false,
+      }));
+      
+      return activeCatalog;
+    } catch (error) {
+      console.error('Failed to load active catalog:', error);
+      setState(prev => ({
+        ...prev,
+        activeCatalog: null,
+        catalogLoading: false,
+      }));
+      return null;
+    }
+  }, []);
+
   const loadMetrics = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
@@ -101,11 +131,18 @@ export default function MetricsGrid() {
       const limit = isShowAll ? 1000 : state.pageSize;
       const offset = isShowAll ? 0 : state.page * state.pageSize;
       
-      const response = await apiClient.getMetrics({
-        ...state.filters,
-        limit,
-        offset,
-      });
+      // Choose data source based on active catalog
+      const response = state.activeCatalog 
+        ? await apiClient.getActiveCatalogMetrics({
+            ...state.filters,
+            limit,
+            offset,
+          }, 'admin')
+        : await apiClient.getMetrics({
+            ...state.filters,
+            limit,
+            offset,
+          });
       
       setState(prev => ({
         ...prev,
@@ -121,11 +158,20 @@ export default function MetricsGrid() {
         error: 'Failed to load metrics. Please try again.',
       }));
     }
-  }, [state.filters, state.pageSize, state.page]);
+  }, [state.filters, state.pageSize, state.page, state.activeCatalog]);
 
   useEffect(() => {
-    loadMetrics();
-  }, [loadMetrics]);
+    const loadData = async () => {
+      await loadActiveCatalog();
+    };
+    loadData();
+  }, [loadActiveCatalog]);
+
+  useEffect(() => {
+    if (!state.catalogLoading) {
+      loadMetrics();
+    }
+  }, [loadMetrics, state.catalogLoading, state.activeCatalog]);
 
   const handleFilterChange = (field: keyof MetricFilters, value: any) => {
     setState(prev => ({
@@ -425,9 +471,24 @@ export default function MetricsGrid() {
 
   return (
     <ContentFrame>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Metrics Catalog
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Metrics Catalog
+          </Typography>
+          {state.activeCatalog && (
+            <Chip 
+              label={`Active: ${state.activeCatalog.name}`} 
+              color="primary" 
+              size="small"
+              sx={{ mb: 1 }}
+            />
+          )}
+        </Box>
+        {state.catalogLoading && (
+          <CircularProgress size={24} />
+        )}
+      </Box>
 
       {/* Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
