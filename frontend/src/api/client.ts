@@ -238,6 +238,34 @@ class APIClient {
     return response.data;
   }
 
+  async getActiveCatalogMetrics(filters?: MetricFilters, owner = 'admin'): Promise<MetricListResponse> {
+    const params = new URLSearchParams();
+    params.append('owner', owner);
+    
+    if (filters?.function) params.append('function', filters.function);
+    if (filters?.priority_rank) params.append('priority_rank', filters.priority_rank.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+    
+    try {
+      const response = await this.client.get<MetricListResponse>(`/catalogs/active/metrics?${params.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        // No active catalog found, return empty result
+        return {
+          items: [],
+          total: 0,
+          limit: filters?.limit || 100,
+          offset: filters?.offset || 0,
+          has_more: false
+        };
+      }
+      throw error;
+    }
+  }
+
   async getMetric(id: string): Promise<Metric> {
     const response = await this.client.get<Metric>(`/metrics/${id}/`);
     return response.data;
