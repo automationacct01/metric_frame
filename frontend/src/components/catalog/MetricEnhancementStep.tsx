@@ -81,6 +81,9 @@ const MetricEnhancementStep: React.FC<MetricEnhancementStepProps> = ({ state, up
     setLoadingEnhancements(true);
     setEnhancementError(null);
     
+    // Mark that enhancement has been attempted
+    updateState({ enhancementAttempted: true });
+    
     try {
       const enhancedMetrics = await apiClient.enhanceCatalogMetrics(state.catalogId);
       updateState({ enhancedMetrics });
