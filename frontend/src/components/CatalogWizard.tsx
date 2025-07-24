@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { ContentFrame } from './layout';
 import { apiClient } from '../api/client';
+import { parseCSVFile, ParsedCSVData } from '../utils/csvParser';
 
 // Step components
 import FileUploadStep from './catalog/FileUploadStep';
@@ -39,7 +40,7 @@ interface CatalogWizardState {
   uploadErrors: string[];
   
   // Field mapping step
-  parsedData: any[] | null;
+  parsedData: ParsedCSVData | null;
   fieldMappings: Record<string, string>;
   
   // CSF mapping step
@@ -113,6 +114,17 @@ const CatalogWizard: React.FC = () => {
             return false;
           }
           
+          // Parse CSV file to extract column headers
+          let parsedData: ParsedCSVData | null = null;
+          if (wizardState.uploadedFile.name.toLowerCase().endsWith('.csv')) {
+            try {
+              parsedData = await parseCSVFile(wizardState.uploadedFile);
+            } catch (err: any) {
+              setError(`Failed to parse CSV file: ${err.message}`);
+              return false;
+            }
+          }
+          
           // Upload file and parse
           const uploadResult = await apiClient.uploadCatalog(
             wizardState.uploadedFile,
@@ -125,6 +137,7 @@ const CatalogWizard: React.FC = () => {
             catalogId: uploadResult.catalog_id,
             uploadErrors: uploadResult.import_errors || [],
             suggestedMappings: uploadResult.suggested_mappings || [],
+            parsedData: parsedData,
           });
           
           return true;
@@ -142,7 +155,7 @@ const CatalogWizard: React.FC = () => {
 
         case 2: // CSF mapping step
           if (wizardState.confirmedMappings.length === 0) {
-            setError('Please confirm at least one CSF mapping');
+            setError('Please confirm at least one CSF mapping. You can use the "Create Manual Mapping" button if AI suggestions are not available.');
             return false;
           }
           

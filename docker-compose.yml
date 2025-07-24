@@ -20,6 +20,8 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/Dockerfile.backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://nist:nist@db:5432/nistmetrics
       CORS_ORIGINS: http://localhost:5173

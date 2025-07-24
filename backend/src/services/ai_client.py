@@ -2,6 +2,7 @@
 
 import os
 import json
+import asyncio
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 from openai import OpenAI
@@ -19,8 +20,31 @@ class AIClient:
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         self.model = os.getenv("AI_MODEL", "gpt-4o-mini")
         
+        print(f"🔧 AI Client Initialization:")
+        print(f"   - AI_MODEL: {self.model}")
+        print(f"   - OPENAI_API_KEY: {'✅ Set (' + str(len(self.openai_key)) + ' chars)' if self.openai_key else '❌ Not set'}")
+        print(f"   - ANTHROPIC_API_KEY: {'✅ Set (' + str(len(self.anthropic_key)) + ' chars)' if self.anthropic_key else '❌ Not set'}")
+        
         self.openai_client = OpenAI(api_key=self.openai_key) if self.openai_key else None
         self.anthropic_client = Anthropic(api_key=self.anthropic_key) if self.anthropic_key else None
+        
+        if self.openai_client:
+            print("✅ OpenAI client initialized successfully")
+            # Test API key validity
+            try:
+                test_response = self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "test"}],
+                    max_tokens=1
+                )
+                print("✅ OpenAI API key is valid and working")
+            except Exception as e:
+                print(f"❌ OpenAI API key test failed: {str(e)}")
+        
+        if self.anthropic_client:
+            print("✅ Anthropic client initialized successfully")
+        if not (self.openai_client or self.anthropic_client):
+            print("❌ No AI clients initialized - check API keys")
     
     def is_available(self) -> bool:
         """Check if AI service is available."""
@@ -224,29 +248,48 @@ Keep narrative concise (1-2 paragraphs per function with significant gaps)."""
             raise Exception(f"AI service error: {str(e)}")
     
     async def _call_openai(self, messages: List[Dict], mode: str) -> str:
-        """Call OpenAI API."""
-        response = self.openai_client.chat.completions.create(
-            model=self.model if self.model.startswith("gpt") else "gpt-4o-mini",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1500,
-        )
-        return response.choices[0].message.content
+        """Call OpenAI API without timeout restrictions."""
+        try:
+            print(f"🔍 Calling OpenAI with model: {self.model if self.model.startswith('gpt') else 'gpt-4o-mini'}")
+            print(f"🔍 Message count: {len(messages)}")
+            
+            response = await asyncio.to_thread(
+                lambda: self.openai_client.chat.completions.create(
+                    model=self.model if self.model.startswith("gpt") else "gpt-4o-mini",
+                    messages=messages,
+                    temperature=0.7,
+                    timeout=60,  # OpenAI client timeout (generous)
+                )
+            )
+            
+            content = response.choices[0].message.content
+            print(f"🔍 OpenAI response received - Length: {len(content) if content else 0} characters")
+            return content
+            
+        except Exception as e:
+            print(f"❌ OpenAI API call failed: {str(e)}")
+            print(f"❌ OpenAI API key status: {'Set' if self.openai_key else 'Not set'}")
+            raise Exception(f"OpenAI API call failed: {str(e)}")
     
     async def _call_anthropic(self, messages: List[Dict], mode: str) -> str:
-        """Call Anthropic API."""
-        # Convert messages format for Anthropic
-        system_message = next((m["content"] for m in messages if m["role"] == "system"), "")
-        conversation = [m for m in messages if m["role"] != "system"]
-        
-        response = self.anthropic_client.messages.create(
-            model=self.model if self.model.startswith("claude") else "claude-3-5-sonnet-20241022",
-            system=system_message,
-            messages=conversation,
-            max_tokens=1500,
-            temperature=0.7,
-        )
-        return response.content[0].text
+        """Call Anthropic API without timeout restrictions."""
+        try:
+            # Convert messages format for Anthropic
+            system_message = next((m["content"] for m in messages if m["role"] == "system"), "")
+            conversation = [m for m in messages if m["role"] != "system"]
+            
+            response = await asyncio.to_thread(
+                lambda: self.anthropic_client.messages.create(
+                    model=self.model if self.model.startswith("claude") else "claude-3-5-sonnet-20241022",
+                    system=system_message,
+                    messages=conversation,
+                    timeout=60,  # Anthropic client timeout (generous)
+                    temperature=0.7,
+                )
+            )
+            return response.content[0].text
+        except Exception as e:
+            raise Exception(f"Anthropic API call failed: {str(e)}")
     
     def _parse_response(self, response: str, mode: str) -> Dict[str, Any]:
         """Parse AI response based on mode."""
@@ -377,7 +420,9 @@ Focus on the metric's primary purpose and main data source to determine the best
         ]
         
         try:
-            # Call AI service
+            # Call AI service with timeout handling
+            print(f"🤖 Generating CSF mappings for {len(items)} metrics using {self.model}")
+            
             if self.model.startswith("gpt") and self.openai_client:
                 response = await self._call_openai(messages, "mapping")
             elif self.model.startswith("claude") and self.anthropic_client:
@@ -386,10 +431,54 @@ Focus on the metric's primary purpose and main data source to determine the best
                 if self.openai_client:
                     response = await self._call_openai(messages, "mapping")
                 else:
-                    raise Exception("No AI service available")
+                    print("❌ No AI service configured - returning empty mappings")
+                    return []
+            
+            # Debug response content
+            print(f"🔍 Raw AI Response Length: {len(response) if response else 0} characters")
+            print(f"🔍 Raw AI Response Content: {response[:500]}..." if response and len(response) > 500 else f"🔍 Raw AI Response Content: {response}")
+            
+            # Validate response before parsing
+            if not response or response.strip() == "":
+                print("❌ AI returned empty response")
+                return []
+            
+            # Clean response - remove markdown code blocks if present
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]  # Remove ```json
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response[3:]   # Remove ```
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]  # Remove trailing ```
+            cleaned_response = cleaned_response.strip()
+            
+            print(f"🔧 Cleaned response length: {len(cleaned_response)} characters")
+            
+            # Check for response truncation indicators
+            # Note: No max_tokens limit set, but monitor for unusually large responses
+            if len(cleaned_response) >= 50000:  # Very large response warning
+                print("⚠️  Very large response received - check for potential issues")
+            
+            # Check for incomplete JSON structure
+            open_braces = cleaned_response.count('{')
+            close_braces = cleaned_response.count('}')
+            if open_braces != close_braces:
+                print(f"⚠️  JSON structure incomplete: {open_braces} open braces, {close_braces} close braces")
             
             # Parse response
-            parsed_response = json.loads(response)
+            try:
+                parsed_response = json.loads(cleaned_response)
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON parsing failed after cleaning: {str(e)}")
+                print(f"❌ Failed cleaned content: {cleaned_response[:500]}...")
+                
+                # If truncation detected, suggest investigation
+                if "Unterminated string" in str(e) or open_braces != close_braces:
+                    print("💡 Suggestion: Response appears incomplete. Check AI service or network connectivity.")
+                
+                return []
+            
             mappings = []
             
             for mapping_data in parsed_response.get("mappings", []):
@@ -424,10 +513,12 @@ Focus on the metric's primary purpose and main data source to determine the best
                     # Skip invalid mappings
                     continue
             
+            print(f"✅ Generated {len(mappings)} CSF mapping suggestions")
             return mappings
             
         except Exception as e:
-            # Return empty list if AI mapping fails
+            # Log error and return empty list if AI mapping fails
+            print(f"❌ AI mapping generation failed: {str(e)}")
             return []
 
 
