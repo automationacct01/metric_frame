@@ -526,6 +526,20 @@ class APIClient {
     const response = await this.client.get(`/scores/functions/${functionCode}/categories?${params.toString()}`);
     return response.data;
   }
+
+  // Export active catalog metrics to CSV
+  async exportActiveCatalogMetricsCSV(filters?: MetricFilters, owner?: string): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (owner) params.append('owner', owner);
+    if (filters?.function) params.append('function', filters.function);
+    if (filters?.priority_rank) params.append('priority_rank', filters.priority_rank.toString());
+    if (filters?.search) params.append('search', filters.search);
+
+    const response = await this.client.get(`/catalogs/active/metrics/export/csv?${params.toString()}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
 }
 
 // Create and export singleton instance

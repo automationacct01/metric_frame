@@ -2,14 +2,19 @@
 
 import os
 import tempfile
+import logging
+import csv
+import io
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..db import get_db
 from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency
@@ -460,33 +465,56 @@ async def get_active_catalog_metrics(
     if not active_catalog:
         raise HTTPException(status_code=404, detail="No active catalog found for this owner")
     
-    # Query catalog items with their CSF mappings
-    query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
-        MetricCatalogItem.catalog_id == active_catalog.id
-    ).outerjoin(
-        MetricCatalogCSFMapping,
-        MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
-    )
-    
-    # Apply filters
-    if function:
-        query = query.filter(MetricCatalogCSFMapping.csf_function == function)
-    if priority_rank:
-        query = query.filter(MetricCatalogItem.priority_rank == priority_rank)
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                MetricCatalogItem.name.ilike(search_term),
-                MetricCatalogItem.description.ilike(search_term)
+    try:
+        # Query catalog items with their CSF mappings
+        if function:
+            # When filtering by function, use inner join to ensure we only get items with mappings
+            logging.info(f"Filtering active catalog metrics by function: {function}")
+            query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
+                MetricCatalogItem.catalog_id == active_catalog.id
+            ).join(
+                MetricCatalogCSFMapping,
+                MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
+            ).filter(MetricCatalogCSFMapping.csf_function == function)
+        else:
+            # When not filtering by function, use outer join to get all items
+            query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
+                MetricCatalogItem.catalog_id == active_catalog.id
+            ).outerjoin(
+                MetricCatalogCSFMapping,
+                MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
             )
+        
+        # Apply additional filters
+        if priority_rank:
+            query = query.filter(MetricCatalogItem.priority_rank == priority_rank)
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    MetricCatalogItem.name.ilike(search_term),
+                    MetricCatalogItem.description.ilike(search_term)
+                )
+            )
+        
+        # Get total count before pagination
+        total = query.count()
+        
+        # Apply pagination
+        items = query.offset(offset).limit(limit).all()
+        
+    except SQLAlchemyError as e:
+        logging.error(f"Database error when querying active catalog metrics: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Database error when retrieving catalog metrics: {str(e)}"
         )
-    
-    # Get total count before pagination
-    total = query.count()
-    
-    # Apply pagination
-    items = query.offset(offset).limit(limit).all()
+    except Exception as e:
+        logging.error(f"Unexpected error when querying active catalog metrics: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Unexpected error when retrieving catalog metrics: {str(e)}"
+        )
     
     # Convert to metric format
     metrics = []
@@ -502,4 +530,108 @@ async def get_active_catalog_metrics(
         limit=limit,
         offset=offset,
         has_more=has_more
+    )
+
+
+@router.get("/active/metrics/export/csv")
+async def export_active_catalog_metrics_csv(
+    owner: str = "admin",
+    function: Optional[CSFFunction] = None,
+    priority_rank: Optional[int] = Query(None, ge=1, le=3),
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Export active catalog metrics to CSV with all available columns."""
+    
+    # Find active catalog for the owner
+    active_catalog = db.query(MetricCatalog).filter(
+        MetricCatalog.owner == owner,
+        MetricCatalog.active == True
+    ).first()
+    
+    if not active_catalog:
+        raise HTTPException(status_code=404, detail="No active catalog found for this owner")
+    
+    try:
+        # Build the same query as get_active_catalog_metrics but without pagination
+        if function:
+            query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
+                MetricCatalogItem.catalog_id == active_catalog.id
+            ).join(
+                MetricCatalogCSFMapping,
+                MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
+            ).filter(MetricCatalogCSFMapping.csf_function == function)
+        else:
+            query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
+                MetricCatalogItem.catalog_id == active_catalog.id
+            ).outerjoin(
+                MetricCatalogCSFMapping,
+                MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
+            )
+        
+        # Apply additional filters
+        if priority_rank:
+            query = query.filter(MetricCatalogItem.priority_rank == priority_rank)
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    MetricCatalogItem.name.ilike(search_term),
+                    MetricCatalogItem.description.ilike(search_term)
+                )
+            )
+        
+        # Get all items without pagination
+        items = query.all()
+        
+    except SQLAlchemyError as e:
+        logging.error(f"Database error when exporting active catalog metrics: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Database error when exporting catalog metrics: {str(e)}"
+        )
+    except Exception as e:
+        logging.error(f"Unexpected error when exporting active catalog metrics: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Unexpected error when exporting catalog metrics: {str(e)}"
+        )
+    
+    # Convert to metric format and prepare CSV data
+    output = io.StringIO()
+    
+    # Define CSV columns based on the metric structure
+    fieldnames = [
+        'id', 'metric_number', 'name', 'description', 'formula',
+        'csf_function', 'csf_category_code', 'csf_subcategory_code',
+        'csf_category_name', 'csf_subcategory_outcome',
+        'priority_rank', 'weight', 'direction', 'target_value', 'target_units',
+        'tolerance_low', 'tolerance_high', 'owner_function', 'data_source',
+        'collection_frequency', 'current_value', 'current_label', 'notes',
+        'active', 'created_at', 'updated_at'
+    ]
+    
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    
+    for item, mapping in items:
+        metric_data = convert_catalog_item_to_metric(item, mapping)
+        # Convert datetime objects to strings for CSV
+        if metric_data.get('created_at'):
+            metric_data['created_at'] = metric_data['created_at'].isoformat()
+        if metric_data.get('updated_at'):
+            metric_data['updated_at'] = metric_data['updated_at'].isoformat()
+        writer.writerow(metric_data)
+    
+    # Prepare the response
+    output.seek(0)
+    
+    # Create filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"active_catalog_metrics_{timestamp}.csv"
+    
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        media_type='text/csv',
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
