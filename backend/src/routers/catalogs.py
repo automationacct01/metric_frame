@@ -23,7 +23,7 @@ from ..schemas import (
     MetricCatalogCSFMappingCreate,
     MetricCatalogCSFMappingResponse
 )
-from ..services.ai_client import generate_csf_mapping_suggestions
+from ..services.ai_client import generate_csf_mapping_suggestions, generate_metric_enhancement_suggestions
 
 router = APIRouter(prefix="/catalogs", tags=["catalogs"])
 
@@ -227,6 +227,23 @@ async def get_catalog_mappings(
         raise HTTPException(status_code=500, detail=f"Failed to generate mappings: {str(e)}")
 
 
+@router.get("/{catalog_id}/enhancements")
+async def get_catalog_enhancements(
+    catalog_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Get AI-powered metric enhancement suggestions for a catalog."""
+    catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    
+    try:
+        enhancements = await generate_metric_enhancement_suggestions(catalog_id, db)
+        return enhancements
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate enhancements: {str(e)}")
+
+
 @router.post("/{catalog_id}/mappings", response_model=List[MetricCatalogCSFMappingResponse])
 async def save_catalog_mappings(
     catalog_id: UUID,
@@ -247,9 +264,18 @@ async def save_catalog_mappings(
         # Create new mappings
         saved_mappings = []
         for mapping_data in mappings:
+            # Convert mapping data with explicit enum handling
+            mapping_dict = mapping_data.model_dump()
+            
+            # Ensure CSF function is properly converted to enum
+            if 'csf_function' in mapping_dict:
+                csf_func_str = mapping_dict['csf_function']
+                if isinstance(csf_func_str, str):
+                    mapping_dict['csf_function'] = CSFFunction(csf_func_str)
+            
             mapping = MetricCatalogCSFMapping(
                 catalog_id=catalog_id,
-                **mapping_data.model_dump()
+                **mapping_dict
             )
             db.add(mapping)
             saved_mappings.append(mapping)

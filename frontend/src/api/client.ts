@@ -443,6 +443,14 @@ class APIClient {
     return response.data;
   }
 
+  async enhanceCatalogMetrics(catalogId: string, signal?: AbortSignal): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/enhancements`, {
+      timeout: 0, // No timeout - allow unlimited processing time
+      signal // Support for cancellation
+    });
+    return response.data;
+  }
+
   async saveCatalogMappings(catalogId: string, mappings: any[]): Promise<any> {
     const response = await this.client.post(`/catalogs/${catalogId}/mappings`, mappings);
     return response.data;

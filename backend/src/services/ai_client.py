@@ -521,6 +521,143 @@ Focus on the metric's primary purpose and main data source to determine the best
             print(f"❌ AI mapping generation failed: {str(e)}")
             return []
 
+    async def enhance_catalog_metrics(
+        self,
+        catalog_id: UUID,
+        db: Session
+    ) -> List[Dict[str, Any]]:
+        """Generate metric enhancement suggestions using AI."""
+        
+        from ..models import MetricCatalogItem
+        
+        # Get catalog items that have been mapped
+        items = db.query(MetricCatalogItem).filter(
+            MetricCatalogItem.catalog_id == catalog_id
+        ).all()
+        
+        if not items:
+            return []
+        
+        # Prepare context for AI enhancement
+        metrics_context = []
+        for item in items:
+            metrics_context.append({
+                "id": str(item.id),
+                "name": item.name,
+                "description": item.description or "",
+                "formula": item.formula or "",
+                "direction": item.direction.value,
+                "target_value": float(item.target_value) if item.target_value else None,
+                "target_units": item.target_units or "",
+                "current_data_source": item.data_source or "",
+                "current_owner_function": item.owner_function or "",
+                "current_collection_frequency": item.collection_frequency.value if item.collection_frequency else ""
+            })
+        
+        # Build AI prompt for metric enhancement
+        system_prompt = """You are a cybersecurity metrics expert. Analyze each metric and suggest optimal configurations for enterprise environments.
+
+OWNER FUNCTIONS (choose the most appropriate):
+- GRC: Governance, Risk, and Compliance team
+- SecOps: Security Operations team  
+- IAM: Identity and Access Management team
+- IT Ops: IT Operations team
+- IR: Incident Response team
+- BCP: Business Continuity Planning team
+- CISO: Chief Information Security Officer office
+
+PRIORITY LEVELS:
+- 1 (High): Critical business metrics, regulatory compliance, major risk indicators
+- 2 (Medium): Important operational metrics, performance tracking
+- 3 (Low): Nice-to-have metrics, secondary indicators
+
+COLLECTION FREQUENCIES:
+- daily: Real-time operational metrics, security monitoring
+- weekly: Regular performance reviews, trend analysis
+- monthly: Management reporting, compliance metrics
+- quarterly: Strategic reviews, board reporting
+- ad_hoc: Event-driven or special assessment metrics
+
+DATA SOURCES should be specific tools/systems (e.g., "SIEM platform", "Identity management system", "Vulnerability scanner", "Backup management console").
+
+Respond with JSON suggesting enhancements for each metric:
+
+{
+  "enhancements": [
+    {
+      "catalog_item_id": "uuid",
+      "metric_name": "string",
+      "suggested_priority": 1|2|3,
+      "suggested_owner_function": "GRC|SecOps|IAM|IT Ops|IR|BCP|CISO",
+      "suggested_data_source": "specific tool/system name",
+      "suggested_collection_frequency": "daily|weekly|monthly|quarterly|ad_hoc",
+      "reasoning": "Brief explanation of suggestions"
+    }
+  ]
+}
+
+Focus on practical, implementable suggestions based on industry best practices and metric characteristics."""
+        
+        user_prompt = f"Suggest optimal configurations for these cybersecurity metrics:\n\n{json.dumps(metrics_context, indent=2)}"
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        try:
+            # Call AI service
+            print(f"🤖 Generating metric enhancements for {len(items)} metrics using {self.model}")
+            
+            if self.model.startswith("gpt") and self.openai_client:
+                response = await self._call_openai(messages, "enhancement")
+            elif self.model.startswith("claude") and self.anthropic_client:
+                response = await self._call_anthropic(messages, "enhancement")
+            else:
+                if self.openai_client:
+                    response = await self._call_openai(messages, "enhancement")
+                else:
+                    print("❌ No AI service configured - returning empty enhancements")
+                    return []
+            
+            # Debug response content
+            print(f"🔍 Raw AI Response Length: {len(response) if response else 0} characters")
+            print(f"🔍 Raw AI Response Content: {response[:500]}..." if response and len(response) > 500 else f"🔍 Raw AI Response Content: {response}")
+            
+            # Validate response before parsing
+            if not response or response.strip() == "":
+                print("❌ AI returned empty response")
+                return []
+            
+            # Clean response - remove markdown code blocks if present
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response[3:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            cleaned_response = cleaned_response.strip()
+            
+            print(f"🔧 Cleaned response length: {len(cleaned_response)} characters")
+            
+            # Parse response
+            try:
+                parsed_response = json.loads(cleaned_response)
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON parsing failed after cleaning: {str(e)}")
+                print(f"❌ Failed cleaned content: {cleaned_response[:500]}...")
+                return []
+            
+            enhancements = parsed_response.get("enhancements", [])
+            print(f"✅ Generated {len(enhancements)} metric enhancement suggestions")
+            return enhancements
+            
+        except Exception as e:
+            # Log error and return empty list if AI enhancement fails
+            print(f"❌ AI enhancement generation failed: {str(e)}")
+            return []
+
 
 # Global AI client instance
 ai_client = AIClient()
@@ -529,3 +666,8 @@ ai_client = AIClient()
 async def generate_csf_mapping_suggestions(catalog_id: UUID, db: Session) -> List[CatalogMappingSuggestion]:
     """Generate CSF mapping suggestions for a catalog."""
     return await ai_client.generate_csf_mappings(catalog_id, db)
+
+
+async def generate_metric_enhancement_suggestions(catalog_id: UUID, db: Session) -> List[Dict[str, Any]]:
+    """Generate metric enhancement suggestions for a catalog."""
+    return await ai_client.enhance_catalog_metrics(catalog_id, db)
