@@ -22,12 +22,14 @@ import { parseCSVFile, ParsedCSVData } from '../utils/csvParser';
 import FileUploadStep from './catalog/FileUploadStep';
 import FieldMappingStep from './catalog/FieldMappingStep';
 import CSFMappingStep from './catalog/CSFMappingStep';
+import MetricEnhancementStep from './catalog/MetricEnhancementStep';
 import ConfirmActivateStep from './catalog/ConfirmActivateStep';
 
 const steps = [
   'Upload File',
   'Map Fields', 
   'Map to CSF',
+  'Enhance Metrics',
   'Confirm & Activate'
 ];
 
@@ -46,6 +48,10 @@ interface CatalogWizardState {
   // CSF mapping step
   suggestedMappings: any[];
   confirmedMappings: any[];
+  
+  // Enhancement step
+  enhancedMetrics: any[];
+  acceptedEnhancements: any[];
   
   // Final step
   isActivating: boolean;
@@ -68,6 +74,8 @@ const CatalogWizard: React.FC = () => {
     fieldMappings: {},
     suggestedMappings: [],
     confirmedMappings: [],
+    enhancedMetrics: [],
+    acceptedEnhancements: [],
     isActivating: false,
     activationComplete: false,
   });
@@ -92,6 +100,8 @@ const CatalogWizard: React.FC = () => {
       fieldMappings: {},
       suggestedMappings: [],
       confirmedMappings: [],
+      enhancedMetrics: [],
+      acceptedEnhancements: [],
       isActivating: false,
       activationComplete: false,
     });
@@ -169,7 +179,16 @@ const CatalogWizard: React.FC = () => {
           
           return true;
 
-        case 3: // Activation step
+        case 3: // Enhancement step
+          // Enhancement is optional - allow proceeding even without enhancements
+          // But if enhancements were generated, require at least some to be accepted
+          if (wizardState.enhancedMetrics.length > 0 && wizardState.acceptedEnhancements.length === 0) {
+            setError('Please accept at least one metric enhancement or proceed without enhancements.');
+            return false;
+          }
+          return true;
+
+        case 4: // Activation step
           if (wizardState.catalogId) {
             updateWizardState({ isActivating: true });
             await apiClient.activateCatalog(wizardState.catalogId, true);
@@ -219,6 +238,14 @@ const CatalogWizard: React.FC = () => {
         );
       case 3:
         return (
+          <MetricEnhancementStep
+            state={wizardState}
+            updateState={updateWizardState}
+            error={error}
+          />
+        );
+      case 4:
+        return (
           <ConfirmActivateStep
             state={wizardState}
             updateState={updateWizardState}
@@ -243,6 +270,8 @@ const CatalogWizard: React.FC = () => {
       case 2:
         return wizardState.confirmedMappings.length > 0;
       case 3:
+        return wizardState.acceptedEnhancements.length > 0 || wizardState.enhancedMetrics.length === 0;
+      case 4:
         return wizardState.activationComplete;
       default:
         return false;
