@@ -63,7 +63,7 @@ class Metric(Base):
     calc_expr_json = Column(JSON)
     
     # NIST CSF 2.0 alignment
-    csf_function = Column(Enum(CSFFunction), nullable=False, index=True)
+    csf_function = Column(Enum(CSFFunction, name='csffunction', values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
     csf_category_code = Column(String(20))
     csf_subcategory_code = Column(String(20))
     csf_category_name = Column(String(120))
@@ -225,7 +225,7 @@ class MetricCatalogCSFMapping(Base):
     catalog_item_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalog_items.id"), nullable=False)
     
     # CSF mapping
-    csf_function = Column(Enum(CSFFunction), nullable=False, index=True)
+    csf_function = Column(Enum(CSFFunction, name='csffunction', values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
     csf_category_code = Column(String(20))
     csf_subcategory_code = Column(String(20))
     csf_category_name = Column(String(120))

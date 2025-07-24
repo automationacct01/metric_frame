@@ -101,8 +101,25 @@ export default function MetricsGrid() {
     setState(prev => ({ ...prev, catalogLoading: true }));
     
     try {
-      const catalogs = await apiClient.getCatalogs('admin', true);
-      const activeCatalog = catalogs.find(c => c.active && !c.is_default);
+      // First, try to get only active catalogs
+      const activeCatalogs = await apiClient.getCatalogs('admin', true);
+      
+      // Look for a non-default active catalog first
+      let activeCatalog = activeCatalogs.find(c => c.active && !c.is_default);
+      
+      // If no custom active catalog found, check if default catalog is being used
+      if (!activeCatalog && activeCatalogs.length === 0) {
+        // No active catalogs found, fall back to checking all catalogs
+        const allCatalogs = await apiClient.getCatalogs('admin', false);
+        activeCatalog = allCatalogs.find(c => c.active);
+      }
+      
+      // Log for debugging
+      console.log('Active catalog detection:', {
+        activeCatalogs,
+        selectedCatalog: activeCatalog,
+        usingCustomCatalog: activeCatalog && !activeCatalog.is_default
+      });
       
       setState(prev => ({
         ...prev,
@@ -150,12 +167,39 @@ export default function MetricsGrid() {
         total: response.total,
         loading: false,
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load metrics:', error);
+      
+      let errorMessage = 'Failed to load metrics. Please try again.';
+      
+      // Provide more specific error messages based on error type
+      if (error.response) {
+        const status = error.response.status;
+        const detail = error.response.data?.detail;
+        
+        if (status === 404) {
+          errorMessage = state.activeCatalog 
+            ? 'No active catalog found. Please check your catalog settings.'
+            : 'Metrics endpoint not found. Please check the API configuration.';
+        } else if (status === 500) {
+          errorMessage = detail 
+            ? `Server error: ${detail}`
+            : 'Internal server error occurred while loading metrics.';
+        } else if (status >= 400 && status < 500) {
+          errorMessage = detail || `Request error (${status}). Please check your filters and try again.`;
+        } else if (status >= 500) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        }
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to the server. Please check if the backend is running.';
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
       setState(prev => ({
         ...prev,
         loading: false,
-        error: 'Failed to load metrics. Please try again.',
+        error: errorMessage,
       }));
     }
   }, [state.filters, state.pageSize, state.page, state.activeCatalog]);
@@ -178,6 +222,8 @@ export default function MetricsGrid() {
       ...prev,
       filters: { ...prev.filters, [field]: value },
       page: 0,
+      loading: true, // Show loading state when filters change
+      error: null, // Clear any previous errors
     }));
   };
 
@@ -241,11 +287,16 @@ export default function MetricsGrid() {
       setState(prev => ({ ...prev, loading: true }));
       showSnackbar('Preparing export...', 'info');
       
-      const blob = await apiClient.exportMetricsCSV(state.filters);
+      // Use appropriate export endpoint based on active catalog
+      const blob = state.activeCatalog 
+        ? await apiClient.exportActiveCatalogMetricsCSV(state.filters, 'admin')
+        : await apiClient.exportMetricsCSV(state.filters);
       
       // Extract filename from Content-Disposition header or generate one
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-      const filename = `metrics_export_${timestamp}.csv`;
+      const filename = state.activeCatalog
+        ? `active_catalog_metrics_export_${timestamp}.csv`
+        : `metrics_export_${timestamp}.csv`;
       
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -257,9 +308,34 @@ export default function MetricsGrid() {
       window.URL.revokeObjectURL(url);
       
       showSnackbar(`Export completed: ${filename}`, 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to export metrics:', error);
-      showSnackbar('Failed to export metrics. Please try again.', 'error');
+      
+      let errorMessage = 'Failed to export metrics. Please try again.';
+      
+      // Provide more specific error messages for export failures
+      if (error.response) {
+        const status = error.response.status;
+        const detail = error.response.data?.detail;
+        
+        if (status === 404) {
+          errorMessage = state.activeCatalog 
+            ? 'No active catalog found for export.'
+            : 'Export endpoint not found.';
+        } else if (status === 500) {
+          errorMessage = detail 
+            ? `Export failed: ${detail}`
+            : 'Server error during export.';
+        } else if (status >= 400) {
+          errorMessage = detail || `Export request failed (${status}).`;
+        }
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server for export.';
+      } else if (error.message) {
+        errorMessage = `Export error: ${error.message}`;
+      }
+      
+      showSnackbar(errorMessage, 'error');
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }

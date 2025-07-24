@@ -30,11 +30,11 @@ import {
   ExpandMore as ExpandMoreIcon,
   Info as InfoIcon,
   NetworkCheck as NetworkCheckIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 
 import apiClient from '../api/client';
 import ScoreCard from './ScoreCard';
-import CatalogSelector from './CatalogSelector';
 import { ContentFrame } from './layout';
 import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse } from '../types';
 
@@ -51,7 +51,6 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailedError, setDetailedError] = useState<DetailedError | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
 
   // Health check query
   const { data: health } = useQuery<HealthResponse>({
@@ -59,6 +58,33 @@ export default function Dashboard() {
     queryFn: () => apiClient.getHealth(),
     retry: 2,
     refetchInterval: 60000, // Check every minute
+  });
+
+  // Active catalog query
+  const { data: activeCatalog } = useQuery({
+    queryKey: ['active-catalog'],
+    queryFn: async () => {
+      try {
+        const catalogs = await apiClient.getCatalogs('admin', true); // Get active catalogs only
+        return catalogs.find(catalog => catalog.active) || {
+          name: 'Default NIST CSF 2.0 Metrics',
+          items_count: 208,
+          owner: 'system',
+          active: true,
+          is_default: true
+        };
+      } catch (error) {
+        // Fallback to default if no catalogs found
+        return {
+          name: 'Default NIST CSF 2.0 Metrics',
+          items_count: 208,
+          owner: 'system',
+          active: true,
+          is_default: true
+        };
+      }
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Handle health check status changes
@@ -70,14 +96,12 @@ export default function Dashboard() {
 
   // Fetch dashboard data with enhanced error handling
   const { data: dashboard, isLoading, error, refetch } = useQuery<DashboardSummary>({
-    queryKey: ['dashboard-summary', selectedCatalogId],
+    queryKey: ['dashboard-summary'],
     queryFn: async () => {
       try {
-        console.log('🔄 Fetching dashboard data...', { catalogId: selectedCatalogId });
+        console.log('🔄 Fetching dashboard data...');
         const startTime = Date.now();
-        const data = selectedCatalogId 
-          ? await apiClient.getDashboardSummaryWithCatalog(selectedCatalogId)
-          : await apiClient.getDashboardSummary();
+        const data = await apiClient.getDashboardSummary();
         const endTime = Date.now();
         console.log(`✅ Dashboard data loaded in ${endTime - startTime}ms`, data);
         setDetailedError(null); // Clear any previous errors
@@ -292,10 +316,29 @@ export default function Dashboard() {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <CatalogSelector
-            selectedCatalogId={selectedCatalogId}
-            onCatalogChange={setSelectedCatalogId}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 250 }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                Metrics Catalog
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {activeCatalog?.name || 'Loading...'}
+                </Typography>
+                {activeCatalog && (
+                  <Chip
+                    size="small"
+                    label="Active"
+                    color="success"
+                    icon={<CheckCircleIcon />}
+                  />
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {activeCatalog ? `${activeCatalog.items_count} metrics • ${activeCatalog.owner}` : 'Loading catalog information...'}
+              </Typography>
+            </Box>
+          </Box>
           <Typography variant="caption" color="text.secondary">
             Last updated: {new Date(dashboard.last_updated).toLocaleString()}
           </Typography>

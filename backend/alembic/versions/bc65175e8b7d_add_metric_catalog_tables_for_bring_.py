@@ -68,7 +68,7 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('catalog_id', sa.UUID(), nullable=False),
         sa.Column('catalog_item_id', sa.UUID(), nullable=False),
-        sa.Column('csf_function', postgresql.ENUM('GOVERN', 'IDENTIFY', 'PROTECT', 'DETECT', 'RESPOND', 'RECOVER', name='csffunction', create_type=False), nullable=False),
+        sa.Column('csf_function', postgresql.ENUM('gv', 'id', 'pr', 'de', 'rs', 'rc', name='csffunction', create_type=False), nullable=False),
         sa.Column('csf_category_code', sa.String(length=20), nullable=True),
         sa.Column('csf_subcategory_code', sa.String(length=20), nullable=True),
         sa.Column('csf_category_name', sa.String(length=120), nullable=True),
