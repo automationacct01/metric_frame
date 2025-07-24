@@ -435,8 +435,11 @@ class APIClient {
     return response.data;
   }
 
-  async getCatalogMappings(catalogId: string): Promise<any[]> {
-    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/mappings`);
+  async getCatalogMappings(catalogId: string, signal?: AbortSignal): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/mappings`, {
+      timeout: 0, // No timeout - allow unlimited processing time
+      signal // Support for cancellation
+    });
     return response.data;
   }
 

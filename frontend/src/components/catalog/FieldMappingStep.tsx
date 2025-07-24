@@ -45,11 +45,39 @@ const optionalFields = [
 ];
 
 const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState }) => {
-  // Mock parsed data - in real implementation, this would come from the uploaded file
-  const sampleColumns = [
-    'metric_name', 'description', 'target', 'current', 'direction_type', 
-    'owner', 'source', 'priority', 'weight_factor', 'formula_text'
-  ];
+  // Get actual columns from parsed CSV data
+  const availableColumns = state.parsedData?.headers || [];
+
+  // Auto-suggest field mappings based on column names
+  React.useEffect(() => {
+    if (availableColumns.length > 0 && Object.keys(state.fieldMappings).length === 0) {
+      const autoMappings: Record<string, string> = {};
+      
+      // Try to auto-map common field names
+      const mappingRules = [
+        { target: 'name', patterns: ['name', 'metric_name', 'title', 'metric'] },
+        { target: 'direction', patterns: ['direction', 'direction_type', 'scoring_direction'] },
+        { target: 'description', patterns: ['description', 'desc', 'details'] },
+        { target: 'target_value', patterns: ['target_value', 'target', 'goal', 'objective'] },
+        { target: 'current_value', patterns: ['current_value', 'current', 'actual', 'value'] },
+      ];
+      
+      mappingRules.forEach(rule => {
+        const matchedColumn = availableColumns.find(col => 
+          rule.patterns.some(pattern => 
+            col.toLowerCase().includes(pattern.toLowerCase())
+          )
+        );
+        if (matchedColumn) {
+          autoMappings[rule.target] = matchedColumn;
+        }
+      });
+      
+      if (Object.keys(autoMappings).length > 0) {
+        updateState({ fieldMappings: autoMappings });
+      }
+    }
+  }, [availableColumns, state.fieldMappings, updateState]);
 
   const handleFieldMapping = (targetField: string, sourceColumn: string) => {
     updateState({
@@ -81,11 +109,18 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
         Required fields must be mapped to proceed.
       </Typography>
 
-      <Alert severity="info" sx={{ mb: 3 }}>
-        <AlertTitle>Field Mapping</AlertTitle>
-        We've detected {sampleColumns.length} columns in your file. 
-        Map them to the corresponding metric fields below.
-      </Alert>
+      {availableColumns.length > 0 ? (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <AlertTitle>Field Mapping</AlertTitle>
+          We've detected {availableColumns.length} columns in your file: {availableColumns.join(', ')}. 
+          Map them to the corresponding metric fields below.
+        </Alert>
+      ) : (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <AlertTitle>No Columns Detected</AlertTitle>
+          We couldn't detect any columns from your uploaded file. Please ensure your CSV file has a header row with column names.
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
         {/* Required Fields */}
@@ -108,7 +143,7 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
                       <MenuItem value="">
                         <em>Select a column</em>
                       </MenuItem>
-                      {sampleColumns.map((column) => (
+                      {availableColumns.map((column) => (
                         <MenuItem key={column} value={column}>
                           {column}
                         </MenuItem>
@@ -144,7 +179,7 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
                       <MenuItem value="">
                         <em>Not mapped</em>
                       </MenuItem>
-                      {sampleColumns.map((column) => (
+                      {availableColumns.map((column) => (
                         <MenuItem key={column} value={column}>
                           {column}
                         </MenuItem>
@@ -180,12 +215,14 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
                   {[...requiredFields, ...optionalFields].map((field) => (
                     <TableRow key={field.key}>
                       <TableCell>
-                        <Typography variant="body2">
-                          {field.label}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2">
+                            {field.label}
+                          </Typography>
                           {requiredFields.some(f => f.key === field.key) && (
-                            <Chip size="small" label="Required" color="error" sx={{ ml: 1 }} />
+                            <Chip size="small" label="Required" color="error" />
                           )}
-                        </Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

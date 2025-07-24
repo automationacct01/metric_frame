@@ -1,0 +1,31 @@
+name,description,direction,target_value,target_units
+Board Cyber Briefing Frequency,Number of cybersecurity briefings provided to board of directors per year,higher_is_better,4.0,per year
+Policy Compliance Rate,Percentage of employees compliant with cybersecurity policies,higher_is_better,95.0,%
+Risk Assessment Completion,Percentage of systems with completed risk assessments,higher_is_better,100.0,%
+Security Budget Utilization,Percentage of allocated cybersecurity budget effectively utilized,higher_is_better,95.0,%
+Third-Party Risk Assessments,Percentage of third-party vendors with completed security assessments,higher_is_better,100.0,%
+Asset Inventory Accuracy,Percentage of IT assets accurately documented in inventory system,higher_is_better,98.0,%
+Vulnerability Scan Coverage,Percentage of network assets covered by vulnerability scanning,higher_is_better,100.0,%
+Risk Register Completeness,Percentage of identified risks documented in risk register,higher_is_better,100.0,%
+Asset Classification Compliance,Percentage of data assets properly classified according to sensitivity,higher_is_better,95.0,%
+Security Control Assessments,Percentage of security controls with completed annual assessments,higher_is_better,100.0,%
+MFA Coverage Privileged Accounts,Percentage of privileged user accounts protected with multi-factor authentication,higher_is_better,100.0,%
+Password Policy Compliance,Percentage of user accounts complying with password policy requirements,higher_is_better,95.0,%
+Patch Management Effectiveness,Percentage of critical patches applied within defined SLA timeframes,higher_is_better,100.0,%
+Data Encryption Coverage,Percentage of sensitive data encrypted at rest and in transit,higher_is_better,100.0,%
+Access Review Completion,Percentage of user access reviews completed on schedule,higher_is_better,100.0,%
+Security Training Completion,Percentage of employees who completed mandatory security awareness training,higher_is_better,100.0,%
+Backup Success Rate,Percentage of scheduled data backups completed successfully,higher_is_better,99.0,%
+Network Segmentation Compliance,Percentage of network segments properly configured according to policy,higher_is_better,100.0,%
+Endpoint Protection Coverage,Percentage of endpoints with active and updated security protection,higher_is_better,100.0,%
+Software Vulnerability Remediation,Percentage of identified software vulnerabilities remediated within SLA,higher_is_better,95.0,%
+Mean Time to Detect,Average time from security event occurrence to detection,lower_is_better,4.0,hours
+Security Monitoring Coverage,Percentage of IT infrastructure covered by security monitoring tools,higher_is_better,100.0,%
+Phishing Email Detection Rate,Percentage of phishing emails successfully detected and blocked,higher_is_better,99.0,%
+False Positive Rate,Percentage of security alerts that are determined to be false positives,lower_is_better,5.0,%
+Threat Hunting Effectiveness,Number of threats identified through proactive threat hunting activities,higher_is_better,10.0,per month
+Mean Time to Respond,Average time from incident detection to initial response action,lower_is_better,2.0,hours
+Incident Response Time,Average time from incident detection to full containment,lower_is_better,24.0,hours
+Crisis Communication Effectiveness,Percentage of stakeholders notified within required timeframes during incidents,higher_is_better,100.0,%
+Backup Restore Success Rate,Percentage of backup restore operations that complete successfully,higher_is_better,99.0,%
+RTO RPO Achievement,Percentage of recovery operations meeting defined RTO and RPO objectives,higher_is_better,95.0,%
