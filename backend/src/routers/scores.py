@@ -1,4 +1,7 @@
-"""API endpoints for scoring and risk assessment."""
+"""API endpoints for scoring and risk assessment.
+
+Supports multi-framework scoring with backward compatibility for CSF 2.0.
+"""
 
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -16,6 +19,12 @@ from ..services.scoring import (
     compute_category_scores,
     compute_category_score,
     get_category_metrics_summary,
+    # Multi-framework scoring functions
+    compute_framework_function_scores,
+    compute_framework_category_scores,
+    compute_framework_overall_score,
+    get_framework_metrics_needing_attention,
+    get_framework_coverage,
 )
 from ..services.catalog_scoring import get_catalog_scoring_service
 
@@ -286,7 +295,7 @@ async def recalculate_scores(
 async def get_risk_thresholds():
     """Get current risk rating thresholds."""
     import os
-    
+
     return {
         "thresholds": {
             "very_low": float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0")),
@@ -298,8 +307,162 @@ async def get_risk_thresholds():
             "very_low": "≥90% - Very low risk, excellent performance",
             "low": "75-89% - Low risk, good performance",
             "medium": "50-74% - Medium risk, moderate gaps",
-            "high": "30-49% - High risk, significant gaps", 
+            "high": "30-49% - High risk, significant gaps",
             "very_high": "<30% - Very high risk, critical gaps",
         },
         "note": "5-level risk thresholds can be configured via environment variables",
     }
+
+
+# ==============================================================================
+# MULTI-FRAMEWORK SCORING ENDPOINTS
+# ==============================================================================
+
+@router.get("/framework/{framework_code}")
+async def get_framework_scores(
+    framework_code: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Get scores for any supported framework (CSF 2.0, AI RMF, etc.).
+
+    Returns function scores, overall score, and framework-specific metrics.
+    """
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework_code not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework code. Must be one of: {valid_frameworks}"
+        )
+
+    overall_result = compute_framework_overall_score(db, framework_code)
+
+    if not overall_result:
+        return {
+            "framework_code": framework_code,
+            "function_scores": [],
+            "overall_score_pct": 0,
+            "overall_risk_rating": "very_high",
+            "total_metrics": 0,
+            "metrics_with_data": 0,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+    return {
+        "framework_code": framework_code,
+        "function_scores": overall_result.get("function_scores", []),
+        "overall_score_pct": overall_result.get("overall_score_pct", 0),
+        "overall_risk_rating": overall_result.get("overall_risk_rating", "very_high"),
+        "total_metrics": overall_result.get("total_metrics", 0),
+        "metrics_with_data": overall_result.get("metrics_with_data", 0),
+        "last_updated": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/framework/{framework_code}/functions")
+async def get_framework_function_scores_endpoint(
+    framework_code: str,
+    db: Session = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    """
+    Get function-level scores for a specific framework.
+
+    Returns scores for each function/focus area within the framework.
+    """
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework_code not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework code. Must be one of: {valid_frameworks}"
+        )
+
+    scores = compute_framework_function_scores(db, framework_code)
+    return scores
+
+
+@router.get("/framework/{framework_code}/functions/{function_code}/categories")
+async def get_framework_category_scores_endpoint(
+    framework_code: str,
+    function_code: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Get category-level scores for a specific function within a framework.
+    """
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework_code not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework code. Must be one of: {valid_frameworks}"
+        )
+
+    category_scores = compute_framework_category_scores(db, framework_code, function_code)
+
+    if not category_scores:
+        return {
+            "framework_code": framework_code,
+            "function_code": function_code,
+            "category_scores": [],
+            "total_categories": 0,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+    return {
+        "framework_code": framework_code,
+        "function_code": function_code,
+        "category_scores": category_scores,
+        "total_categories": len(category_scores),
+        "last_updated": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/framework/{framework_code}/coverage")
+async def get_framework_coverage_endpoint(
+    framework_code: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Get metric coverage statistics for a framework.
+
+    Shows how many metrics exist for each function/category.
+    """
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework_code not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework code. Must be one of: {valid_frameworks}"
+        )
+
+    coverage = get_framework_coverage(db, framework_code)
+
+    if not coverage:
+        return {
+            "framework_code": framework_code,
+            "total_metrics": 0,
+            "functions": [],
+            "coverage_summary": "No metrics found for this framework",
+        }
+
+    return coverage
+
+
+@router.get("/framework/{framework_code}/attention")
+async def get_framework_attention_metrics(
+    framework_code: str,
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    """
+    Get metrics needing attention for a specific framework.
+
+    Returns metrics with lowest scores or missing data.
+    """
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework_code not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework code. Must be one of: {valid_frameworks}"
+        )
+
+    metrics = get_framework_metrics_needing_attention(db, framework_code, limit)
+    return metrics

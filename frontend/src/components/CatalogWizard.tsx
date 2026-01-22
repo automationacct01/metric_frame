@@ -17,6 +17,7 @@ import {
 import { ContentFrame } from './layout';
 import { apiClient } from '../api/client';
 import { parseCSVFile, ParsedCSVData } from '../utils/csvParser';
+import { useFramework } from '../contexts/FrameworkContext';
 
 // Step components
 import FileUploadStep from './catalog/FileUploadStep';
@@ -62,6 +63,9 @@ interface CatalogWizardState {
 
 const CatalogWizard: React.FC = () => {
   const theme = useTheme();
+  const { selectedFramework } = useFramework();
+  const frameworkCode = selectedFramework?.code || 'csf_2_0';
+
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +150,8 @@ const CatalogWizard: React.FC = () => {
             wizardState.uploadedFile,
             wizardState.catalogName,
             wizardState.description,
-            'admin' // TODO: Get from user context
+            'admin', // TODO: Get from user context
+            frameworkCode
           );
           
           updateWizardState({
@@ -241,6 +246,7 @@ const CatalogWizard: React.FC = () => {
             state={wizardState}
             updateState={updateWizardState}
             error={error}
+            frameworkCode={frameworkCode}
           />
         );
       case 3:
@@ -249,6 +255,7 @@ const CatalogWizard: React.FC = () => {
             state={wizardState}
             updateState={updateWizardState}
             error={error}
+            frameworkCode={frameworkCode}
           />
         );
       case 4:
@@ -291,7 +298,7 @@ const CatalogWizard: React.FC = () => {
   return (
     <ContentFrame
       title="Bring Your Own Catalog"
-      subtitle="Import your custom cybersecurity metrics and map them to NIST CSF 2.0"
+      subtitle={`Import your custom cybersecurity metrics and map them to ${selectedFramework?.name || 'NIST CSF 2.0'}`}
     >
       <Container maxWidth="lg">
         <Paper 

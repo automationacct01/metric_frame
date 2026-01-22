@@ -1,9 +1,23 @@
-"""Scoring service for NIST CSF 2.0 metrics with gap-to-target calculations."""
+"""Multi-framework scoring service with gap-to-target calculations.
+
+Supports:
+- NIST CSF 2.0 (with Cyber AI Profile)
+- NIST AI RMF 1.0
+- Future frameworks via database
+"""
 
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from sqlalchemy.orm import Session
-from ..models import Metric, CSFFunction, MetricDirection
+from sqlalchemy import func as sql_func
+from ..models import (
+    Metric,
+    CSFFunction,
+    MetricDirection,
+    Framework,
+    FrameworkFunction,
+    FrameworkCategory,
+)
 from ..schemas import FunctionScore, RiskRating
 from .csf_reference import CSFReferenceService
 
@@ -122,7 +136,8 @@ def compute_function_scores(db: Session) -> List[FunctionScore]:
         # Get all active metrics for this function
         metrics = (
             db.query(Metric)
-            .filter(Metric.csf_function == csf_function)
+            .join(FrameworkFunction, Metric.function_id == FrameworkFunction.id)
+            .filter(FrameworkFunction.code == csf_function.value)
             .filter(Metric.active == True)
             .all()
         )
@@ -233,11 +248,12 @@ def get_metrics_needing_attention(db: Session, limit: int = 10) -> List[Dict]:
         gap = compute_gap_to_target(metric)
         
         if score is not None:
+            func_code = metric.function.code if metric.function else "unknown"
             scored_metrics.append({
                 "id": str(metric.id),
                 "metric_number": metric.metric_number,
                 "name": metric.name,
-                "csf_function": metric.csf_function.value,
+                "csf_function": func_code,
                 "priority_rank": metric.priority_rank,
                 "score": score,
                 "score_pct": score * 100,
@@ -276,19 +292,20 @@ def compute_category_scores(db: Session, function_code: str) -> List[Dict]:
     # Get all active metrics for this function with category codes
     metrics = (
         db.query(Metric)
-        .filter(Metric.csf_function == csf_function)
+        .join(FrameworkFunction, Metric.function_id == FrameworkFunction.id)
+        .filter(FrameworkFunction.code == csf_function.value)
         .filter(Metric.active == True)
-        .filter(Metric.csf_category_code != None)
+        .filter(Metric.category_id != None)
         .all()
     )
-    
+
     if not metrics:
         return []
-    
+
     # Group metrics by category
     category_groups = {}
     for metric in metrics:
-        category_code = metric.csf_category_code
+        category_code = metric.category.code if metric.category else None
         if category_code not in category_groups:
             # Get category description from CSF reference service
             csf_category = csf_service.get_category(category_code)
@@ -453,14 +470,14 @@ def get_category_metrics_summary(db: Session, category_code: str) -> Optional[Di
 def recalculate_all_scores(db: Session) -> Dict:
     """
     Recalculate all scores and return summary statistics.
-    
+
     This function can be called after weight changes or target updates
     to refresh all calculated scores.
     """
     function_scores = compute_function_scores(db)
     overall_score_pct, overall_risk_rating = compute_overall_score(function_scores)
     attention_metrics = get_metrics_needing_attention(db, limit=5)
-    
+
     return {
         "function_scores": [fs.model_dump() for fs in function_scores],
         "overall_score_pct": overall_score_pct,
@@ -468,3 +485,422 @@ def recalculate_all_scores(db: Session) -> Dict:
         "metrics_needing_attention": attention_metrics,
         "recalculated_at": "now",  # Could use actual timestamp
     }
+
+
+# ==============================================================================
+# MULTI-FRAMEWORK SCORING FUNCTIONS
+# ==============================================================================
+
+def compute_framework_function_scores(
+    db: Session,
+    framework_code: str
+) -> List[Dict[str, Any]]:
+    """
+    Compute scores for all functions in a specific framework.
+
+    Args:
+        db: Database session
+        framework_code: Framework code (e.g., 'csf_2_0', 'ai_rmf')
+
+    Returns:
+        List of function score dictionaries
+    """
+    # Get framework
+    framework = db.query(Framework).filter(
+        Framework.code == framework_code,
+        Framework.active == True
+    ).first()
+
+    if not framework:
+        return []
+
+    # Get all functions for this framework
+    functions = db.query(FrameworkFunction).filter(
+        FrameworkFunction.framework_id == framework.id
+    ).order_by(FrameworkFunction.display_order).all()
+
+    function_scores = []
+
+    for func in functions:
+        # Get metrics for this function using function_id
+        metrics = db.query(Metric).filter(
+            Metric.function_id == func.id,
+            Metric.active == True
+        ).all()
+
+        if not metrics:
+            function_scores.append({
+                "function_code": func.code,
+                "function_name": func.name,
+                "function_description": func.description,
+                "color_hex": func.color_hex,
+                "icon_name": func.icon_name,
+                "score_pct": 0.0,
+                "risk_rating": RiskRating.VERY_HIGH.value,
+                "metrics_count": 0,
+                "metrics_with_data_count": 0,
+                "metrics_below_target_count": 0,
+                "weighted_score": 0.0,
+            })
+            continue
+
+        # Compute weighted score
+        total_weight = 0.0
+        weighted_sum = 0.0
+        metrics_below_target = 0
+        metrics_with_data = 0
+
+        for metric in metrics:
+            weight = float(metric.weight or 1.0)
+            score = compute_metric_score(metric)
+
+            if score is not None:
+                metrics_with_data += 1
+                total_weight += weight
+                weighted_sum += score * weight
+
+                if score < 0.9:
+                    metrics_below_target += 1
+
+        if total_weight == 0 or metrics_with_data == 0:
+            weighted_score = 0.0
+            score_pct = 0.0
+        else:
+            weighted_score = weighted_sum / total_weight
+            score_pct = weighted_score * 100
+
+        risk_rating = get_risk_rating(score_pct)
+
+        function_scores.append({
+            "function_code": func.code,
+            "function_name": func.name,
+            "function_description": func.description,
+            "color_hex": func.color_hex,
+            "icon_name": func.icon_name,
+            "score_pct": round(score_pct, 1),
+            "risk_rating": risk_rating.value,
+            "metrics_count": len(metrics),
+            "metrics_with_data_count": metrics_with_data,
+            "metrics_below_target_count": metrics_below_target,
+            "weighted_score": round(weighted_score, 3),
+        })
+
+    return function_scores
+
+
+def compute_framework_category_scores(
+    db: Session,
+    framework_code: str,
+    function_code: str
+) -> List[Dict[str, Any]]:
+    """
+    Compute scores for all categories within a specific function.
+
+    Args:
+        db: Database session
+        framework_code: Framework code
+        function_code: Function code
+
+    Returns:
+        List of category score dictionaries
+    """
+    # Get framework and function
+    framework = db.query(Framework).filter(
+        Framework.code == framework_code,
+        Framework.active == True
+    ).first()
+
+    if not framework:
+        return []
+
+    func = db.query(FrameworkFunction).filter(
+        FrameworkFunction.framework_id == framework.id,
+        FrameworkFunction.code == function_code
+    ).first()
+
+    if not func:
+        return []
+
+    # Get all categories for this function
+    categories = db.query(FrameworkCategory).filter(
+        FrameworkCategory.function_id == func.id
+    ).order_by(FrameworkCategory.display_order).all()
+
+    category_scores = []
+
+    for cat in categories:
+        # Get metrics for this category
+        if framework_code == "csf_2_0":
+            # For CSF 2.0, use the legacy csf_category_code field
+            metrics = db.query(Metric).filter(
+                Metric.csf_category_code == cat.code,
+                Metric.active == True
+            ).all()
+        else:
+            # For other frameworks, use category_id
+            metrics = db.query(Metric).filter(
+                Metric.category_id == cat.id,
+                Metric.active == True
+            ).all()
+
+        if not metrics:
+            category_scores.append({
+                "category_code": cat.code,
+                "category_name": cat.name,
+                "category_description": cat.description,
+                "score_pct": 0.0,
+                "risk_rating": RiskRating.VERY_HIGH.value,
+                "metrics_count": 0,
+                "metrics_with_data_count": 0,
+                "metrics_below_target_count": 0,
+                "weighted_score": 0.0,
+            })
+            continue
+
+        # Compute weighted score
+        total_weight = 0.0
+        weighted_sum = 0.0
+        metrics_below_target = 0
+        metrics_with_data = 0
+
+        for metric in metrics:
+            weight = float(metric.weight or 1.0)
+            score = compute_metric_score(metric)
+
+            if score is not None:
+                metrics_with_data += 1
+                total_weight += weight
+                weighted_sum += score * weight
+
+                if score < 0.9:
+                    metrics_below_target += 1
+
+        if total_weight == 0 or metrics_with_data == 0:
+            weighted_score = 0.0
+            score_pct = 0.0
+        else:
+            weighted_score = weighted_sum / total_weight
+            score_pct = weighted_score * 100
+
+        risk_rating = get_risk_rating(score_pct)
+
+        category_scores.append({
+            "category_code": cat.code,
+            "category_name": cat.name,
+            "category_description": cat.description,
+            "score_pct": round(score_pct, 1),
+            "risk_rating": risk_rating.value,
+            "metrics_count": len(metrics),
+            "metrics_with_data_count": metrics_with_data,
+            "metrics_below_target_count": metrics_below_target,
+            "weighted_score": round(weighted_score, 3),
+        })
+
+    return category_scores
+
+
+def compute_framework_overall_score(
+    db: Session,
+    framework_code: str
+) -> Dict[str, Any]:
+    """
+    Compute overall score for a framework.
+
+    Args:
+        db: Database session
+        framework_code: Framework code
+
+    Returns:
+        Dictionary with overall score and breakdown
+    """
+    function_scores = compute_framework_function_scores(db, framework_code)
+
+    if not function_scores:
+        return {
+            "framework_code": framework_code,
+            "overall_score_pct": 0.0,
+            "overall_risk_rating": RiskRating.VERY_HIGH.value,
+            "total_metrics_count": 0,
+            "total_metrics_with_data_count": 0,
+            "function_scores": [],
+        }
+
+    # Filter out functions with no metrics
+    valid_scores = [fs for fs in function_scores if fs["metrics_count"] > 0]
+
+    if not valid_scores:
+        return {
+            "framework_code": framework_code,
+            "overall_score_pct": 0.0,
+            "overall_risk_rating": RiskRating.VERY_HIGH.value,
+            "total_metrics_count": 0,
+            "total_metrics_with_data_count": 0,
+            "function_scores": function_scores,
+        }
+
+    # Calculate overall score as average of function scores
+    total_weighted_score = sum(fs["weighted_score"] for fs in valid_scores)
+    overall_weighted_score = total_weighted_score / len(valid_scores)
+    overall_score_pct = overall_weighted_score * 100
+    overall_risk_rating = get_risk_rating(overall_score_pct)
+
+    total_metrics = sum(fs["metrics_count"] for fs in function_scores)
+    total_with_data = sum(fs["metrics_with_data_count"] for fs in function_scores)
+
+    return {
+        "framework_code": framework_code,
+        "overall_score_pct": round(overall_score_pct, 1),
+        "overall_risk_rating": overall_risk_rating.value,
+        "total_metrics_count": total_metrics,
+        "total_metrics_with_data_count": total_with_data,
+        "function_scores": function_scores,
+    }
+
+
+def get_framework_metrics_needing_attention(
+    db: Session,
+    framework_code: str,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Get metrics that need attention for a specific framework.
+
+    Args:
+        db: Database session
+        framework_code: Framework code
+        limit: Maximum number of metrics to return
+
+    Returns:
+        List of metric dictionaries with scores and gaps
+    """
+    # Get framework
+    framework = db.query(Framework).filter(
+        Framework.code == framework_code,
+        Framework.active == True
+    ).first()
+
+    if not framework:
+        return []
+
+    # Get metrics for this framework
+    metrics = db.query(Metric).filter(
+        Metric.framework_id == framework.id,
+        Metric.active == True,
+        Metric.current_value != None
+    ).all()
+
+    scored_metrics = []
+    for metric in metrics:
+        score = compute_metric_score(metric)
+        gap = compute_gap_to_target(metric)
+
+        if score is not None:
+            func_code = metric.function.code if metric.function else "unknown"
+
+            scored_metrics.append({
+                "id": str(metric.id),
+                "metric_number": metric.metric_number,
+                "name": metric.name,
+                "function_code": func_code,
+                "category_code": metric.category.code if metric.category else None,
+                "priority_rank": metric.priority_rank,
+                "score": score,
+                "score_pct": score * 100,
+                "gap_to_target_pct": gap,
+                "current_value": float(metric.current_value),
+                "target_value": float(metric.target_value) if metric.target_value else None,
+                "current_label": metric.current_label,
+                "owner_function": metric.owner_function,
+            })
+
+    # Sort by priority (1=high) and score (low scores first)
+    scored_metrics.sort(key=lambda x: (x["priority_rank"], x["score"]))
+
+    return scored_metrics[:limit]
+
+
+def get_framework_coverage(
+    db: Session,
+    framework_code: str
+) -> Dict[str, Any]:
+    """
+    Get coverage statistics for a framework showing which functions/categories have metrics.
+
+    Args:
+        db: Database session
+        framework_code: Framework code
+
+    Returns:
+        Coverage statistics dictionary
+    """
+    # Get framework
+    framework = db.query(Framework).filter(
+        Framework.code == framework_code,
+        Framework.active == True
+    ).first()
+
+    if not framework:
+        return {}
+
+    # Get all functions
+    functions = db.query(FrameworkFunction).filter(
+        FrameworkFunction.framework_id == framework.id
+    ).all()
+
+    # Get all categories
+    categories = db.query(FrameworkCategory).filter(
+        FrameworkCategory.function_id.in_([f.id for f in functions])
+    ).all()
+
+    # Count metrics per function/category
+    function_coverage = []
+    total_functions = len(functions)
+    functions_with_metrics = 0
+
+    for func in functions:
+        metric_count = db.query(Metric).filter(
+            Metric.function_id == func.id,
+            Metric.active == True
+        ).count()
+
+        if metric_count > 0:
+            functions_with_metrics += 1
+
+        function_coverage.append({
+            "function_code": func.code,
+            "function_name": func.name,
+            "metrics_count": metric_count,
+            "has_metrics": metric_count > 0,
+        })
+
+    total_categories = len(categories)
+    categories_with_metrics = 0
+
+    for cat in categories:
+        metric_count = db.query(Metric).filter(
+            Metric.category_id == cat.id,
+            Metric.active == True
+        ).count()
+
+        if metric_count > 0:
+            categories_with_metrics += 1
+
+    return {
+        "framework_code": framework_code,
+        "total_functions": total_functions,
+        "functions_with_metrics": functions_with_metrics,
+        "function_coverage_pct": round(
+            (functions_with_metrics / total_functions * 100) if total_functions > 0 else 0, 1
+        ),
+        "total_categories": total_categories,
+        "categories_with_metrics": categories_with_metrics,
+        "category_coverage_pct": round(
+            (categories_with_metrics / total_categories * 100) if total_categories > 0 else 0, 1
+        ),
+        "function_breakdown": function_coverage,
+    }
+
+
+# Convenience exports for backward compatibility
+calculate_metric_score = compute_metric_score
+calculate_function_scores = compute_function_scores

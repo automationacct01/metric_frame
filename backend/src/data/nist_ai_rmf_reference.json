@@ -1,0 +1,314 @@
+{
+  "framework": {
+    "code": "ai_rmf",
+    "name": "NIST AI Risk Management Framework 1.0",
+    "version": "1.0",
+    "description": "The NIST AI Risk Management Framework (AI RMF) provides guidance to help organizations design, develop, deploy, and use AI systems responsibly. It is intended to help organizations manage the risks of AI systems while promoting trustworthy and responsible development and use of AI.",
+    "source_url": "https://www.nist.gov/itl/ai-risk-management-framework",
+    "active": true,
+    "is_extension": false
+  },
+  "trustworthiness_characteristics": [
+    {
+      "code": "valid_reliable",
+      "name": "Valid and Reliable",
+      "description": "AI systems are valid and reliable when they meet their requirements, perform as expected under various conditions, and produce consistent results."
+    },
+    {
+      "code": "safe",
+      "name": "Safe",
+      "description": "AI systems should not, under defined conditions, lead to a state in which human life, health, property, or the environment is endangered."
+    },
+    {
+      "code": "secure_resilient",
+      "name": "Secure and Resilient",
+      "description": "AI systems should maintain confidentiality, integrity, and availability through protection mechanisms and operate under adverse conditions."
+    },
+    {
+      "code": "accountable_transparent",
+      "name": "Accountable and Transparent",
+      "description": "Organizations and the people working with AI systems are responsible for their functioning and provide appropriate information about the AI system's design, development, and deployment."
+    },
+    {
+      "code": "explainable_interpretable",
+      "name": "Explainable and Interpretable",
+      "description": "AI systems provide explanations for their outputs and decisions, and the underlying mechanisms can be understood by users and developers."
+    },
+    {
+      "code": "privacy_enhanced",
+      "name": "Privacy-Enhanced",
+      "description": "AI systems are designed and deployed with appropriate privacy protections for individuals whose data is used."
+    },
+    {
+      "code": "fair",
+      "name": "Fair (with Harmful Bias Managed)",
+      "description": "AI systems should manage harmful bias and discrimination, promoting fairness and equity in their design, development, and use."
+    }
+  ],
+  "functions": [
+    {
+      "code": "govern",
+      "name": "Govern",
+      "description": "A culture of risk management is cultivated and present. Governance enables the other functions of the framework and sets the foundation for responsible AI practices throughout an organization.",
+      "display_order": 1,
+      "color_hex": "#4F46E5",
+      "icon_name": "account_balance",
+      "categories": [
+        {
+          "code": "GOVERN-1",
+          "name": "Policies, Processes, Procedures, and Practices",
+          "description": "Policies, processes, procedures, and practices across the organization related to the mapping, measuring, and managing of AI risks are in place, transparent, and implemented effectively.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "GOVERN-1.1", "outcome": "Legal and regulatory requirements involving AI are understood, managed, and documented", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-1.2", "outcome": "The characteristics of trustworthy AI are integrated into organizational policies, processes, procedures, and practices", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "GOVERN-1.3", "outcome": "Processes, procedures, and practices are in place to determine the needed level of risk management activities based on the organization's risk tolerance", "display_order": 3, "trustworthiness_characteristic": null},
+            {"code": "GOVERN-1.4", "outcome": "The risk management process and its outcomes are established through transparent policies, procedures, and other controls based on organizational risk priorities", "display_order": 4, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-1.5", "outcome": "Ongoing monitoring and periodic review of the risk management process and its outcomes are planned and organizational roles and responsibilities clearly defined, including determining the frequency of periodic review", "display_order": 5, "trustworthiness_characteristic": null},
+            {"code": "GOVERN-1.6", "outcome": "Mechanisms are in place to inventory AI systems and are resourced according to organizational risk priorities", "display_order": 6, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-1.7", "outcome": "Processes and procedures are in place for decommissioning and phasing out AI systems safely and in a manner that does not increase risks or decrease the organization's trustworthiness", "display_order": 7, "trustworthiness_characteristic": "safe"}
+          ]
+        },
+        {
+          "code": "GOVERN-2",
+          "name": "Accountability",
+          "description": "Accountability structures are in place so that the appropriate teams and individuals are empowered, responsible, and trained for mapping, measuring, and managing AI risks.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "GOVERN-2.1", "outcome": "Roles and responsibilities and lines of communication related to mapping, measuring, and managing AI risks are documented and are clear to individuals and teams throughout the organization", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-2.2", "outcome": "The organization's personnel and partners receive AI risk management training to enable them to perform their duties and responsibilities consistent with related policies, procedures, and agreements", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "GOVERN-2.3", "outcome": "Executive leadership of the organization takes responsibility for decisions about risks associated with AI system development and deployment", "display_order": 3, "trustworthiness_characteristic": "accountable_transparent"}
+          ]
+        },
+        {
+          "code": "GOVERN-3",
+          "name": "Workforce",
+          "description": "Workforce diversity, equity, inclusion, and accessibility processes are prioritized in the mapping, measuring, and managing of AI risks throughout the lifecycle.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "GOVERN-3.1", "outcome": "Decision-making related to mapping, measuring, and managing AI risks throughout the lifecycle is informed by a diverse team", "display_order": 1, "trustworthiness_characteristic": "fair"},
+            {"code": "GOVERN-3.2", "outcome": "Policies and procedures are in place to define and differentiate roles and responsibilities for human-AI configurations and oversight of AI systems", "display_order": 2, "trustworthiness_characteristic": "accountable_transparent"}
+          ]
+        },
+        {
+          "code": "GOVERN-4",
+          "name": "Organizational Culture",
+          "description": "Organizational teams are committed to a culture that considers and communicates AI risk.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "GOVERN-4.1", "outcome": "Organizational policies and practices are in place to foster a critical thinking and safety-first mindset in the design, development, deployment, and uses of AI systems to minimize potential negative impacts", "display_order": 1, "trustworthiness_characteristic": "safe"},
+            {"code": "GOVERN-4.2", "outcome": "Organizational teams document the risks and potential impacts of the AI technology they design, develop, deploy, or use, and communicate about the impacts more broadly", "display_order": 2, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-4.3", "outcome": "Organizational practices are in place to enable AI testing, identification of incidents, and information sharing", "display_order": 3, "trustworthiness_characteristic": "valid_reliable"}
+          ]
+        },
+        {
+          "code": "GOVERN-5",
+          "name": "Stakeholder Engagement",
+          "description": "Organizational policies and practices are in place to engage relevant AI actors throughout the AI lifecycle.",
+          "display_order": 5,
+          "subcategories": [
+            {"code": "GOVERN-5.1", "outcome": "Organizational policies and practices are in place to collect, consider, prioritize, and integrate feedback from those external to the team that developed or deployed the AI system regarding the potential individual and societal impacts related to AI risks", "display_order": 1, "trustworthiness_characteristic": "fair"},
+            {"code": "GOVERN-5.2", "outcome": "Mechanisms are established to enable AI actors to regularly incorporate adjudicated feedback from relevant AI actors into system design and implementation", "display_order": 2, "trustworthiness_characteristic": null}
+          ]
+        },
+        {
+          "code": "GOVERN-6",
+          "name": "Context and Use Cases",
+          "description": "Policies and procedures are in place to address AI risks and benefits arising from third-party software and data and other supply chain issues.",
+          "display_order": 6,
+          "subcategories": [
+            {"code": "GOVERN-6.1", "outcome": "Policies and procedures are in place that address AI risks associated with third-party entities, including risks of infringement of a third party's intellectual property or other rights", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "GOVERN-6.2", "outcome": "Contingency processes are in place for third-party AI systems and address changes in third-party systems and supply chain issues", "display_order": 2, "trustworthiness_characteristic": "secure_resilient"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "map",
+      "name": "Map",
+      "description": "Context is recognized and risks related to context are identified. Organizations understand the context in which AI systems are developed and deployed, enabling better identification and assessment of risks.",
+      "display_order": 2,
+      "color_hex": "#0891B2",
+      "icon_name": "map",
+      "categories": [
+        {
+          "code": "MAP-1",
+          "name": "Context and Intended Purpose",
+          "description": "Context is established and understood.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "MAP-1.1", "outcome": "Intended purposes, potentially beneficial uses, context of use, and deployment environment, and deployment setting for AI systems are documented and understood", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MAP-1.2", "outcome": "Interdisciplinary AI actors, competencies, skills, and capacities for establishing context reflect demographic diversity and broad domain and user experience expertise, and their participation is documented", "display_order": 2, "trustworthiness_characteristic": "fair"},
+            {"code": "MAP-1.3", "outcome": "The organization's mission and relevant goals for AI technology are understood and documented", "display_order": 3, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MAP-1.4", "outcome": "The business value or context of business use has been clearly defined or the purpose of the AI model is documented", "display_order": 4, "trustworthiness_characteristic": null},
+            {"code": "MAP-1.5", "outcome": "Organizational risk tolerances are determined and documented", "display_order": 5, "trustworthiness_characteristic": null},
+            {"code": "MAP-1.6", "outcome": "System requirements (e.g., AI system use case, goals, and expected benefits and costs) and desired outcomes and constraints, including fairness considerations, are documented", "display_order": 6, "trustworthiness_characteristic": "fair"}
+          ]
+        },
+        {
+          "code": "MAP-2",
+          "name": "Task and Method",
+          "description": "The task the AI system will support and methods for achieving the task are categorized.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "MAP-2.1", "outcome": "The specific task, and methods used to implement the task, that the AI system will support are defined", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MAP-2.2", "outcome": "Information about the AI system's knowledge limits and how system output may be utilized and overseen by humans is documented", "display_order": 2, "trustworthiness_characteristic": "explainable_interpretable"},
+            {"code": "MAP-2.3", "outcome": "Scientific integrity and TEVV considerations are identified and documented, including those related to experimental design, data collection and selection, and construct validity", "display_order": 3, "trustworthiness_characteristic": "valid_reliable"}
+          ]
+        },
+        {
+          "code": "MAP-3",
+          "name": "Data",
+          "description": "AI capabilities, targeted usage, goals, and expected benefits and costs compared with appropriate benchmarks are understood.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "MAP-3.1", "outcome": "Potential benefits of intended AI system functionality and performance are examined and documented", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MAP-3.2", "outcome": "Potential costs, including non-monetary costs, which result from expected or potential impacts of the AI system are examined and documented", "display_order": 2, "trustworthiness_characteristic": "safe"},
+            {"code": "MAP-3.3", "outcome": "Targeted application scope is specified and documented based on the system's capability, established context, and AI system categorization", "display_order": 3, "trustworthiness_characteristic": null},
+            {"code": "MAP-3.4", "outcome": "Risks and benefits of AI systems for individuals, groups, communities, organizations, and society are identified and documented", "display_order": 4, "trustworthiness_characteristic": "fair"},
+            {"code": "MAP-3.5", "outcome": "Organizational risk criteria for the AI system are documented", "display_order": 5, "trustworthiness_characteristic": null}
+          ]
+        },
+        {
+          "code": "MAP-4",
+          "name": "Risks and Impacts",
+          "description": "Risks and impacts of AI systems are identified.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "MAP-4.1", "outcome": "Approaches for mapping AI technology and legal risks of the model are documented, including for risks of infringement", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MAP-4.2", "outcome": "Internal risk controls for components of the AI system, including third-party AI technologies, are identified and documented", "display_order": 2, "trustworthiness_characteristic": "secure_resilient"}
+          ]
+        },
+        {
+          "code": "MAP-5",
+          "name": "Impact Assessment",
+          "description": "Impacts to individuals, groups, communities, organizations, and society are characterized.",
+          "display_order": 5,
+          "subcategories": [
+            {"code": "MAP-5.1", "outcome": "Likelihood and magnitude of each identified impact (both positive and negative) based on expected use, past uses of AI systems in similar contexts, public incident reports, feedback from those external to the team that developed the system, and other publicly available resources, are identified and documented", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MAP-5.2", "outcome": "Practices and personnel for supporting regular engagement with relevant AI actors and integrating feedback about positive, negative, and unanticipated impacts are in place and documented", "display_order": 2, "trustworthiness_characteristic": "fair"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "measure",
+      "name": "Measure",
+      "description": "Identified risks are analyzed or tracked. Quantitative and qualitative techniques are used to analyze, assess, benchmark, and monitor AI risk and related impacts.",
+      "display_order": 3,
+      "color_hex": "#16A34A",
+      "icon_name": "analytics",
+      "categories": [
+        {
+          "code": "MEASURE-1",
+          "name": "Metrics and Methodologies",
+          "description": "Appropriate methods and metrics are identified and applied.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "MEASURE-1.1", "outcome": "Approaches and metrics for measurement of AI risks enumerated during the MAP function are selected for implementation starting with the most significant AI risks", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MEASURE-1.2", "outcome": "Appropriateness of AI metrics and effectiveness of existing controls are regularly assessed and updated, including reports of errors and near-misses", "display_order": 2, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-1.3", "outcome": "Internal experts who did not serve as combatant or design team members assess the effectiveness of approaches, metrics, and internal validation", "display_order": 3, "trustworthiness_characteristic": "accountable_transparent"}
+          ]
+        },
+        {
+          "code": "MEASURE-2",
+          "name": "Testing, Evaluation, Verification, and Validation (TEVV)",
+          "description": "AI systems are evaluated for trustworthy characteristics.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "MEASURE-2.1", "outcome": "Test sets, metrics, and details about the tools used during test, evaluation, verification, and validation (TEVV) are documented", "display_order": 1, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-2.2", "outcome": "Evaluations involving human subjects meet applicable requirements (including human subjects research) and are representative of the relevant population", "display_order": 2, "trustworthiness_characteristic": "fair"},
+            {"code": "MEASURE-2.3", "outcome": "AI system performance and robustness are assessed, and results documented", "display_order": 3, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-2.4", "outcome": "The functionality and behavior of the AI system and its components are monitored when in production", "display_order": 4, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-2.5", "outcome": "The AI system to be deployed is demonstrated to be valid and reliable according to the criteria in MAP-1.6 and MAP-2.3", "display_order": 5, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-2.6", "outcome": "The AI system is evaluated for consistency with its intended purpose and target audience", "display_order": 6, "trustworthiness_characteristic": "valid_reliable"},
+            {"code": "MEASURE-2.7", "outcome": "AI system security and resilience, including adversarial testing, are assessed", "display_order": 7, "trustworthiness_characteristic": "secure_resilient"},
+            {"code": "MEASURE-2.8", "outcome": "Risks associated with transparency and accountability, as identified in the MAP function, are assessed", "display_order": 8, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MEASURE-2.9", "outcome": "The AI model is explained, validated, and documented, and AI system output is interpreted within its context, as identified in the MAP function", "display_order": 9, "trustworthiness_characteristic": "explainable_interpretable"},
+            {"code": "MEASURE-2.10", "outcome": "Privacy risk of the AI system, as identified in the MAP function, is assessed", "display_order": 10, "trustworthiness_characteristic": "privacy_enhanced"},
+            {"code": "MEASURE-2.11", "outcome": "Fairness and bias, as identified in the MAP function, are assessed", "display_order": 11, "trustworthiness_characteristic": "fair"},
+            {"code": "MEASURE-2.12", "outcome": "Environmental impact and sustainability of AI model training and management activities are assessed", "display_order": 12, "trustworthiness_characteristic": "safe"},
+            {"code": "MEASURE-2.13", "outcome": "Effectiveness of the employed TEVV metrics and processes in the MEASURE function are assessed", "display_order": 13, "trustworthiness_characteristic": "valid_reliable"}
+          ]
+        },
+        {
+          "code": "MEASURE-3",
+          "name": "Risk Tracking",
+          "description": "Mechanisms for tracking identified AI risks over time are in place.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "MEASURE-3.1", "outcome": "AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented", "display_order": 1, "trustworthiness_characteristic": "secure_resilient"},
+            {"code": "MEASURE-3.2", "outcome": "Risk tracking approaches are considered for settings where AI risks are difficult to assess using currently available measurement techniques or without access to protected data sources", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "MEASURE-3.3", "outcome": "Feedback processes for end users and impacted communities to report problems and seek assistance are established and integrated into the AI system evaluation processes", "display_order": 3, "trustworthiness_characteristic": "fair"}
+          ]
+        },
+        {
+          "code": "MEASURE-4",
+          "name": "Communication",
+          "description": "Feedback about efficacy of measurement is collected and integrated into relevant AI actors' decisions.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "MEASURE-4.1", "outcome": "Measurement approaches for identifying AI risks are documented", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MEASURE-4.2", "outcome": "Measurement results regarding AI system trustworthiness in deployment context(s) and across the AI lifecycle are documented", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "MEASURE-4.3", "outcome": "Outcomes of periodic reassessments of AI system performance are documented", "display_order": 3, "trustworthiness_characteristic": "valid_reliable"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "manage",
+      "name": "Manage",
+      "description": "Risks are prioritized and acted upon. Risk management treats risks based on projected impact. It includes plans and actions to maximize AI benefits and minimize negative impacts.",
+      "display_order": 4,
+      "color_hex": "#DC2626",
+      "icon_name": "settings",
+      "categories": [
+        {
+          "code": "MANAGE-1",
+          "name": "Risk Prioritization",
+          "description": "AI risks based on assessments and other analytical output from the MAP and MEASURE functions are prioritized and acted upon.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "MANAGE-1.1", "outcome": "A determination is made as to whether the AI system achieves its intended purposes and stated objectives and whether its development or deployment should proceed", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MANAGE-1.2", "outcome": "Treatment of documented AI risks is prioritized based on risk level, impact, and available resources and methods for responding", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "MANAGE-1.3", "outcome": "Responses to the AI risks identified and documented in the MAP function are developed, planned, and documented", "display_order": 3, "trustworthiness_characteristic": null},
+            {"code": "MANAGE-1.4", "outcome": "Negative risk response decisions and actions are documented, justified, and appealed when appropriate", "display_order": 4, "trustworthiness_characteristic": "accountable_transparent"}
+          ]
+        },
+        {
+          "code": "MANAGE-2",
+          "name": "Risk Treatment and Response",
+          "description": "Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, documented, and informed by input from relevant AI actors.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "MANAGE-2.1", "outcome": "Resources are prioritized and adequate for AI risk management activities", "display_order": 1, "trustworthiness_characteristic": null},
+            {"code": "MANAGE-2.2", "outcome": "Mechanisms are in place and applied to sustain the value of deployed AI systems", "display_order": 2, "trustworthiness_characteristic": null},
+            {"code": "MANAGE-2.3", "outcome": "Procedures are followed to respond to and recover from a previously unknown risk when it is identified", "display_order": 3, "trustworthiness_characteristic": "secure_resilient"},
+            {"code": "MANAGE-2.4", "outcome": "Mechanisms are in place and applied, and responsibilities are assigned and understood, to supersede, disengage, or deactivate AI systems that demonstrate performance or outcomes inconsistent with intended use", "display_order": 4, "trustworthiness_characteristic": "safe"}
+          ]
+        },
+        {
+          "code": "MANAGE-3",
+          "name": "Pre-Deployment and Post-Deployment",
+          "description": "AI risks and benefits from third-party entities are managed.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "MANAGE-3.1", "outcome": "AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented", "display_order": 1, "trustworthiness_characteristic": "secure_resilient"},
+            {"code": "MANAGE-3.2", "outcome": "Pre-trained models which are used for development are monitored as part of AI system monitoring", "display_order": 2, "trustworthiness_characteristic": "valid_reliable"}
+          ]
+        },
+        {
+          "code": "MANAGE-4",
+          "name": "Incident Response",
+          "description": "Risk treatments, including responses and recovery, and communication plans for the identified and measured AI risks are documented and monitored regularly.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "MANAGE-4.1", "outcome": "Post-deployment AI system monitoring plans are implemented, including mechanisms for capturing and evaluating input from users and other relevant AI actors, appeal and override, decommissioning, and incident response", "display_order": 1, "trustworthiness_characteristic": "accountable_transparent"},
+            {"code": "MANAGE-4.2", "outcome": "Measurable activities for continual improvements are integrated into AI system updates and include regular engagement with interested parties, including affected communities", "display_order": 2, "trustworthiness_characteristic": "fair"},
+            {"code": "MANAGE-4.3", "outcome": "Incidents and errors are communicated to relevant AI actors, including affected communities", "display_order": 3, "trustworthiness_characteristic": "accountable_transparent"}
+          ]
+        }
+      ]
+    }
+  ]
+}

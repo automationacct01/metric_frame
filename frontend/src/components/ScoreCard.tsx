@@ -30,20 +30,28 @@ interface ScoreCardProps {
   onClick?: () => void;
   showTrend?: boolean;
   trend?: number; // Percentage change from previous period
+  // Multi-framework support - optional overrides
+  functionName?: string;
+  functionDescription?: string;
+  colorHex?: string;
 }
 
-export default function ScoreCard({ 
-  functionScore, 
-  onClick, 
-  showTrend = false, 
-  trend 
+export default function ScoreCard({
+  functionScore,
+  onClick,
+  showTrend = false,
+  trend,
+  functionName: overrideFunctionName,
+  functionDescription: overrideFunctionDescription,
+  colorHex,
 }: ScoreCardProps) {
   const navigate = useNavigate();
   const { function: csfFunction, score_pct, risk_rating, metrics_count, metrics_below_target_count } = functionScore;
-  
-  const functionName = CSF_FUNCTION_NAMES[csfFunction];
-  const functionDescription = CSF_FUNCTION_DESCRIPTIONS[csfFunction];
-  const riskColor = RISK_RATING_COLORS[risk_rating];
+
+  // Use override names if provided, otherwise fall back to CSF defaults
+  const functionName = overrideFunctionName || CSF_FUNCTION_NAMES[csfFunction] || csfFunction;
+  const functionDescription = overrideFunctionDescription || CSF_FUNCTION_DESCRIPTIONS[csfFunction] || '';
+  const riskColor = colorHex || RISK_RATING_COLORS[risk_rating];
   
   const metricsAtTarget = metrics_count - metrics_below_target_count;
   const atTargetPercentage = metrics_count > 0 ? (metricsAtTarget / metrics_count) * 100 : 0;

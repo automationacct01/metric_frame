@@ -30,14 +30,20 @@ import {
   GridRenderCellParams,
 } from '@mui/x-data-grid';
 import {
-  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   FileDownload as ExportIcon,
   Refresh as RefreshIcon,
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  AutoAwesome as AIIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
+import { FrameworkSelector } from './FrameworkSelector';
+import { useFramework } from '../contexts/FrameworkContext';
 import {
   Metric,
   MetricFilters,
@@ -46,7 +52,31 @@ import {
   PRIORITY_NAMES,
   RISK_RATING_COLORS,
   RiskRating,
+  MetricDirection,
+  CollectionFrequency,
 } from '../types';
+
+// Constants for dropdown options
+const DIRECTION_LABELS: Record<MetricDirection, string> = {
+  [MetricDirection.HIGHER_IS_BETTER]: 'Higher is Better',
+  [MetricDirection.LOWER_IS_BETTER]: 'Lower is Better',
+  [MetricDirection.TARGET_RANGE]: 'Target Range',
+  [MetricDirection.BINARY]: 'Binary',
+};
+
+const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
+  [CollectionFrequency.DAILY]: 'Daily',
+  [CollectionFrequency.WEEKLY]: 'Weekly',
+  [CollectionFrequency.MONTHLY]: 'Monthly',
+  [CollectionFrequency.QUARTERLY]: 'Quarterly',
+  [CollectionFrequency.AD_HOC]: 'Ad Hoc',
+};
+
+interface EditingState {
+  [metricId: string]: {
+    [field: string]: any;
+  };
+}
 
 interface MetricsGridState {
   metrics: Metric[];
@@ -64,9 +94,19 @@ interface MetricsGridState {
   snackbarSeverity: 'success' | 'error' | 'warning' | 'info';
   activeCatalog: any | null;
   catalogLoading: boolean;
+  editingValues: EditingState;
+  savingMetric: string | null;
+  // AI generation state
+  aiGenerating: boolean;
+  aiGenerated: boolean;
+  aiError: string | null;
 }
 
 export default function MetricsGrid() {
+  // Get the selected framework from context
+  const { selectedFramework, isLoadingFrameworks } = useFramework();
+  const frameworkCode = selectedFramework?.code || 'csf_2_0';
+
   const [state, setState] = useState<MetricsGridState>({
     metrics: [],
     loading: true,
@@ -86,6 +126,11 @@ export default function MetricsGrid() {
     snackbarSeverity: 'info',
     activeCatalog: null,
     catalogLoading: true,
+    editingValues: {},
+    savingMetric: null,
+    aiGenerating: false,
+    aiGenerated: false,
+    aiError: null,
   });
 
   const showSnackbar = (message: string, severity: typeof state.snackbarSeverity = 'info') => {
@@ -141,25 +186,25 @@ export default function MetricsGrid() {
 
   const loadMetrics = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    
+
     try {
       // If pageSize is -1 (All), use a high limit to get all metrics
       const isShowAll = state.pageSize === -1;
       const limit = isShowAll ? 1000 : state.pageSize;
       const offset = isShowAll ? 0 : state.page * state.pageSize;
-      
+
+      // Build filters with framework
+      const filtersWithFramework = {
+        ...state.filters,
+        framework: frameworkCode,
+        limit,
+        offset,
+      };
+
       // Choose data source based on active catalog
-      const response = state.activeCatalog 
-        ? await apiClient.getActiveCatalogMetrics({
-            ...state.filters,
-            limit,
-            offset,
-          }, 'admin')
-        : await apiClient.getMetrics({
-            ...state.filters,
-            limit,
-            offset,
-          });
+      const response = state.activeCatalog
+        ? await apiClient.getActiveCatalogMetrics(filtersWithFramework, 'admin')
+        : await apiClient.getMetrics(filtersWithFramework);
       
       setState(prev => ({
         ...prev,
@@ -202,7 +247,7 @@ export default function MetricsGrid() {
         error: errorMessage,
       }));
     }
-  }, [state.filters, state.pageSize, state.page, state.activeCatalog]);
+  }, [state.filters, state.pageSize, state.page, state.activeCatalog, frameworkCode]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -212,10 +257,10 @@ export default function MetricsGrid() {
   }, [loadActiveCatalog]);
 
   useEffect(() => {
-    if (!state.catalogLoading) {
+    if (!state.catalogLoading && !isLoadingFrameworks) {
       loadMetrics();
     }
-  }, [loadMetrics, state.catalogLoading, state.activeCatalog]);
+  }, [loadMetrics, state.catalogLoading, state.activeCatalog, isLoadingFrameworks, frameworkCode]);
 
   const handleFilterChange = (field: keyof MetricFilters, value: any) => {
     setState(prev => ({
@@ -282,6 +327,290 @@ export default function MetricsGrid() {
     }
   };
 
+  // Lock/Unlock handlers
+  const handleToggleLock = async (metric: Metric) => {
+    try {
+      setState(prev => ({ ...prev, savingMetric: metric.id }));
+
+      // Check actual current lock state from the metric
+      const currentlyLocked = metric.locked;
+
+      if (currentlyLocked) {
+        // Unlocking - start editing mode
+        await apiClient.unlockMetric(metric.id);
+        // Initialize editing values with current metric values
+        setState(prev => ({
+          ...prev,
+          editingValues: {
+            ...prev.editingValues,
+            [metric.id]: {
+              priority_rank: metric.priority_rank,
+              current_value: metric.current_value,
+              target_value: metric.target_value,
+              direction: metric.direction,
+              collection_frequency: metric.collection_frequency,
+              owner_function: metric.owner_function,
+            },
+          },
+          metrics: prev.metrics.map(m =>
+            m.id === metric.id ? { ...m, locked: false } : m
+          ),
+          savingMetric: null,
+        }));
+        showSnackbar(`Metric unlocked for editing`, 'info');
+      } else {
+        // Locking - save changes first if any
+        const editValues = state.editingValues[metric.id];
+        if (editValues && Object.keys(editValues).length > 0) {
+          // Only patch fields that are editable
+          const patchData: any = {};
+          if (editValues.priority_rank !== undefined) patchData.priority_rank = editValues.priority_rank;
+          if (editValues.current_value !== undefined) patchData.current_value = editValues.current_value;
+          if (editValues.target_value !== undefined) patchData.target_value = editValues.target_value;
+          if (editValues.direction !== undefined) patchData.direction = editValues.direction;
+          if (editValues.collection_frequency !== undefined) patchData.collection_frequency = editValues.collection_frequency;
+          if (editValues.owner_function !== undefined) patchData.owner_function = editValues.owner_function;
+
+          if (Object.keys(patchData).length > 0) {
+            await apiClient.patchMetric(metric.id, patchData);
+          }
+        }
+        await apiClient.lockMetric(metric.id);
+        setState(prev => ({
+          ...prev,
+          editingValues: Object.fromEntries(
+            Object.entries(prev.editingValues).filter(([key]) => key !== metric.id)
+          ),
+          metrics: prev.metrics.map(m =>
+            m.id === metric.id ? { ...m, locked: true } : m
+          ),
+          savingMetric: null,
+        }));
+        showSnackbar('Changes saved and metric locked', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to toggle lock:', error);
+      showSnackbar('Failed to toggle lock', 'error');
+      setState(prev => ({ ...prev, savingMetric: null }));
+    }
+  };
+
+  // Lock All / Unlock All handlers
+  const handleLockAll = async () => {
+    const unlockedMetrics = state.metrics.filter(m => !m.locked);
+    if (unlockedMetrics.length === 0) {
+      showSnackbar('All metrics are already locked', 'info');
+      return;
+    }
+
+    setState(prev => ({ ...prev, loading: true }));
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const metric of unlockedMetrics) {
+        try {
+          // Save any pending edits first
+          const editValues = state.editingValues[metric.id];
+          if (editValues && Object.keys(editValues).length > 0) {
+            const patchData: any = {};
+            if (editValues.priority_rank !== undefined) patchData.priority_rank = editValues.priority_rank;
+            if (editValues.current_value !== undefined) patchData.current_value = editValues.current_value;
+            if (editValues.target_value !== undefined) patchData.target_value = editValues.target_value;
+            if (editValues.direction !== undefined) patchData.direction = editValues.direction;
+            if (editValues.collection_frequency !== undefined) patchData.collection_frequency = editValues.collection_frequency;
+            if (editValues.owner_function !== undefined) patchData.owner_function = editValues.owner_function;
+
+            if (Object.keys(patchData).length > 0) {
+              await apiClient.patchMetric(metric.id, patchData);
+            }
+          }
+          await apiClient.lockMetric(metric.id);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to lock metric ${metric.id}:`, error);
+          failCount++;
+        }
+      }
+
+      // Update local state - clear editing values and mark as locked
+      setState(prev => ({
+        ...prev,
+        editingValues: {},
+        metrics: prev.metrics.map(m =>
+          unlockedMetrics.find(um => um.id === m.id) ? { ...m, locked: true } : m
+        ),
+        loading: false,
+      }));
+
+      if (failCount === 0) {
+        showSnackbar(`Locked ${successCount} metrics`, 'success');
+      } else {
+        showSnackbar(`Locked ${successCount} metrics, ${failCount} failed`, 'warning');
+      }
+    } catch (error) {
+      console.error('Failed to lock all metrics:', error);
+      showSnackbar('Failed to lock metrics', 'error');
+      setState(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleUnlockAll = async () => {
+    const lockedMetrics = state.metrics.filter(m => m.locked);
+    if (lockedMetrics.length === 0) {
+      showSnackbar('All metrics are already unlocked', 'info');
+      return;
+    }
+
+    setState(prev => ({ ...prev, loading: true }));
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      const newEditingValues: EditingState = { ...state.editingValues };
+
+      for (const metric of lockedMetrics) {
+        try {
+          await apiClient.unlockMetric(metric.id);
+          // Set up editing values for each unlocked metric
+          newEditingValues[metric.id] = {
+            priority_rank: metric.priority_rank,
+            current_value: metric.current_value,
+            target_value: metric.target_value,
+            direction: metric.direction,
+            collection_frequency: metric.collection_frequency,
+            owner_function: metric.owner_function,
+          };
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to unlock metric ${metric.id}:`, error);
+          failCount++;
+        }
+      }
+
+      // Update local state with editing values
+      setState(prev => ({
+        ...prev,
+        editingValues: newEditingValues,
+        metrics: prev.metrics.map(m =>
+          lockedMetrics.find(lm => lm.id === m.id) ? { ...m, locked: false } : m
+        ),
+        loading: false,
+      }));
+
+      if (failCount === 0) {
+        showSnackbar(`Unlocked ${successCount} metrics for editing`, 'success');
+      } else {
+        showSnackbar(`Unlocked ${successCount} metrics, ${failCount} failed`, 'warning');
+      }
+    } catch (error) {
+      console.error('Failed to unlock all metrics:', error);
+      showSnackbar('Failed to unlock metrics', 'error');
+      setState(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleCancelEdit = async (metric: Metric) => {
+    try {
+      await apiClient.lockMetric(metric.id);
+      setState(prev => ({
+        ...prev,
+        editingValues: Object.fromEntries(
+          Object.entries(prev.editingValues).filter(([key]) => key !== metric.id)
+        ),
+        metrics: prev.metrics.map(m =>
+          m.id === metric.id ? { ...m, locked: true } : m
+        ),
+      }));
+      showSnackbar('Edit cancelled', 'info');
+    } catch (error) {
+      console.error('Failed to cancel edit:', error);
+      showSnackbar('Failed to cancel edit', 'error');
+    }
+  };
+
+  const handleFieldChange = (metricId: string, field: string, value: any) => {
+    setState(prev => ({
+      ...prev,
+      editingValues: {
+        ...prev.editingValues,
+        [metricId]: {
+          ...prev.editingValues[metricId],
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  const isEditing = (metricId: string) => {
+    return !!state.editingValues[metricId];
+  };
+
+  const getEditValue = (metric: Metric, field: keyof Metric) => {
+    if (state.editingValues[metric.id] && state.editingValues[metric.id][field] !== undefined) {
+      return state.editingValues[metric.id][field];
+    }
+    return metric[field];
+  };
+
+  // AI-powered metric generation
+  const handleGenerateMetric = async () => {
+    if (!state.selectedMetric?.name || state.selectedMetric.name.trim().length < 3) {
+      showSnackbar('Please enter a metric name (at least 3 characters)', 'warning');
+      return;
+    }
+
+    setState(prev => ({ ...prev, aiGenerating: true, aiError: null }));
+
+    try {
+      const result = await apiClient.generateMetricFromName(
+        state.selectedMetric.name.trim(),
+        frameworkCode
+      );
+
+      if (result.success && result.metric) {
+        // Update the selected metric with AI-generated values
+        setState(prev => ({
+          ...prev,
+          selectedMetric: {
+            ...prev.selectedMetric,
+            ...result.metric,
+            name: prev.selectedMetric?.name || result.metric.name, // Keep user's original name
+          } as Metric,
+          aiGenerating: false,
+          aiGenerated: true,
+          aiError: null,
+        }));
+        showSnackbar('Metric details generated! Please review and save.', 'success');
+      } else {
+        setState(prev => ({
+          ...prev,
+          aiGenerating: false,
+          aiError: result.error || 'Failed to generate metric details',
+        }));
+        showSnackbar(result.error || 'Failed to generate metric details', 'error');
+      }
+    } catch (error: any) {
+      console.error('AI generation error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate metric';
+      setState(prev => ({
+        ...prev,
+        aiGenerating: false,
+        aiError: errorMessage,
+      }));
+      showSnackbar(errorMessage, 'error');
+    }
+  };
+
+  const handleOpenAddDialog = () => {
+    setState(prev => ({
+      ...prev,
+      selectedMetric: { name: '' } as Metric,
+      editDialogOpen: true,
+      aiGenerated: false,
+      aiError: null,
+    }));
+  };
+
   const handleExport = async () => {
     try {
       setState(prev => ({ ...prev, loading: true }));
@@ -344,25 +673,122 @@ export default function MetricsGrid() {
   const getRiskColor = (score?: number): string => {
     if (score === undefined) return '#9e9e9e';
     if (score >= 85) return RISK_RATING_COLORS[RiskRating.LOW];
-    if (score >= 65) return RISK_RATING_COLORS[RiskRating.MODERATE];
-    if (score >= 40) return RISK_RATING_COLORS[RiskRating.ELEVATED];
+    if (score >= 65) return RISK_RATING_COLORS[RiskRating.MEDIUM];
+    if (score >= 40) return '#ff9800'; // Orange for elevated risk
     return RISK_RATING_COLORS[RiskRating.HIGH];
+  };
+
+  // Format units for display - convert "percent" to "%" and add proper spacing
+  const formatValueWithUnits = (value: number | null | undefined, units: string | null | undefined): string => {
+    if (value === null || value === undefined) return 'N/A';
+
+    if (!units) return String(value);
+
+    // Convert "percent" to "%"
+    if (units.toLowerCase() === 'percent' || units === '%') {
+      return `${value}%`;
+    }
+
+    // For other units, add a space
+    return `${value} ${units}`;
+  };
+
+  // Get formatted metric display name from description with unit prefix
+  const getMetricDisplayName = (metric: Metric): string => {
+    const description = metric.description || metric.name || '';
+    const units = metric.target_units?.toLowerCase() || '';
+
+    // Check for time-based metrics - use the name with unit suffix
+    const timePatterns = ['MTTR', 'MTTD', 'Mean Time', 'Time to', 'Duration', 'RTO', 'RPO'];
+    const hasTimeInName = timePatterns.some(p => (metric.name || '').includes(p));
+    if (hasTimeInName || units === 'hours' || units === 'days' || units === 'minutes') {
+      // For time metrics, show name with unit in parentheses
+      const unitLabel = units === 'hours' ? 'hrs' : units === 'days' ? 'days' : units === 'minutes' ? 'min' : units;
+      return unitLabel ? `${metric.name} (${unitLabel})` : metric.name || '';
+    }
+
+    // Format description with unit prefix
+    let displayName = description;
+
+    // Replace common patterns with symbols
+    if (description.toLowerCase().startsWith('percentage of ')) {
+      displayName = '% of ' + description.substring(14);
+    } else if (description.toLowerCase().startsWith('percent of ')) {
+      displayName = '% of ' + description.substring(11);
+    } else if (description.toLowerCase().startsWith('the percentage of ')) {
+      displayName = '% of ' + description.substring(18);
+    } else if (description.toLowerCase().startsWith('number of ')) {
+      displayName = '# of ' + description.substring(10);
+    } else if (description.toLowerCase().startsWith('count of ')) {
+      displayName = '# of ' + description.substring(9);
+    } else if (description.toLowerCase().startsWith('total ')) {
+      displayName = '# ' + description;
+    } else if (units === 'percent' || units === '%') {
+      // Add % prefix if description doesn't already have it
+      if (!description.startsWith('%')) {
+        displayName = '% ' + description;
+      }
+    } else if (units === 'count' || units === 'number') {
+      // Add # prefix for count metrics
+      if (!description.startsWith('#')) {
+        displayName = '# ' + description;
+      }
+    }
+
+    // Capitalize first letter after prefix if needed
+    if (displayName.startsWith('% of ') || displayName.startsWith('# of ')) {
+      const prefix = displayName.substring(0, 5);
+      const rest = displayName.substring(5);
+      displayName = prefix + rest.charAt(0).toUpperCase() + rest.slice(1);
+    }
+
+    return displayName || metric.name || '';
   };
 
   const columns: GridColDef[] = [
     {
+      field: 'locked',
+      headerName: '',
+      width: 50,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const saving = state.savingMetric === metric.id;
+        const isUnlocked = !metric.locked;
+
+        return (
+          <Tooltip title={metric.locked ? `Click to unlock (locked by ${metric.locked_by || 'system'})` : 'Click to save and lock'}>
+            <IconButton
+              size="small"
+              onClick={() => handleToggleLock(metric)}
+              disabled={saving}
+              sx={{ padding: '4px' }}
+            >
+              {saving ? (
+                <CircularProgress size={16} />
+              ) : isUnlocked ? (
+                <LockOpenIcon fontSize="small" sx={{ color: '#4caf50' }} />
+              ) : (
+                <LockIcon fontSize="small" sx={{ color: '#9e9e9e' }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        );
+      },
+    },
+    {
       field: 'metric_number',
       headerName: 'ID',
-      width: 80,
+      width: 120,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value || 'N/A'}
           size="small"
-          sx={{ 
-            fontFamily: 'monospace', 
+          sx={{
             fontWeight: 600,
+            fontSize: '0.8rem',
             backgroundColor: '#f5f5f5',
-            color: '#666666',
+            color: '#555',
             border: '1px solid #e0e0e0'
           }}
         />
@@ -371,99 +797,358 @@ export default function MetricsGrid() {
     {
       field: 'name',
       headerName: 'Metric Name',
-      width: 300,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title={params.row.description || 'No description'}>
-          <div style={{ 
-            whiteSpace: 'normal', 
+      width: 380,
+      minWidth: 300,
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const displayName = getMetricDisplayName(metric);
+
+        // Determine prefix color
+        let prefixColor = '#666';
+        if (displayName.startsWith('%')) {
+          prefixColor = '#1976d2'; // Blue for percentage
+        } else if (displayName.startsWith('#')) {
+          prefixColor = '#388e3c'; // Green for count
+        }
+
+        // Split prefix from rest of name for styling
+        const hasPrefix = displayName.startsWith('% ') || displayName.startsWith('# ');
+        const prefix = hasPrefix ? displayName.substring(0, 1) : '';
+        const restOfName = hasPrefix ? displayName.substring(2) : displayName;
+
+        // Build tooltip with useful additional info (not redundant)
+        const tooltipParts: string[] = [];
+
+        // Add original name if it's meaningfully different from display
+        const displayLower = displayName.toLowerCase().replace(/[%#]/g, '').trim();
+        const nameLower = (metric.name || '').toLowerCase();
+
+        // Only show name if it's not essentially the same as what's displayed
+        if (nameLower && !displayLower.includes(nameLower.substring(0, 15)) &&
+            !nameLower.includes(displayLower.substring(0, 15))) {
+          tooltipParts.push(`ID: ${metric.name}`);
+        }
+
+        // Add formula if available (most useful additional info)
+        if (metric.formula) {
+          tooltipParts.push(`Formula: ${metric.formula}`);
+        }
+
+        // Add data source if available
+        if (metric.data_source) {
+          tooltipParts.push(`Source: ${metric.data_source}`);
+        }
+
+        const tooltipContent = tooltipParts.length > 0 ? tooltipParts.join('\n') : '';
+
+        const content = (
+          <div style={{
+            whiteSpace: 'normal',
             wordWrap: 'break-word',
-            lineHeight: '1.2',
-            padding: '4px 0'
+            lineHeight: '1.3',
+            padding: '4px 0',
           }}>
-            {params.value}
+            {prefix && (
+              <span style={{
+                fontWeight: 700,
+                color: prefixColor,
+                marginRight: '4px'
+              }}>
+                {prefix}
+              </span>
+            )}
+            <span>{restOfName}</span>
           </div>
-        </Tooltip>
-      ),
+        );
+
+        // Only wrap in Tooltip if there's useful content to show
+        if (tooltipContent) {
+          return (
+            <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{tooltipContent}</span>}>
+              {content}
+            </Tooltip>
+          );
+        }
+
+        return content;
+      },
+    },
+    {
+      field: 'formula',
+      headerName: 'Formula',
+      width: 320,
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams) => {
+        const formula = params.row.formula;
+
+        if (!formula) {
+          return (
+            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+              Not defined
+            </span>
+          );
+        }
+
+        return (
+          <div style={{
+            whiteSpace: 'normal',
+            wordWrap: 'break-word',
+            lineHeight: '1.3',
+            padding: '4px 0',
+            fontSize: '0.85rem',
+            color: '#444',
+          }}>
+            {formula}
+          </div>
+        );
+      },
+    },
+    {
+      field: 'risk_definition',
+      headerName: 'Risk Definition',
+      width: 400,
+      minWidth: 250,
+      flex: 1,  // Allow this column to grow with available space
+      renderCell: (params: GridRenderCellParams) => {
+        const riskDef = params.row.risk_definition;
+
+        if (!riskDef) {
+          return (
+            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+              Not defined
+            </span>
+          );
+        }
+
+        return (
+          <div style={{
+            whiteSpace: 'normal',
+            wordWrap: 'break-word',
+            lineHeight: '1.3',
+            padding: '4px 0',
+            fontSize: '0.85rem',
+            color: '#444',
+          }}>
+            {riskDef}
+          </div>
+        );
+      },
     },
     {
       field: 'csf_function',
       headerName: 'CSF Function',
-      width: 120,
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={CSF_FUNCTION_NAMES[params.value as CSFFunction]}
-          size="small"
-          color="primary"
-        />
-      ),
+      width: 140,
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const editing = isEditing(metric.id);
+        const value = getEditValue(metric, 'csf_function') as CSFFunction;
+
+        if (editing) {
+          return (
+            <FormControl size="small" fullWidth>
+              <Select
+                value={value || ''}
+                onChange={(e) => handleFieldChange(metric.id, 'csf_function', e.target.value)}
+                sx={{ minWidth: 100 }}
+              >
+                {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
+                  <MenuItem key={key} value={key}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          );
+        }
+
+        return (
+          <Chip
+            label={CSF_FUNCTION_NAMES[params.value as CSFFunction]}
+            size="small"
+            color="primary"
+          />
+        );
+      },
     },
     {
       field: 'csf_category_name',
       headerName: 'CSF Category',
-      width: 200,
+      width: 220,
+      minWidth: 180,
       renderCell: (params: GridRenderCellParams) => {
         const categoryName = params.row.csf_category_name;
         const categoryCode = params.row.csf_category_code;
-        
-        if (!categoryName && !categoryCode) return <span>-</span>;
-        
+
+        if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
+
         const displayText = categoryName || categoryCode;
-        const tooltipText = categoryName && categoryCode ? `${categoryName} (${categoryCode})` : displayText;
-        
+
         return (
-          <Tooltip title={tooltipText}>
+          <Chip
+            label={displayText}
+            size="small"
+            sx={{
+              backgroundColor: '#8a73ff',
+              color: 'white',
+              height: 'auto',
+              '& .MuiChip-label': {
+                whiteSpace: 'normal',
+                padding: '6px 10px',
+                lineHeight: '1.3',
+              },
+              '&:hover': {
+                backgroundColor: '#7c4dff'
+              }
+            }}
+          />
+        );
+      },
+    },
+    {
+      field: 'csf_subcategory_code',
+      headerName: 'CSF Subcategory',
+      width: 280,
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams) => {
+        const subcategoryCode = params.row.csf_subcategory_code;
+        const subcategoryOutcome = params.row.csf_subcategory_outcome;
+
+        if (!subcategoryCode) {
+          return <span style={{ color: '#9e9e9e' }}>-</span>;
+        }
+
+        return (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            padding: '4px 0',
+          }}>
             <Chip
-              label={displayText}
+              label={subcategoryCode}
               size="small"
-              sx={{ 
-                backgroundColor: '#8a73ff',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#7c4dff'
-                }
+              sx={{
+                backgroundColor: '#e3f2fd',
+                color: '#1565c0',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                flexShrink: 0,
               }}
             />
-          </Tooltip>
+            {subcategoryOutcome && (
+              <span style={{
+                fontSize: '0.8rem',
+                color: '#555',
+                lineHeight: '1.3',
+              }}>
+                {subcategoryOutcome}
+              </span>
+            )}
+          </div>
         );
       },
     },
     {
       field: 'priority_rank',
       headerName: 'Priority',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={PRIORITY_NAMES[params.value as number] || 'Unknown'}
-          size="small"
-          color={params.value === 1 ? 'error' : params.value === 2 ? 'warning' : 'default'}
-        />
-      ),
+      width: 110,
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const editing = isEditing(metric.id);
+        const value = getEditValue(metric, 'priority_rank') as number;
+
+        if (editing) {
+          return (
+            <FormControl size="small" fullWidth>
+              <Select
+                value={value || ''}
+                onChange={(e) => handleFieldChange(metric.id, 'priority_rank', Number(e.target.value))}
+                sx={{ minWidth: 80 }}
+              >
+                <MenuItem value={1}>High</MenuItem>
+                <MenuItem value={2}>Medium</MenuItem>
+                <MenuItem value={3}>Low</MenuItem>
+              </Select>
+            </FormControl>
+          );
+        }
+
+        return (
+          <Chip
+            label={PRIORITY_NAMES[params.value as number] || 'Unknown'}
+            size="small"
+            color={params.value === 1 ? 'error' : params.value === 2 ? 'warning' : 'default'}
+          />
+        );
+      },
     },
     {
       field: 'current_value',
       headerName: 'Current Value',
       width: 130,
       type: 'number',
-      renderCell: (params: GridRenderCellParams) => (
-        <span>
-          {params.value !== null && params.value !== undefined 
-            ? `${params.value}${params.row.target_units || ''}` 
-            : 'No data'}
-        </span>
-      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const editing = isEditing(metric.id);
+        const value = getEditValue(metric, 'current_value');
+        const unitDisplay = metric.target_units?.toLowerCase() === 'percent' ? '%' : metric.target_units;
+
+        if (editing) {
+          return (
+            <TextField
+              size="small"
+              type="number"
+              value={value ?? ''}
+              onChange={(e) => handleFieldChange(metric.id, 'current_value', e.target.value ? Number(e.target.value) : null)}
+              sx={{ width: 100 }}
+              InputProps={{
+                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: '#666' }}>{unitDisplay}</span> : undefined,
+              }}
+            />
+          );
+        }
+
+        return (
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {params.value !== null && params.value !== undefined
+              ? formatValueWithUnits(params.value, params.row.target_units)
+              : 'No data'}
+          </span>
+        );
+      },
     },
     {
       field: 'target_value',
       headerName: 'Target',
-      width: 100,
+      width: 110,
       type: 'number',
-      renderCell: (params: GridRenderCellParams) => (
-        <span>
-          {params.value !== null && params.value !== undefined
-            ? `${params.value}${params.row.target_units || ''}`
-            : 'N/A'}
-        </span>
-      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const editing = isEditing(metric.id);
+        const value = getEditValue(metric, 'target_value');
+        const unitDisplay = metric.target_units?.toLowerCase() === 'percent' ? '%' : metric.target_units;
+
+        if (editing) {
+          return (
+            <TextField
+              size="small"
+              type="number"
+              value={value ?? ''}
+              onChange={(e) => handleFieldChange(metric.id, 'target_value', e.target.value ? Number(e.target.value) : null)}
+              sx={{ width: 80 }}
+              InputProps={{
+                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: '#666' }}>{unitDisplay}</span> : undefined,
+              }}
+            />
+          );
+        }
+
+        return (
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {formatValueWithUnits(params.value, params.row.target_units)}
+          </span>
+        );
+      },
     },
     {
       field: 'metric_score',
@@ -521,49 +1206,111 @@ export default function MetricsGrid() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
+      width: 180,
       sortable: false,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <IconButton
-            size="small"
-            onClick={() => handleEditMetric(params.row)}
-            title="Edit metric"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDeleteMetric(params.row)}
-            title="Delete metric"
-            color="error"
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        const editing = isEditing(metric.id);
+        const saving = state.savingMetric === metric.id;
+
+        return (
+          <Box display="flex" gap={0.5}>
+            {editing ? (
+              <>
+                <Tooltip title="Save changes and lock">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleToggleLock(metric)}
+                    color="primary"
+                    disabled={saving}
+                  >
+                    {saving ? <CircularProgress size={16} /> : <SaveIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Cancel editing">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCancelEdit(metric)}
+                    color="default"
+                    disabled={saving}
+                  >
+                    <CancelIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            ) : (
+              <Tooltip title={metric.locked ? 'Unlock for editing' : 'Lock metric'}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleToggleLock(metric)}
+                  color={metric.locked ? 'default' : 'primary'}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <CircularProgress size={16} />
+                  ) : metric.locked ? (
+                    <LockIcon fontSize="small" />
+                  ) : (
+                    <LockOpenIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Edit in dialog">
+              <IconButton
+                size="small"
+                onClick={() => handleEditMetric(params.row)}
+                disabled={editing}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete metric">
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteMetric(params.row)}
+                color="error"
+                disabled={editing}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        );
+      },
     },
   ];
 
   return (
-    <ContentFrame>
+    <ContentFrame maxWidth={false}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             Metrics Catalog
           </Typography>
-          {state.activeCatalog && (
-            <Chip 
-              label={`Active: ${state.activeCatalog.name}`} 
-              color="primary" 
-              size="small"
-              sx={{ mb: 1 }}
-            />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {selectedFramework && (
+              <Chip
+                label={selectedFramework.name}
+                color="info"
+                size="small"
+              />
+            )}
+            {state.activeCatalog && (
+              <Chip
+                label={`Active: ${state.activeCatalog.name}`}
+                color="primary"
+                size="small"
+              />
+            )}
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FrameworkSelector size="small" />
+          {state.catalogLoading && (
+            <CircularProgress size={24} />
           )}
         </Box>
-        {state.catalogLoading && (
-          <CircularProgress size={24} />
-        )}
       </Box>
 
       {/* Summary Cards */}
@@ -619,17 +1366,18 @@ export default function MetricsGrid() {
       {/* Filters and Actions */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2.5}>
             <TextField
               fullWidth
               label="Search"
+              size="small"
               value={state.filters.search || ''}
               onChange={(e) => handleFilterChange('search', e.target.value)}
               placeholder="Search metrics..."
             />
           </Grid>
-          <Grid item xs={12} md={2}>
-            <FormControl fullWidth>
+          <Grid item xs={6} md={2}>
+            <FormControl fullWidth size="small">
               <InputLabel>CSF Function</InputLabel>
               <Select
                 value={state.filters.function || ''}
@@ -645,23 +1393,23 @@ export default function MetricsGrid() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={2}>
-            <FormControl fullWidth>
+          <Grid item xs={6} md={1.5}>
+            <FormControl fullWidth size="small">
               <InputLabel>Priority</InputLabel>
               <Select
                 value={state.filters.priority_rank || ''}
                 label="Priority"
                 onChange={(e) => handleFilterChange('priority_rank', e.target.value || undefined)}
               >
-                <MenuItem value="">All Priorities</MenuItem>
+                <MenuItem value="">All</MenuItem>
                 <MenuItem value={1}>High</MenuItem>
                 <MenuItem value={2}>Medium</MenuItem>
                 <MenuItem value={3}>Low</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={2}>
-            <FormControl fullWidth>
+          <Grid item xs={6} md={1.5}>
+            <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
                 value={state.filters.active === undefined ? '' : state.filters.active.toString()}
@@ -674,21 +1422,46 @@ export default function MetricsGrid() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={3}>
-            <Box display="flex" gap={1}>
+          <Grid item xs={12} md={4.5}>
+            <Box display="flex" gap={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+              <Tooltip title="Add a new metric - AI will auto-fill details from the name">
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AIIcon />}
+                  onClick={handleOpenAddDialog}
+                >
+                  AI Add
+                </Button>
+              </Tooltip>
               <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setState(prev => ({ ...prev, selectedMetric: {} as Metric, editDialogOpen: true }))}
+                variant="outlined"
+                size="small"
+                startIcon={<LockIcon />}
+                onClick={handleLockAll}
+                disabled={state.loading || state.metrics.filter(m => !m.locked).length === 0}
               >
-                Add Metric
+                Lock All
               </Button>
-              <IconButton onClick={loadMetrics} title="Refresh">
-                <RefreshIcon />
-              </IconButton>
-              <IconButton onClick={handleExport} title="Export CSV">
-                <ExportIcon />
-              </IconButton>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<LockOpenIcon />}
+                onClick={handleUnlockAll}
+                disabled={state.loading || state.metrics.filter(m => m.locked).length === 0}
+              >
+                Unlock All
+              </Button>
+              <Tooltip title="Refresh">
+                <IconButton onClick={loadMetrics} size="small">
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Export CSV">
+                <IconButton onClick={handleExport} size="small">
+                  <ExportIcon />
+                </IconButton>
+              </Tooltip>
             </Box>
           </Grid>
         </Grid>
@@ -702,7 +1475,7 @@ export default function MetricsGrid() {
       )}
 
       {/* Data Grid */}
-      <Paper sx={{ height: state.pageSize === -1 ? 'auto' : 600, width: '100%' }}>
+      <Paper sx={{ height: state.pageSize === -1 ? 'auto' : 700, width: '100%' }}>
         <DataGrid
           rows={state.metrics}
           columns={columns}
@@ -719,126 +1492,274 @@ export default function MetricsGrid() {
           loading={state.loading}
           onPaginationModelChange={(model) => {
             const newPageSize = model.pageSize === -1 ? -1 : model.pageSize;
-            setState(prev => ({ 
-              ...prev, 
-              page: newPageSize === -1 ? 0 : model.page, 
-              pageSize: newPageSize 
+            setState(prev => ({
+              ...prev,
+              page: newPageSize === -1 ? 0 : model.page,
+              pageSize: newPageSize
             }));
           }}
           disableRowSelectionOnClick
           getRowId={(row) => row.id}
           autoHeight={state.pageSize === -1}
           hideFooterPagination={state.pageSize === -1}
+          getRowHeight={() => 'auto'}
+          sx={{
+            '& .MuiDataGrid-cell': {
+              display: 'flex',
+              alignItems: 'flex-start',
+              py: 1,
+            },
+            '& .MuiDataGrid-row': {
+              minHeight: '52px !important',
+            },
+          }}
         />
       </Paper>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog with AI Generation */}
       <Dialog
         open={state.editDialogOpen}
-        onClose={() => setState(prev => ({ ...prev, editDialogOpen: false }))}
+        onClose={() => setState(prev => ({ ...prev, editDialogOpen: false, aiGenerated: false, aiError: null }))}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          {state.selectedMetric?.id ? 'Edit Metric' : 'Add New Metric'}
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {state.selectedMetric?.id ? (
+            'Edit Metric'
+          ) : (
+            <>
+              <AIIcon color="primary" />
+              AI-Powered Metric Creation
+            </>
+          )}
         </DialogTitle>
         <DialogContent>
           {state.selectedMetric && (
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Metric Name"
-                  value={state.selectedMetric.name || ''}
-                  onChange={(e) => setState(prev => ({
-                    ...prev,
-                    selectedMetric: { ...prev.selectedMetric!, name: e.target.value }
-                  }))}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={2}
-                  label="Description"
-                  value={state.selectedMetric.description || ''}
-                  onChange={(e) => setState(prev => ({
-                    ...prev,
-                    selectedMetric: { ...prev.selectedMetric!, description: e.target.value }
-                  }))}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>CSF Function</InputLabel>
-                  <Select
-                    value={state.selectedMetric.csf_function || ''}
-                    label="CSF Function"
-                    onChange={(e) => setState(prev => ({
-                      ...prev,
-                      selectedMetric: { ...prev.selectedMetric!, csf_function: e.target.value as CSFFunction }
-                    }))}
-                  >
-                    {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
-                      <MenuItem key={key} value={key}>
-                        {name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Priority</InputLabel>
-                  <Select
-                    value={state.selectedMetric.priority_rank || ''}
-                    label="Priority"
-                    onChange={(e) => setState(prev => ({
-                      ...prev,
-                      selectedMetric: { ...prev.selectedMetric!, priority_rank: Number(e.target.value) }
-                    }))}
-                  >
-                    <MenuItem value={1}>High</MenuItem>
-                    <MenuItem value={2}>Medium</MenuItem>
-                    <MenuItem value={3}>Low</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Current Value"
-                  value={state.selectedMetric.current_value || ''}
-                  onChange={(e) => setState(prev => ({
-                    ...prev,
-                    selectedMetric: { ...prev.selectedMetric!, current_value: Number(e.target.value) }
-                  }))}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Target Value"
-                  value={state.selectedMetric.target_value || ''}
-                  onChange={(e) => setState(prev => ({
-                    ...prev,
-                    selectedMetric: { ...prev.selectedMetric!, target_value: Number(e.target.value) }
-                  }))}
-                />
-              </Grid>
+              {/* Step 1: Name input with AI Generate button (for new metrics) */}
+              {!state.selectedMetric.id && !state.aiGenerated && (
+                <>
+                  <Grid item xs={12}>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Enter a metric name and click "Generate with AI" to automatically fill in all the details.
+                    </Alert>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box display="flex" gap={2} alignItems="flex-start">
+                      <TextField
+                        fullWidth
+                        label="Metric Name"
+                        placeholder="e.g., Patch Compliance Rate, Mean Time to Detect, Security Training Completion"
+                        value={state.selectedMetric.name || ''}
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          selectedMetric: { ...prev.selectedMetric!, name: e.target.value }
+                        }))}
+                        disabled={state.aiGenerating}
+                        helperText="Enter a descriptive name for your metric"
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={handleGenerateMetric}
+                        disabled={state.aiGenerating || !state.selectedMetric.name || state.selectedMetric.name.trim().length < 3}
+                        startIcon={state.aiGenerating ? <CircularProgress size={16} color="inherit" /> : <AIIcon />}
+                        sx={{ minWidth: 180, height: 56 }}
+                      >
+                        {state.aiGenerating ? 'Generating...' : 'Generate with AI'}
+                      </Button>
+                    </Box>
+                  </Grid>
+                  {state.aiError && (
+                    <Grid item xs={12}>
+                      <Alert severity="error">{state.aiError}</Alert>
+                    </Grid>
+                  )}
+                </>
+              )}
+
+              {/* Step 2: Full form (shown after AI generation or for editing existing metrics) */}
+              {(state.selectedMetric.id || state.aiGenerated) && (
+                <>
+                  {state.aiGenerated && !state.selectedMetric.id && (
+                    <Grid item xs={12}>
+                      <Alert severity="success" sx={{ mb: 1 }}>
+                        AI has generated the metric details below. Please review and adjust as needed before saving.
+                      </Alert>
+                    </Grid>
+                  )}
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Metric Name"
+                      value={state.selectedMetric.name || ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, name: e.target.value }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      label="Description"
+                      value={state.selectedMetric.description || ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, description: e.target.value }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Formula"
+                      placeholder="e.g., (Patched Systems / Total Systems) × 100"
+                      value={state.selectedMetric.formula || ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, formula: e.target.value }
+                      }))}
+                      helperText="How this metric is calculated"
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>CSF Function</InputLabel>
+                      <Select
+                        value={state.selectedMetric.csf_function || ''}
+                        label="CSF Function"
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          selectedMetric: { ...prev.selectedMetric!, csf_function: e.target.value as CSFFunction }
+                        }))}
+                      >
+                        {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
+                          <MenuItem key={key} value={key}>
+                            {name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Priority</InputLabel>
+                      <Select
+                        value={state.selectedMetric.priority_rank || ''}
+                        label="Priority"
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          selectedMetric: { ...prev.selectedMetric!, priority_rank: Number(e.target.value) }
+                        }))}
+                      >
+                        <MenuItem value={1}>High</MenuItem>
+                        <MenuItem value={2}>Medium</MenuItem>
+                        <MenuItem value={3}>Low</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Direction</InputLabel>
+                      <Select
+                        value={state.selectedMetric.direction || 'higher_is_better'}
+                        label="Direction"
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          selectedMetric: { ...prev.selectedMetric!, direction: e.target.value as MetricDirection }
+                        }))}
+                      >
+                        {Object.entries(DIRECTION_LABELS).map(([key, label]) => (
+                          <MenuItem key={key} value={key}>
+                            {label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Target Value"
+                      value={state.selectedMetric.target_value ?? ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, target_value: e.target.value ? Number(e.target.value) : undefined }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      fullWidth
+                      label="Target Units"
+                      placeholder="percent, hours, days, count"
+                      value={state.selectedMetric.target_units || ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, target_units: e.target.value }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Current Value"
+                      value={state.selectedMetric.current_value ?? ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, current_value: e.target.value ? Number(e.target.value) : undefined }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      fullWidth
+                      label="Owner Function"
+                      placeholder="Security Operations, IT, etc."
+                      value={state.selectedMetric.owner_function || ''}
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        selectedMetric: { ...prev.selectedMetric!, owner_function: e.target.value }
+                      }))}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Collection Frequency</InputLabel>
+                      <Select
+                        value={state.selectedMetric.collection_frequency || ''}
+                        label="Collection Frequency"
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          selectedMetric: { ...prev.selectedMetric!, collection_frequency: e.target.value as CollectionFrequency }
+                        }))}
+                      >
+                        {Object.entries(FREQUENCY_LABELS).map(([key, label]) => (
+                          <MenuItem key={key} value={key}>
+                            {label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </>
+              )}
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setState(prev => ({ ...prev, editDialogOpen: false }))}>
+          <Button onClick={() => setState(prev => ({ ...prev, editDialogOpen: false, aiGenerated: false, aiError: null }))}>
             Cancel
           </Button>
-          <Button onClick={handleSaveMetric} variant="contained">
-            Save
-          </Button>
+          {(state.selectedMetric?.id || state.aiGenerated) && (
+            <Button onClick={handleSaveMetric} variant="contained" color="primary">
+              {state.selectedMetric?.id ? 'Save Changes' : 'Create Metric'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

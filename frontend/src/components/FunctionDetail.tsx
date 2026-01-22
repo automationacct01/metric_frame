@@ -47,6 +47,10 @@ import {
   RISK_RATING_COLORS,
   PRIORITY_NAMES,
 } from '../types';
+import { useFramework } from '../contexts/FrameworkContext';
+import { FrameworkSelector } from './FrameworkSelector';
+import TrendComparison from './dashboard/TrendComparison';
+import ChangeHighlight from './dashboard/ChangeHighlight';
 
 const formatRiskRating = (riskRating: string): string => {
   return riskRating.replace('_', ' ').toUpperCase();
@@ -56,6 +60,9 @@ export default function FunctionDetail() {
   const { functionCode } = useParams<{ functionCode: string }>();
   const navigate = useNavigate();
   const [selectedTimeframe, setSelectedTimeframe] = useState(30);
+  const [showTrendComparison, setShowTrendComparison] = useState(false);
+  const { selectedFramework } = useFramework();
+  const frameworkCode = selectedFramework?.code || 'csf_2_0';
 
   // Fetch function categories
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery<CategoryScoresResponse>({
@@ -137,35 +144,56 @@ export default function FunctionDetail() {
   return (
     <ContentFrame>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
         <Box>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/')}
-            sx={{ mb: 2 }}
-          >
-            Back to Dashboard
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/')}
+            >
+              Back to Dashboard
+            </Button>
+            <FrameworkSelector size="small" />
+          </Box>
           <Typography variant="h4" component="h1" gutterBottom>
             {functionName} Function Detail
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
             {functionDescription}
           </Typography>
+          {selectedFramework && (
+            <Chip
+              label={selectedFramework.name}
+              size="small"
+              sx={{ mt: 1 }}
+              color="primary"
+              variant="outlined"
+            />
+          )}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {[30, 60, 90].map((days) => (
-            <Button
-              key={days}
-              variant={selectedTimeframe === days ? 'contained' : 'outlined'}
-              size="small"
-              onClick={() => setSelectedTimeframe(days)}
-            >
-              {days} days
-            </Button>
-          ))}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {[30, 60, 90].map((days) => (
+              <Button
+                key={days}
+                variant={selectedTimeframe === days ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setSelectedTimeframe(days)}
+              >
+                {days} days
+              </Button>
+            ))}
+          </Box>
+          <Button
+            variant={showTrendComparison ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setShowTrendComparison(!showTrendComparison)}
+            startIcon={<AssessmentIcon />}
+          >
+            {showTrendComparison ? 'Hide' : 'Show'} Period Comparison
+          </Button>
         </Box>
       </Box>
 
@@ -234,6 +262,15 @@ export default function FunctionDetail() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Period Comparison (Toggleable) */}
+      {showTrendComparison && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <TrendComparison functionCode={functionCode} height={300} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Function Summary Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

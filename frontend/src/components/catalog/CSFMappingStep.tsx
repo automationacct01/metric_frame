@@ -41,6 +41,7 @@ interface CSFMappingStepProps {
   state: any;
   updateState: (updates: any) => void;
   error: string | null;
+  frameworkCode?: string;
 }
 
 const csfFunctions = [
@@ -52,7 +53,7 @@ const csfFunctions = [
   { code: 'rc', name: 'Recover', color: 'teal' },
 ];
 
-const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState }) => {
+const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, frameworkCode = 'csf_2_0' }) => {
   const [editingMapping, setEditingMapping] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loadingMappings, setLoadingMappings] = useState(false);
@@ -117,7 +118,7 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState }) =
         });
       }, 1000);
       
-      const mappings = await apiClient.getCatalogMappings(state.catalogId, abortControllerRef.current.signal);
+      const mappings = await apiClient.getCatalogMappings(state.catalogId, frameworkCode, abortControllerRef.current.signal);
       
       clearInterval(progressInterval);
       setMappingProgress(100);
@@ -231,14 +232,17 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState }) =
     return 'error';
   };
 
+  // Get framework display name
+  const frameworkName = frameworkCode === 'ai_rmf' ? 'NIST AI RMF' : 'NIST CSF 2.0';
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Map Metrics to NIST CSF 2.0
+        Map Metrics to {frameworkName}
       </Typography>
-      
+
       <Typography variant="body2" color="text.secondary" paragraph>
-        Our AI has analyzed your metrics and suggested NIST CSF 2.0 function mappings. 
+        Our AI has analyzed your metrics and suggested {frameworkName} function mappings.
         Review and confirm these suggestions, or edit them manually.
       </Typography>
 

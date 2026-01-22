@@ -46,16 +46,23 @@ class RiskRating(str, Enum):
 # Base schemas
 class MetricBase(BaseModel):
     """Base metric schema."""
-    metric_number: Optional[str] = Field(None, max_length=10)
+    metric_number: Optional[str] = Field(None, max_length=20)
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
-    csf_function: CSFFunction
-    csf_category_code: Optional[str] = Field(None, max_length=20)
-    csf_subcategory_code: Optional[str] = Field(None, max_length=20)
-    csf_category_name: Optional[str] = Field(None, max_length=120)
+    # Legacy CSF fields (for backward compatibility - computed from relationships)
+    csf_function: Optional[CSFFunction] = None
+    csf_category_code: Optional[str] = Field(None, max_length=30)
+    csf_subcategory_code: Optional[str] = Field(None, max_length=40)
+    csf_category_name: Optional[str] = Field(None, max_length=200)
     csf_subcategory_outcome: Optional[str] = None
+    # Multi-framework support (new fields)
+    framework_id: Optional[UUID] = None
+    function_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    subcategory_id: Optional[UUID] = None
+    # Priority and weighting
     priority_rank: int = Field(2, ge=1, le=3)
     weight: float = Field(1.0, ge=0.0, le=10.0)
     direction: MetricDirection
@@ -69,6 +76,7 @@ class MetricBase(BaseModel):
     current_value: Optional[float] = None
     current_label: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
+    risk_definition: Optional[str] = None  # Why this metric matters - business risk context
     active: bool = True
 
 
@@ -79,16 +87,20 @@ class MetricCreate(MetricBase):
 
 class MetricUpdate(BaseModel):
     """Schema for updating a metric (partial updates allowed)."""
-    metric_number: Optional[str] = Field(None, max_length=10)
+    metric_number: Optional[str] = Field(None, max_length=20)
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
     csf_function: Optional[CSFFunction] = None
-    csf_category_code: Optional[str] = Field(None, max_length=20)
-    csf_subcategory_code: Optional[str] = Field(None, max_length=20)
-    csf_category_name: Optional[str] = Field(None, max_length=120)
+    csf_category_code: Optional[str] = Field(None, max_length=30)
+    csf_subcategory_code: Optional[str] = Field(None, max_length=40)
+    csf_category_name: Optional[str] = Field(None, max_length=200)
     csf_subcategory_outcome: Optional[str] = None
+    framework_id: Optional[UUID] = None
+    function_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    subcategory_id: Optional[UUID] = None
     priority_rank: Optional[int] = Field(None, ge=1, le=3)
     weight: Optional[float] = Field(None, ge=0.0, le=10.0)
     direction: Optional[MetricDirection] = None
@@ -102,18 +114,24 @@ class MetricUpdate(BaseModel):
     current_value: Optional[float] = None
     current_label: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
+    risk_definition: Optional[str] = None
     active: Optional[bool] = None
 
 
 class MetricResponse(MetricBase):
     """Schema for metric responses."""
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     last_collected_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    
+
+    # Lock fields
+    locked: bool = False
+    locked_by: Optional[str] = None
+    locked_at: Optional[datetime] = None
+
     # Computed fields
     metric_score: Optional[float] = None
     gap_to_target: Optional[float] = None
@@ -382,3 +400,147 @@ class HealthResponse(BaseModel):
     timestamp: datetime
     database_connected: bool
     ai_service_available: bool
+
+
+# ==============================================================================
+# MULTI-FRAMEWORK SCHEMAS
+# ==============================================================================
+
+class FrameworkBase(BaseModel):
+    """Base framework schema."""
+    code: str = Field(..., min_length=1, max_length=20)
+    name: str = Field(..., min_length=1, max_length=255)
+    version: Optional[str] = Field(None, max_length=20)
+    description: Optional[str] = None
+
+
+class FrameworkCreate(FrameworkBase):
+    """Schema for creating a new framework."""
+    active: bool = True
+    metadata_: Optional[Dict[str, Any]] = Field(None, alias="metadata")
+
+
+class FrameworkResponse(FrameworkBase):
+    """Schema for framework responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    active: bool
+    created_at: datetime
+
+
+class FrameworkFunctionBase(BaseModel):
+    """Base framework function schema."""
+    code: str = Field(..., min_length=1, max_length=20)
+    name: str = Field(..., min_length=1, max_length=120)
+    description: Optional[str] = None
+    display_order: int = 0
+    color_hex: Optional[str] = Field(None, max_length=7)
+    icon_name: Optional[str] = Field(None, max_length=50)
+
+
+class FrameworkFunctionResponse(FrameworkFunctionBase):
+    """Schema for framework function responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    framework_id: UUID
+
+
+class FrameworkCategoryBase(BaseModel):
+    """Base framework category schema."""
+    code: str = Field(..., min_length=1, max_length=30)
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    display_order: int = 0
+
+
+class FrameworkCategoryResponse(FrameworkCategoryBase):
+    """Schema for framework category responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    function_id: UUID
+
+
+class FrameworkSubcategoryBase(BaseModel):
+    """Base framework subcategory schema."""
+    code: str = Field(..., min_length=1, max_length=40)
+    outcome: str
+    display_order: int = 0
+
+
+class FrameworkSubcategoryResponse(FrameworkSubcategoryBase):
+    """Schema for framework subcategory responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    category_id: UUID
+
+
+class FrameworkHierarchyResponse(BaseModel):
+    """Full framework hierarchy response."""
+    framework: FrameworkResponse
+    functions: List[Dict[str, Any]]  # Nested structure with categories and subcategories
+
+
+class FrameworkFunctionScoreResponse(BaseModel):
+    """Score for a framework function (multi-framework)."""
+    function_code: str
+    function_name: str
+    function_description: Optional[str] = None
+    color_hex: Optional[str] = None
+    icon_name: Optional[str] = None
+    score_pct: float = Field(..., ge=0.0, le=100.0)
+    risk_rating: str
+    metrics_count: int = Field(..., ge=0)
+    metrics_with_data_count: int = Field(..., ge=0)
+    metrics_below_target_count: int = Field(..., ge=0)
+    weighted_score: float = Field(..., ge=0.0, le=1.0)
+
+
+class FrameworkOverallScoreResponse(BaseModel):
+    """Overall framework score response."""
+    framework_code: str
+    overall_score_pct: float = Field(..., ge=0.0, le=100.0)
+    overall_risk_rating: str
+    total_metrics_count: int = Field(..., ge=0)
+    total_metrics_with_data_count: int = Field(..., ge=0)
+    function_scores: List[FrameworkFunctionScoreResponse]
+
+
+class FrameworkCoverageResponse(BaseModel):
+    """Framework coverage statistics."""
+    framework_code: str
+    total_functions: int
+    functions_with_metrics: int
+    function_coverage_pct: float
+    total_categories: int
+    categories_with_metrics: int
+    category_coverage_pct: float
+    function_breakdown: List[Dict[str, Any]]
+
+
+class MetricRecommendationRequest(BaseModel):
+    """Request for AI metric recommendations."""
+    framework_code: str = Field(..., min_length=1, max_length=20)
+    max_recommendations: int = Field(10, ge=1, le=50)
+    target_function: Optional[str] = None
+    target_category: Optional[str] = None
+
+
+class MetricRecommendationResponse(BaseModel):
+    """Response with AI metric recommendations."""
+    success: bool
+    framework_code: str
+    recommendations: List[Dict[str, Any]]
+    gap_analysis: Dict[str, Any]
+    current_coverage: Optional[Dict[str, Any]] = None
+    current_overall_score: Optional[float] = None
+    error: Optional[str] = None
+
+
+class FrameworkListResponse(BaseModel):
+    """List of available frameworks."""
+    frameworks: List[FrameworkResponse]
+    total: int

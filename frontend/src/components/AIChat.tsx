@@ -40,6 +40,11 @@ import {
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { AIChatRequest, AIAction } from '../types';
+import { useFramework } from '../contexts/FrameworkContext';
+import { FrameworkSelector } from './FrameworkSelector';
+import MetricRecommendations from './ai/MetricRecommendations';
+import ChatMetricCreator from './ai/ChatMetricCreator';
+import GapAnalysisChart from './ai/GapAnalysisChart';
 
 interface ChatMessage {
   id: string;
@@ -49,6 +54,8 @@ interface ChatMessage {
   actions?: AIAction[];
   needsConfirmation?: boolean;
 }
+
+type AIView = 'chat' | 'recommendations' | 'create' | 'gaps';
 
 interface AIChatState {
   messages: ChatMessage[];
@@ -64,9 +71,13 @@ interface AIChatState {
   historyDialogOpen: boolean;
   aiHistory: any[];
   aiStatus: any;
+  activeView: AIView;
 }
 
 export default function AIChat() {
+  const { selectedFramework } = useFramework();
+  const frameworkCode = selectedFramework?.code || 'csf_2_0';
+
   const [state, setState] = useState<AIChatState>({
     messages: [],
     currentMessage: '',
@@ -81,6 +92,7 @@ export default function AIChat() {
     historyDialogOpen: false,
     aiHistory: [],
     aiStatus: null,
+    activeView: 'chat',
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -147,12 +159,13 @@ export default function AIChat() {
       const request: AIChatRequest = {
         message: state.currentMessage,
         mode: state.mode,
+        framework: frameworkCode,
         context_opts: {
           conversation_history: state.messages.slice(-5), // Last 5 messages for context
         },
       };
 
-      const response = await apiClient.chatWithAI(request);
+      const response = await apiClient.chatWithAI(request, frameworkCode);
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -264,73 +277,145 @@ export default function AIChat() {
     }
   };
 
+  const setActiveView = (view: AIView) => {
+    setState(prev => ({ ...prev, activeView: view }));
+  };
+
   return (
     <ContentFrame>
-      <Typography variant="h4" component="h1" gutterBottom>
-        AI Assistant
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          AI Assistant
+        </Typography>
+        <FrameworkSelector size="small" />
+      </Box>
 
-      {/* AI Status and Mode Selection */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <BotIcon color="primary" />
-                <Box flex={1}>
-                  <Typography variant="h6">
-                    AI Assistant Status
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {state.aiStatus?.ai_service_available 
-                      ? '🟢 AI Service Available' 
-                      : '🔴 AI Service Unavailable'}
-                  </Typography>
-                </Box>
-                <Tooltip title="View AI History">
-                  <IconButton onClick={loadAIHistory}>
-                    <HistoryIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <FormControl fullWidth>
-                <InputLabel>AI Mode</InputLabel>
-                <Select
-                  value={state.mode}
-                  label="AI Mode"
-                  onChange={(e) => setState(prev => ({ 
-                    ...prev, 
-                    mode: e.target.value as 'metrics' | 'explain' | 'report' 
-                  }))}
-                >
-                  <MenuItem value="metrics">Metrics Management</MenuItem>
-                  <MenuItem value="explain">Explanations</MenuItem>
-                  <MenuItem value="report">Report Generation</MenuItem>
-                </Select>
-              </FormControl>
-              <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
-                {getModeDescription(state.mode)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Current Mode Indicator */}
-      <Box sx={{ mb: 2 }}>
+      {/* View Tabs */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 1 }}>
+        <Chip
+          icon={<BotIcon />}
+          label="Chat"
+          color={state.activeView === 'chat' ? 'primary' : 'default'}
+          variant={state.activeView === 'chat' ? 'filled' : 'outlined'}
+          onClick={() => setActiveView('chat')}
+          sx={{ cursor: 'pointer' }}
+        />
         <Chip
           icon={<AIIcon />}
-          label={`Mode: ${state.mode.charAt(0).toUpperCase() + state.mode.slice(1)}`}
-          color={getModeColor(state.mode)}
-          variant="filled"
+          label="Recommendations"
+          color={state.activeView === 'recommendations' ? 'primary' : 'default'}
+          variant={state.activeView === 'recommendations' ? 'filled' : 'outlined'}
+          onClick={() => setActiveView('recommendations')}
+          sx={{ cursor: 'pointer' }}
+        />
+        <Chip
+          icon={<SendIcon />}
+          label="Create Metric"
+          color={state.activeView === 'create' ? 'primary' : 'default'}
+          variant={state.activeView === 'create' ? 'filled' : 'outlined'}
+          onClick={() => setActiveView('create')}
+          sx={{ cursor: 'pointer' }}
+        />
+        <Chip
+          icon={<HistoryIcon />}
+          label="Gap Analysis"
+          color={state.activeView === 'gaps' ? 'primary' : 'default'}
+          variant={state.activeView === 'gaps' ? 'filled' : 'outlined'}
+          onClick={() => setActiveView('gaps')}
+          sx={{ cursor: 'pointer' }}
         />
       </Box>
+
+      {/* Recommendations View */}
+      {state.activeView === 'recommendations' && (
+        <MetricRecommendations />
+      )}
+
+      {/* Create Metric View */}
+      {state.activeView === 'create' && (
+        <ChatMetricCreator />
+      )}
+
+      {/* Gap Analysis View */}
+      {state.activeView === 'gaps' && (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Framework Coverage Gap Analysis
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Visual analysis of your metric coverage across {selectedFramework?.name || 'framework'} functions
+          </Typography>
+          <GapAnalysisChart showRadar showBar height={350} />
+        </Box>
+      )}
+
+      {/* Chat View */}
+      {state.activeView === 'chat' && (
+        <>
+          {/* AI Status and Mode Selection */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} md={8}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <BotIcon color="primary" />
+                    <Box flex={1}>
+                      <Typography variant="h6">
+                        AI Assistant Status
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {state.aiStatus?.ai_service_available
+                          ? '🟢 AI Service Available'
+                          : '🔴 AI Service Unavailable'}
+                        {selectedFramework && (
+                          <> | Framework: <strong>{selectedFramework.name}</strong></>
+                        )}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="View AI History">
+                      <IconButton onClick={loadAIHistory}>
+                        <HistoryIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <FormControl fullWidth>
+                    <InputLabel>AI Mode</InputLabel>
+                    <Select
+                      value={state.mode}
+                      label="AI Mode"
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        mode: e.target.value as 'metrics' | 'explain' | 'report'
+                      }))}
+                    >
+                      <MenuItem value="metrics">Metrics Management</MenuItem>
+                      <MenuItem value="explain">Explanations</MenuItem>
+                      <MenuItem value="report">Report Generation</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                    {getModeDescription(state.mode)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Current Mode Indicator */}
+          <Box sx={{ mb: 2 }}>
+            <Chip
+              icon={<AIIcon />}
+              label={`Mode: ${state.mode.charAt(0).toUpperCase() + state.mode.slice(1)}`}
+              color={getModeColor(state.mode)}
+              variant="filled"
+            />
+          </Box>
 
       {/* Chat Messages */}
       <Paper sx={{ height: 500, mb: 2, p: 2, overflow: 'auto' }}>
@@ -449,6 +534,8 @@ export default function AIChat() {
           </Grid>
         </Grid>
       </Paper>
+        </>
+      )}
 
       {/* Action Confirmation Dialog */}
       <Dialog

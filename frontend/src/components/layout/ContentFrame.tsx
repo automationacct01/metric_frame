@@ -5,9 +5,15 @@ interface ContentFrameProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  maxWidth?: number | string | false;  // false = no max width limit
 }
 
-export const ContentFrame: React.FC<ContentFrameProps> = ({ children, title, subtitle }) => {
+export const ContentFrame: React.FC<ContentFrameProps> = ({
+  children,
+  title,
+  subtitle,
+  maxWidth = 1800  // Increased default from 1440
+}) => {
   const theme = useTheme();
   const mdUp = useMediaQuery(theme.breakpoints.up('md'));
 
@@ -15,7 +21,7 @@ export const ContentFrame: React.FC<ContentFrameProps> = ({ children, title, sub
     <Box
       sx={{
         width: '100%',
-        maxWidth: 1440,
+        maxWidth: maxWidth === false ? 'none' : maxWidth,
         mx: 'auto',
         px: mdUp ? 3 : 2,
         py: 2,
