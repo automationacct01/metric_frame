@@ -1,0 +1,441 @@
+{
+  "framework": {
+    "code": "csf_2_0",
+    "name": "NIST Cybersecurity Framework 2.0",
+    "version": "2.0",
+    "description": "The NIST Cybersecurity Framework (CSF) 2.0 provides a comprehensive set of outcomes that can help organizations manage and reduce their cybersecurity risks. It integrates industry standards and best practices to help organizations manage cybersecurity risks.",
+    "source_url": "https://csrc.nist.gov/pubs/cswp/29/the-nist-cybersecurity-framework-csf-20/final",
+    "active": true,
+    "is_extension": false
+  },
+  "functions": [
+    {
+      "code": "gv",
+      "name": "Govern",
+      "description": "The organization's cybersecurity risk management strategy, expectations, and policy are established, communicated, and monitored. The GOVERN Function provides outcomes to inform what an organization may do to achieve and prioritize the outcomes of the other five Functions in the context of its mission and stakeholder expectations.",
+      "display_order": 1,
+      "color_hex": "#6B46C1",
+      "icon_name": "gavel",
+      "categories": [
+        {
+          "code": "GV.OC",
+          "name": "Organizational Context",
+          "description": "The circumstances — mission, stakeholder expectations, dependencies, and legal, regulatory, and contractual requirements — surrounding the organization's cybersecurity risk management decisions are understood.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "GV.OC-01", "outcome": "The organizational mission is understood and informs cybersecurity risk management", "display_order": 1},
+            {"code": "GV.OC-02", "outcome": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered", "display_order": 2},
+            {"code": "GV.OC-03", "outcome": "Legal, regulatory, and contractual requirements regarding cybersecurity — including privacy and civil liberties obligations — are understood and managed", "display_order": 3},
+            {"code": "GV.OC-04", "outcome": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated", "display_order": 4},
+            {"code": "GV.OC-05", "outcome": "Outcomes, capabilities, and services that the organization depends on are understood and communicated", "display_order": 5}
+          ]
+        },
+        {
+          "code": "GV.RM",
+          "name": "Risk Management Strategy",
+          "description": "The organization's priorities, constraints, risk tolerance and appetite statements, and assumptions are established, communicated, and used to support operational risk decisions.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "GV.RM-01", "outcome": "Risk management objectives are established and agreed to by organizational stakeholders", "display_order": 1},
+            {"code": "GV.RM-02", "outcome": "Risk appetite and risk tolerance statements are established, communicated, and maintained", "display_order": 2},
+            {"code": "GV.RM-03", "outcome": "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes", "display_order": 3},
+            {"code": "GV.RM-04", "outcome": "Strategic direction that describes appropriate risk response options is established and communicated", "display_order": 4},
+            {"code": "GV.RM-05", "outcome": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties", "display_order": 5},
+            {"code": "GV.RM-06", "outcome": "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated", "display_order": 6},
+            {"code": "GV.RM-07", "outcome": "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions", "display_order": 7}
+          ]
+        },
+        {
+          "code": "GV.RR",
+          "name": "Roles, Responsibilities, and Authorities",
+          "description": "Cybersecurity roles, responsibilities, and authorities to foster accountability, performance assessment, and continuous improvement are established and communicated.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "GV.RR-01", "outcome": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continually improving", "display_order": 1},
+            {"code": "GV.RR-02", "outcome": "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced", "display_order": 2},
+            {"code": "GV.RR-03", "outcome": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies", "display_order": 3},
+            {"code": "GV.RR-04", "outcome": "Cybersecurity is included in human resources practices", "display_order": 4}
+          ]
+        },
+        {
+          "code": "GV.PO",
+          "name": "Policy",
+          "description": "Organizational cybersecurity policy is established, communicated, and enforced.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "GV.PO-01", "outcome": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced", "display_order": 1},
+            {"code": "GV.PO-02", "outcome": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission", "display_order": 2}
+          ]
+        },
+        {
+          "code": "GV.OV",
+          "name": "Oversight",
+          "description": "Results of organization-wide cybersecurity risk management activities and performance are used to inform, improve, and adjust the risk management strategy.",
+          "display_order": 5,
+          "subcategories": [
+            {"code": "GV.OV-01", "outcome": "Cybersecurity risk management strategy outcomes are reviewed to inform and adjust strategy and direction", "display_order": 1},
+            {"code": "GV.OV-02", "outcome": "The cybersecurity risk management strategy is reviewed and adjusted to ensure coverage of organizational requirements and risks", "display_order": 2},
+            {"code": "GV.OV-03", "outcome": "Organizational cybersecurity risk management performance is evaluated and reviewed for adjustments needed", "display_order": 3}
+          ]
+        },
+        {
+          "code": "GV.SC",
+          "name": "Cybersecurity Supply Chain Risk Management",
+          "description": "Cyber supply chain risk management processes are identified, established, managed, monitored, and improved by organizational stakeholders.",
+          "display_order": 6,
+          "subcategories": [
+            {"code": "GV.SC-01", "outcome": "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders", "display_order": 1},
+            {"code": "GV.SC-02", "outcome": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally", "display_order": 2},
+            {"code": "GV.SC-03", "outcome": "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes", "display_order": 3},
+            {"code": "GV.SC-04", "outcome": "Suppliers are known and prioritized by criticality", "display_order": 4},
+            {"code": "GV.SC-05", "outcome": "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties", "display_order": 5},
+            {"code": "GV.SC-06", "outcome": "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships", "display_order": 6},
+            {"code": "GV.SC-07", "outcome": "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship", "display_order": 7},
+            {"code": "GV.SC-08", "outcome": "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities", "display_order": 8},
+            {"code": "GV.SC-09", "outcome": "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle", "display_order": 9},
+            {"code": "GV.SC-10", "outcome": "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement", "display_order": 10}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "id",
+      "name": "Identify",
+      "description": "The organization's current cybersecurity risks are understood. Understanding its assets (e.g., data, hardware, software, systems, facilities, services, people), suppliers, and related cybersecurity risks enables an organization to prioritize its efforts consistent with its risk management strategy and the mission needs identified under GOVERN.",
+      "display_order": 2,
+      "color_hex": "#2563EB",
+      "icon_name": "search",
+      "categories": [
+        {
+          "code": "ID.AM",
+          "name": "Asset Management",
+          "description": "Assets (e.g., data, hardware, software, systems, facilities, services, people) that enable the organization to achieve business purposes are identified and managed consistent with their relative importance to organizational objectives and the organization's risk strategy.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "ID.AM-01", "outcome": "Inventories of hardware managed by the organization are maintained", "display_order": 1},
+            {"code": "ID.AM-02", "outcome": "Inventories of software, services, and systems managed by the organization are maintained", "display_order": 2},
+            {"code": "ID.AM-03", "outcome": "Representations of the organization's authorized network communication and internal and external network data flows are maintained", "display_order": 3},
+            {"code": "ID.AM-04", "outcome": "Inventories of services provided by suppliers are maintained", "display_order": 4},
+            {"code": "ID.AM-05", "outcome": "Assets are prioritized based on classification, criticality, resources, and impact on the mission", "display_order": 5},
+            {"code": "ID.AM-07", "outcome": "Inventories of data and corresponding metadata for designated data types are maintained", "display_order": 6},
+            {"code": "ID.AM-08", "outcome": "Systems, hardware, software, services, and data are managed throughout their life cycles", "display_order": 7}
+          ]
+        },
+        {
+          "code": "ID.RA",
+          "name": "Risk Assessment",
+          "description": "The cybersecurity risk to the organization, assets, and individuals is understood by the organization.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "ID.RA-01", "outcome": "Vulnerabilities in assets are identified, validated, and recorded", "display_order": 1},
+            {"code": "ID.RA-02", "outcome": "Cyber threat intelligence is received from information sharing forums and sources", "display_order": 2},
+            {"code": "ID.RA-03", "outcome": "Internal and external threats to the organization are identified and recorded", "display_order": 3},
+            {"code": "ID.RA-04", "outcome": "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded", "display_order": 4},
+            {"code": "ID.RA-05", "outcome": "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization", "display_order": 5},
+            {"code": "ID.RA-06", "outcome": "Risk responses are chosen, prioritized, planned, tracked, and communicated", "display_order": 6},
+            {"code": "ID.RA-07", "outcome": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked", "display_order": 7},
+            {"code": "ID.RA-08", "outcome": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established", "display_order": 8},
+            {"code": "ID.RA-09", "outcome": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use", "display_order": 9},
+            {"code": "ID.RA-10", "outcome": "Critical suppliers are assessed prior to acquisition", "display_order": 10}
+          ]
+        },
+        {
+          "code": "ID.IM",
+          "name": "Improvement",
+          "description": "Improvements to organizational cybersecurity risk management processes, procedures and activities are identified across all CSF Functions.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "ID.IM-01", "outcome": "Improvements are identified from evaluations", "display_order": 1},
+            {"code": "ID.IM-02", "outcome": "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties", "display_order": 2},
+            {"code": "ID.IM-03", "outcome": "Improvements are identified from execution of operational processes, procedures, and activities", "display_order": 3},
+            {"code": "ID.IM-04", "outcome": "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved", "display_order": 4}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "pr",
+      "name": "Protect",
+      "description": "Safeguards to manage the organization's cybersecurity risks are used. Once assets and risks are identified and prioritized, PROTECT supports the ability to secure those assets to prevent or lower the likelihood and impact of adverse cybersecurity events, as well as to increase the likelihood and impact of taking advantage of opportunities.",
+      "display_order": 3,
+      "color_hex": "#059669",
+      "icon_name": "shield",
+      "categories": [
+        {
+          "code": "PR.AA",
+          "name": "Identity Management, Authentication, and Access Control",
+          "description": "Access to physical and logical assets is limited to authorized users, services, and hardware and managed commensurate with the assessed risk of unauthorized access.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "PR.AA-01", "outcome": "Identities and credentials for authorized users, services, and hardware are managed by the organization", "display_order": 1},
+            {"code": "PR.AA-02", "outcome": "Identities are proofed and bound to credentials based on the context of interactions", "display_order": 2},
+            {"code": "PR.AA-03", "outcome": "Users, services, and hardware are authenticated", "display_order": 3},
+            {"code": "PR.AA-04", "outcome": "Identity assertions are protected, conveyed, and verified", "display_order": 4},
+            {"code": "PR.AA-05", "outcome": "Access permissions, entitlements, and authorizations are defined in a policy, managed, enforced, and reviewed, and incorporate the principles of least privilege and separation of duties", "display_order": 5},
+            {"code": "PR.AA-06", "outcome": "Physical access to assets is managed, monitored, and enforced commensurate with risk", "display_order": 6}
+          ]
+        },
+        {
+          "code": "PR.AT",
+          "name": "Awareness and Training",
+          "description": "The organization's personnel are provided with cybersecurity awareness and training so that they can perform their cybersecurity-related tasks.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "PR.AT-01", "outcome": "Personnel are provided with awareness and training so that they possess the knowledge and skills to perform general tasks with cybersecurity risks in mind", "display_order": 1},
+            {"code": "PR.AT-02", "outcome": "Individuals in specialized roles are provided with awareness and training so that they possess the knowledge and skills to perform relevant tasks with cybersecurity risks in mind", "display_order": 2}
+          ]
+        },
+        {
+          "code": "PR.DS",
+          "name": "Data Security",
+          "description": "Data are managed consistent with the organization's risk strategy to protect the confidentiality, integrity, and availability of information.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "PR.DS-01", "outcome": "The confidentiality, integrity, and availability of data-at-rest are protected", "display_order": 1},
+            {"code": "PR.DS-02", "outcome": "The confidentiality, integrity, and availability of data-in-transit are protected", "display_order": 2},
+            {"code": "PR.DS-10", "outcome": "The confidentiality, integrity, and availability of data-in-use are protected", "display_order": 3},
+            {"code": "PR.DS-11", "outcome": "Backups of data are created, protected, maintained, and tested", "display_order": 4}
+          ]
+        },
+        {
+          "code": "PR.PS",
+          "name": "Platform Security",
+          "description": "The hardware, software (e.g., firmware, operating systems, applications), and services of physical and virtual platforms are managed consistent with the organization's risk strategy to protect their confidentiality, integrity, and availability.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "PR.PS-01", "outcome": "Configuration management practices are established and applied", "display_order": 1},
+            {"code": "PR.PS-02", "outcome": "Software is maintained, replaced, and removed commensurate with risk", "display_order": 2},
+            {"code": "PR.PS-03", "outcome": "Hardware is maintained, replaced, and removed commensurate with risk", "display_order": 3},
+            {"code": "PR.PS-04", "outcome": "Log records are generated and made available for continuous monitoring", "display_order": 4},
+            {"code": "PR.PS-05", "outcome": "Installation and execution of unauthorized software are prevented", "display_order": 5},
+            {"code": "PR.PS-06", "outcome": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle", "display_order": 6}
+          ]
+        },
+        {
+          "code": "PR.IR",
+          "name": "Technology Infrastructure Resilience",
+          "description": "Security architectures are managed with the organization's risk strategy to protect asset confidentiality, integrity, and availability, and organizational resilience.",
+          "display_order": 5,
+          "subcategories": [
+            {"code": "PR.IR-01", "outcome": "Networks and environments are protected from unauthorized logical access and usage", "display_order": 1},
+            {"code": "PR.IR-02", "outcome": "The organization's technology assets are protected from environmental threats", "display_order": 2},
+            {"code": "PR.IR-03", "outcome": "Mechanisms are implemented to achieve resilience requirements in normal and adverse situations", "display_order": 3},
+            {"code": "PR.IR-04", "outcome": "Adequate resource capacity to ensure availability is maintained", "display_order": 4}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "de",
+      "name": "Detect",
+      "description": "Possible cybersecurity attacks and compromises are found and analyzed. DETECT enables timely discovery and analysis of anomalies, indicators of compromise, and other potentially adverse cybersecurity events that may indicate that cybersecurity attacks and incidents are occurring.",
+      "display_order": 4,
+      "color_hex": "#D97706",
+      "icon_name": "visibility",
+      "categories": [
+        {
+          "code": "DE.CM",
+          "name": "Continuous Monitoring",
+          "description": "Assets are monitored to find anomalies, indicators of compromise, and other potentially adverse events.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "DE.CM-01", "outcome": "Networks and network services are monitored to find potentially adverse events", "display_order": 1},
+            {"code": "DE.CM-02", "outcome": "The physical environment is monitored to find potentially adverse events", "display_order": 2},
+            {"code": "DE.CM-03", "outcome": "Personnel activity and technology usage are monitored to find potentially adverse events", "display_order": 3},
+            {"code": "DE.CM-06", "outcome": "External service provider activities and services are monitored to find potentially adverse events", "display_order": 4},
+            {"code": "DE.CM-09", "outcome": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events", "display_order": 5}
+          ]
+        },
+        {
+          "code": "DE.AE",
+          "name": "Adverse Event Analysis",
+          "description": "Anomalies, indicators of compromise, and other potentially adverse events are analyzed to characterize the events and detect cybersecurity incidents.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "DE.AE-02", "outcome": "Potentially adverse events are analyzed to better understand associated activities", "display_order": 1},
+            {"code": "DE.AE-03", "outcome": "Information is correlated from multiple sources", "display_order": 2},
+            {"code": "DE.AE-04", "outcome": "The estimated impact and scope of adverse events are understood", "display_order": 3},
+            {"code": "DE.AE-06", "outcome": "Information on adverse events is provided to authorized staff and tools", "display_order": 4},
+            {"code": "DE.AE-07", "outcome": "Cyber threat intelligence and other contextual information are integrated into the analysis", "display_order": 5},
+            {"code": "DE.AE-08", "outcome": "Incidents are declared when adverse events meet the defined incident criteria", "display_order": 6}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "rs",
+      "name": "Respond",
+      "description": "Actions regarding a detected cybersecurity incident are taken. RESPOND supports the ability to contain the effects of cybersecurity incidents. Outcomes within this Function cover incident management, analysis, mitigation, reporting, and communication.",
+      "display_order": 5,
+      "color_hex": "#DC2626",
+      "icon_name": "flash_on",
+      "categories": [
+        {
+          "code": "RS.MA",
+          "name": "Incident Management",
+          "description": "Responses to detected cybersecurity incidents are managed.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "RS.MA-01", "outcome": "The incident response plan is executed in coordination with relevant third parties once an incident is declared", "display_order": 1},
+            {"code": "RS.MA-02", "outcome": "Incident reports are triaged and validated", "display_order": 2},
+            {"code": "RS.MA-03", "outcome": "Incidents are categorized and prioritized", "display_order": 3},
+            {"code": "RS.MA-04", "outcome": "Incidents are escalated or elevated as needed", "display_order": 4},
+            {"code": "RS.MA-05", "outcome": "The criteria for initiating incident recovery are applied", "display_order": 5}
+          ]
+        },
+        {
+          "code": "RS.AN",
+          "name": "Incident Analysis",
+          "description": "Investigations are conducted to ensure effective response and support forensics and recovery activities.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "RS.AN-03", "outcome": "Analysis is performed to establish what has taken place during an incident and the root cause of the incident", "display_order": 1},
+            {"code": "RS.AN-06", "outcome": "Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved", "display_order": 2},
+            {"code": "RS.AN-07", "outcome": "Incident data and metadata are collected, and their integrity and provenance are preserved", "display_order": 3},
+            {"code": "RS.AN-08", "outcome": "An incident's magnitude is estimated and validated", "display_order": 4}
+          ]
+        },
+        {
+          "code": "RS.CO",
+          "name": "Incident Response Reporting and Communication",
+          "description": "Response activities are coordinated with internal and external stakeholders as required by laws, regulations, or policies.",
+          "display_order": 3,
+          "subcategories": [
+            {"code": "RS.CO-02", "outcome": "Internal and external stakeholders are notified of incidents", "display_order": 1},
+            {"code": "RS.CO-03", "outcome": "Information is shared with designated internal and external stakeholders", "display_order": 2}
+          ]
+        },
+        {
+          "code": "RS.MI",
+          "name": "Incident Mitigation",
+          "description": "Activities are performed to prevent expansion of an event and mitigate its effects.",
+          "display_order": 4,
+          "subcategories": [
+            {"code": "RS.MI-01", "outcome": "Incidents are contained", "display_order": 1},
+            {"code": "RS.MI-02", "outcome": "Incidents are eradicated", "display_order": 2}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "rc",
+      "name": "Recover",
+      "description": "Assets and operations affected by a cybersecurity incident are restored. RECOVER supports timely restoration of normal operations to reduce the effects of cybersecurity incidents and enable appropriate communication during recovery efforts.",
+      "display_order": 6,
+      "color_hex": "#7C3AED",
+      "icon_name": "restore",
+      "categories": [
+        {
+          "code": "RC.RP",
+          "name": "Incident Recovery Plan Execution",
+          "description": "Restoration activities are performed to ensure operational availability of systems and services affected by cybersecurity incidents.",
+          "display_order": 1,
+          "subcategories": [
+            {"code": "RC.RP-01", "outcome": "The incident recovery portion of the incident response plan is executed once initiated from the incident response process", "display_order": 1},
+            {"code": "RC.RP-02", "outcome": "Recovery actions are selected, scoped, prioritized, and performed", "display_order": 2},
+            {"code": "RC.RP-03", "outcome": "The integrity of backups and other restoration assets is verified before using them for restoration", "display_order": 3},
+            {"code": "RC.RP-04", "outcome": "Critical mission functions and cybersecurity risk management are considered to establish post-incident operational norms", "display_order": 4},
+            {"code": "RC.RP-05", "outcome": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed", "display_order": 5},
+            {"code": "RC.RP-06", "outcome": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed", "display_order": 6}
+          ]
+        },
+        {
+          "code": "RC.CO",
+          "name": "Incident Recovery Communication",
+          "description": "Restoration activities are coordinated with internal and external parties.",
+          "display_order": 2,
+          "subcategories": [
+            {"code": "RC.CO-03", "outcome": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders", "display_order": 1},
+            {"code": "RC.CO-04", "outcome": "Public updates on incident recovery are shared using approved methods and messaging", "display_order": 2}
+          ]
+        }
+      ]
+    }
+  ],
+  "cyber_ai_profile": {
+    "description": "The NIST Cyber AI Profile (NIST IR 8596) maps AI-specific cybersecurity considerations to the CSF 2.0 framework. It focuses on three key areas: Secure (protecting AI systems), Defend (using AI for cybersecurity), and Thwart (defending against AI-enabled threats).",
+    "source_url": "https://csrc.nist.gov/pubs/ir/8596/iprd",
+    "focus_areas": [
+      {
+        "code": "secure",
+        "name": "Secure AI Systems",
+        "description": "Protecting AI systems and their components from cybersecurity threats, ensuring the confidentiality, integrity, and availability of AI models, data, and infrastructure.",
+        "csf_mappings": ["GV.RM", "GV.SC", "ID.AM", "ID.RA", "PR.AA", "PR.DS", "PR.PS", "DE.CM", "DE.AE"]
+      },
+      {
+        "code": "defend",
+        "name": "Defend with AI",
+        "description": "Leveraging AI capabilities to enhance cybersecurity defenses, including threat detection, incident response, and security automation.",
+        "csf_mappings": ["DE.CM", "DE.AE", "RS.AN", "RS.MI"]
+      },
+      {
+        "code": "thwart",
+        "name": "Thwart AI-Enabled Threats",
+        "description": "Defending against adversarial use of AI, including AI-generated attacks, deepfakes, automated reconnaissance, and AI-powered social engineering.",
+        "csf_mappings": ["ID.RA", "PR.AT", "DE.CM", "DE.AE", "RS.MA", "RS.AN"]
+      }
+    ],
+    "ai_specific_outcomes": [
+      {
+        "csf_subcategory": "GV.RM-01",
+        "ai_extension": "AI system risks including model vulnerabilities, data poisoning, and adversarial attacks are included in risk management objectives",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "GV.SC-07",
+        "ai_extension": "Risks from AI components in the supply chain (pre-trained models, training data, ML frameworks) are assessed and monitored",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "ID.AM-02",
+        "ai_extension": "Inventories of AI/ML models, training datasets, and AI-enabled services are maintained",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "ID.RA-01",
+        "ai_extension": "AI-specific vulnerabilities including adversarial examples, model extraction, and membership inference are identified",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "ID.RA-03",
+        "ai_extension": "AI-enabled threats including automated attacks and AI-generated content are identified and recorded",
+        "ai_profile_focus": "thwart"
+      },
+      {
+        "csf_subcategory": "PR.DS-01",
+        "ai_extension": "Training data, model weights, and AI system configurations are protected at rest",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "PR.DS-02",
+        "ai_extension": "Model inference requests and responses are protected in transit",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "PR.AT-01",
+        "ai_extension": "Personnel are trained to recognize AI-generated threats including deepfakes and AI-powered phishing",
+        "ai_profile_focus": "thwart"
+      },
+      {
+        "csf_subcategory": "DE.CM-01",
+        "ai_extension": "AI systems are monitored for anomalous behavior indicating adversarial attacks or model drift",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "DE.CM-09",
+        "ai_extension": "AI/ML model behavior, input patterns, and output distributions are monitored for adversarial manipulation",
+        "ai_profile_focus": "secure"
+      },
+      {
+        "csf_subcategory": "DE.AE-02",
+        "ai_extension": "AI-enhanced analytics are used to analyze and correlate security events",
+        "ai_profile_focus": "defend"
+      },
+      {
+        "csf_subcategory": "RS.AN-03",
+        "ai_extension": "AI-assisted analysis tools support incident investigation and root cause analysis",
+        "ai_profile_focus": "defend"
+      }
+    ]
+  }
+}

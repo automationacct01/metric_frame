@@ -12,8 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
-from ..db import SessionLocal, engine
-from ..models import Base, Metric, CSFFunction, MetricDirection, CollectionFrequency
+from db import SessionLocal, engine
+from models import Base, Metric, CSFFunction, MetricDirection, CollectionFrequency
 
 
 def create_tables():
@@ -108,8 +108,13 @@ def load_metrics_from_csv(csv_file: str = "seed_metrics_200_enhanced.csv"):
         
         # Print summary by function
         print("\n📈 Metrics by CSF Function:")
+        from models import FrameworkFunction
         for func in CSFFunction:
-            count = db.query(Metric).filter(Metric.csf_function == func).count()
+            fw_func = db.query(FrameworkFunction).filter(FrameworkFunction.code == func.value).first()
+            if fw_func:
+                count = db.query(Metric).filter(Metric.function_id == fw_func.id).count()
+            else:
+                count = 0
             print(f"  {func.value.upper()}: {count} metrics")
         
         # Print summary by priority

@@ -36,7 +36,9 @@ import {
 import apiClient from '../api/client';
 import ScoreCard from './ScoreCard';
 import { ContentFrame } from './layout';
-import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse } from '../types';
+import { FrameworkSelector } from './FrameworkSelector';
+import { useFramework } from '../contexts/FrameworkContext';
+import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse, FrameworkScoresResponse } from '../types';
 
 interface DetailedError {
   message: string;
@@ -51,6 +53,10 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailedError, setDetailedError] = useState<DetailedError | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+
+  // Get the selected framework from context
+  const { selectedFramework, isLoadingFrameworks } = useFramework();
+  const frameworkCode = selectedFramework?.code || 'csf_2_0';
 
   // Health check query
   const { data: health } = useQuery<HealthResponse>({
@@ -94,9 +100,52 @@ export default function Dashboard() {
     }
   }, [health]);
 
-  // Fetch dashboard data with enhanced error handling
+  // Fetch framework-specific scores
+  const { data: frameworkScores, isLoading: isLoadingFrameworkScores, error: frameworkError, refetch: refetchFramework } = useQuery<FrameworkScoresResponse>({
+    queryKey: ['framework-scores', frameworkCode],
+    queryFn: async () => {
+      try {
+        console.log(`🔄 Fetching ${frameworkCode} scores...`);
+        const startTime = Date.now();
+        const data = await apiClient.getFrameworkScores(frameworkCode);
+        const endTime = Date.now();
+        console.log(`✅ Framework scores loaded in ${endTime - startTime}ms`, data);
+        setDetailedError(null);
+        return data;
+      } catch (error: any) {
+        console.error('❌ Framework scores fetch failed:', error);
+        const detailedError: DetailedError = {
+          message: error.message || 'Unknown error occurred',
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          url: error.config?.url,
+          timestamp: new Date(),
+          details: {
+            baseURL: error.config?.baseURL,
+            method: error.config?.method?.toUpperCase(),
+            headers: error.config?.headers,
+            responseData: error.response?.data,
+          },
+        };
+        setDetailedError(detailedError);
+        throw error;
+      }
+    },
+    enabled: !isLoadingFrameworks && !!frameworkCode,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 404 || error?.response?.status === 403) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+  });
+
+  // Fetch dashboard data with enhanced error handling (legacy CSF 2.0 support)
   const { data: dashboard, isLoading, error, refetch } = useQuery<DashboardSummary>({
-    queryKey: ['dashboard-summary'],
+    queryKey: ['dashboard-summary', frameworkCode],
     queryFn: async () => {
       try {
         console.log('🔄 Fetching dashboard data...');
@@ -108,7 +157,7 @@ export default function Dashboard() {
         return data;
       } catch (error: any) {
         console.error('❌ Dashboard data fetch failed:', error);
-        
+
         // Create detailed error information
         const detailedError: DetailedError = {
           message: error.message || 'Unknown error occurred',
@@ -123,11 +172,13 @@ export default function Dashboard() {
             responseData: error.response?.data,
           },
         };
-        
+
         setDetailedError(detailedError);
         throw error;
       }
     },
+    // Only fetch legacy dashboard for CSF 2.0
+    enabled: frameworkCode === 'csf_2_0',
     retry: (failureCount, error: any) => {
       // Retry up to 3 times, but not for 404 or 403 errors
       if (error?.response?.status === 404 || error?.response?.status === 403) {
@@ -311,12 +362,21 @@ export default function Dashboard() {
             Cybersecurity Risk Dashboard
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            NIST Cybersecurity Framework 2.0 Risk Assessment
+            {selectedFramework?.name || 'NIST Cybersecurity Framework 2.0'} Risk Assessment
           </Typography>
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 250 }}>
+          {/* Framework Selector */}
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+              Framework
+            </Typography>
+            <FrameworkSelector size="small" />
+          </Box>
+
+          {/* Active Catalog Info */}
+          <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 220 }}>
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
                 Metrics Catalog
@@ -339,8 +399,9 @@ export default function Dashboard() {
               </Typography>
             </Box>
           </Box>
+
           <Typography variant="caption" color="text.secondary">
-            Last updated: {new Date(dashboard.last_updated).toLocaleString()}
+            Last updated: {new Date(frameworkScores?.last_updated || dashboard?.last_updated || new Date()).toLocaleString()}
           </Typography>
           <Button
             variant="outlined"
@@ -428,21 +489,41 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* CSF Function Scores */}
+      {/* Function Scores - Framework Aware */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <AssessmentIcon />
-          NIST CSF 2.0 Function Scores
+          {selectedFramework?.name || 'NIST CSF 2.0'} Function Scores
         </Typography>
-        
+
         <Grid container spacing={3}>
-          {dashboard.function_scores.map((functionScore) => (
-            <Grid item xs={12} sm={6} md={4} key={functionScore.function}>
-              <ScoreCard
-                functionScore={functionScore}
-              />
-            </Grid>
-          ))}
+          {/* Use framework-specific scores if available, fallback to legacy dashboard */}
+          {frameworkScores?.function_scores?.length > 0 ? (
+            frameworkScores.function_scores.map((functionScore) => (
+              <Grid item xs={12} sm={6} md={4} key={functionScore.function_code}>
+                <ScoreCard
+                  functionScore={{
+                    function: functionScore.function_code as any,
+                    score_pct: functionScore.score_pct,
+                    risk_rating: functionScore.risk_rating as any,
+                    metrics_count: functionScore.metrics_count,
+                    metrics_below_target_count: 0,
+                    weighted_score: functionScore.weighted_score,
+                  }}
+                  functionName={functionScore.function_name}
+                  colorHex={functionScore.color_hex}
+                />
+              </Grid>
+            ))
+          ) : (
+            dashboard?.function_scores?.map((functionScore) => (
+              <Grid item xs={12} sm={6} md={4} key={functionScore.function}>
+                <ScoreCard
+                  functionScore={functionScore}
+                />
+              </Grid>
+            ))
+          )}
         </Grid>
       </Box>
 

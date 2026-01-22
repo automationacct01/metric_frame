@@ -37,6 +37,7 @@ interface MetricEnhancementStepProps {
   state: any;
   updateState: (updates: any) => void;
   error: string | null;
+  frameworkCode?: string;
 }
 
 const priorityLabels = {
@@ -59,7 +60,7 @@ const collectionFrequencies = [
   'daily', 'weekly', 'monthly', 'quarterly', 'ad_hoc'
 ];
 
-const MetricEnhancementStep: React.FC<MetricEnhancementStepProps> = ({ state, updateState }) => {
+const MetricEnhancementStep: React.FC<MetricEnhancementStepProps> = ({ state, updateState, frameworkCode = 'csf_2_0' }) => {
   const [editingEnhancement, setEditingEnhancement] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loadingEnhancements, setLoadingEnhancements] = useState(false);
@@ -85,7 +86,7 @@ const MetricEnhancementStep: React.FC<MetricEnhancementStepProps> = ({ state, up
     updateState({ enhancementAttempted: true });
     
     try {
-      const enhancedMetrics = await apiClient.enhanceCatalogMetrics(state.catalogId);
+      const enhancedMetrics = await apiClient.enhanceCatalogMetrics(state.catalogId, frameworkCode);
       updateState({ enhancedMetrics });
     } catch (error: any) {
       setEnhancementError(error.response?.data?.detail || error.message || 'Failed to generate metric enhancements');

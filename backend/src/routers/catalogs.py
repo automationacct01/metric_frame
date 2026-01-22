@@ -1,4 +1,7 @@
-"""API endpoints for metric catalog management."""
+"""API endpoints for metric catalog management.
+
+Supports multi-framework catalog imports and AI-powered mapping.
+"""
 
 import os
 import tempfile
@@ -17,7 +20,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..db import get_db
-from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency
+from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework
 from ..schemas import (
     MetricCatalogResponse,
     MetricCatalogCreate,
@@ -30,7 +33,7 @@ from ..schemas import (
     MetricResponse,
     MetricListResponse
 )
-from ..services.ai_client import generate_csf_mapping_suggestions, generate_metric_enhancement_suggestions
+from ..services.claude_client import claude_client, generate_csf_mapping_suggestions, generate_metric_enhancement_suggestions
 
 router = APIRouter(prefix="/catalogs", tags=["catalogs"])
 
@@ -81,28 +84,56 @@ async def upload_catalog(
     catalog_name: str = Form(...),
     description: Optional[str] = Form(None),
     owner: Optional[str] = Form(None),
+    framework: str = Form("csf_2_0", description="Target framework (csf_2_0, ai_rmf)"),
     db: Session = Depends(get_db)
 ):
-    """Upload and import a metric catalog file."""
-    
+    """
+    Upload and import a metric catalog file.
+
+    Supports multi-framework catalogs:
+    - csf_2_0: NIST Cybersecurity Framework 2.0 (default)
+    - ai_rmf: NIST AI Risk Management Framework 1.0
+    - cyber_ai_profile: NIST Cyber AI Profile
+
+    AI-powered mapping uses Claude to suggest framework mappings for each metric.
+    """
+
+    # Validate framework
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework. Must be one of: {valid_frameworks}"
+        )
+
     # Validate file format
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
     if file_ext not in ['csv', 'json']:
         raise HTTPException(status_code=400, detail="Only CSV and JSON files are supported")
-    
+
     try:
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_ext}") as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         # Parse the file
         if file_ext == 'csv':
             df = pd.read_csv(temp_file_path)
         else:  # json
             df = pd.read_json(temp_file_path)
-        
+
+        # Get framework ID if not CSF 2.0
+        framework_id = None
+        if framework != "csf_2_0":
+            fw = db.query(Framework).filter(
+                Framework.code == framework,
+                Framework.active == True
+            ).first()
+            if fw:
+                framework_id = fw.id
+
         # Create catalog record
         catalog = MetricCatalog(
             name=catalog_name,
@@ -185,11 +216,12 @@ async def upload_catalog(
             except Exception as e:
                 import_errors.append(f"Row {index + 1}: {str(e)}")
         
-        # Generate AI-powered CSF mapping suggestions
+        # Generate AI-powered framework mapping suggestions
         suggested_mappings = []
         try:
             if items_imported > 0:
-                suggestions = await generate_csf_mapping_suggestions(catalog.id, db)
+                # Use Claude client for multi-framework mapping
+                suggestions = await claude_client.generate_framework_mappings(catalog.id, framework, db)
                 suggested_mappings = [s.model_dump() for s in suggestions]
         except Exception as e:
             import_errors.append(f"AI mapping generation failed: {str(e)}")
@@ -220,15 +252,27 @@ async def upload_catalog(
 @router.get("/{catalog_id}/mappings", response_model=List[CatalogMappingSuggestion])
 async def get_catalog_mappings(
     catalog_id: UUID,
+    framework: str = Query("csf_2_0", description="Target framework for mapping"),
     db: Session = Depends(get_db)
 ):
-    """Get CSF mapping suggestions for a catalog."""
+    """
+    Get framework mapping suggestions for a catalog.
+
+    Uses Claude AI to analyze metrics and suggest appropriate framework mappings.
+    """
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
     if not catalog:
         raise HTTPException(status_code=404, detail="Catalog not found")
-    
+
+    valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
+    if framework not in valid_frameworks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid framework. Must be one of: {valid_frameworks}"
+        )
+
     try:
-        suggestions = await generate_csf_mapping_suggestions(catalog_id, db)
+        suggestions = await claude_client.generate_framework_mappings(catalog_id, framework, db)
         return suggestions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate mappings: {str(e)}")
@@ -237,15 +281,21 @@ async def get_catalog_mappings(
 @router.get("/{catalog_id}/enhancements")
 async def get_catalog_enhancements(
     catalog_id: UUID,
+    framework: str = Query("csf_2_0", description="Framework for enhancement context"),
     db: Session = Depends(get_db)
 ):
-    """Get AI-powered metric enhancement suggestions for a catalog."""
+    """
+    Get AI-powered metric enhancement suggestions for a catalog.
+
+    Claude analyzes each metric and suggests optimal configurations
+    for priority, owner function, data source, and collection frequency.
+    """
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
     if not catalog:
         raise HTTPException(status_code=404, detail="Catalog not found")
-    
+
     try:
-        enhancements = await generate_metric_enhancement_suggestions(catalog_id, db)
+        enhancements = await claude_client.enhance_catalog_metrics(catalog_id, framework, db)
         return enhancements
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate enhancements: {str(e)}")

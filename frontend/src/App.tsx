@@ -3,6 +3,9 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// Context
+import { FrameworkProvider, useFramework } from './contexts/FrameworkContext';
+
 // Components
 import Navbar from './components/Navbar';
 import Dashboard from './components/Dashboard';
@@ -12,6 +15,7 @@ import Settings from './components/Settings';
 import FunctionDetail from './components/FunctionDetail';
 import CatalogWizard from './components/CatalogWizard';
 import CatalogManager from './components/CatalogManager';
+import { FrameworkSelection } from './components/onboarding';
 
 // Create MUI theme
 const theme = createTheme({
@@ -21,11 +25,20 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#dc004e', // Pink/Red for high risk
+      main: '#7C3AED', // Purple for AI RMF
     },
     background: {
       default: '#f5f5f5',
       paper: '#ffffff',
+    },
+    success: {
+      main: '#059669',
+    },
+    warning: {
+      main: '#D97706',
+    },
+    error: {
+      main: '#DC2626',
     },
   },
   typography: {
@@ -70,39 +83,55 @@ const queryClient = new QueryClient({
   },
 });
 
+// Main app content with framework-aware routing
+function AppContent() {
+  const { showOnboarding, isLoadingFrameworks } = useFramework();
+
+  // Show onboarding if user hasn't selected a framework yet
+  if (showOnboarding && !isLoadingFrameworks) {
+    return <FrameworkSelection />;
+  }
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      <Navbar />
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3 },
+          minHeight: '100vh',
+          backgroundColor: 'background.default',
+          overflow: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/functions/:functionCode" element={<FunctionDetail />} />
+          <Route path="/metrics" element={<MetricsGrid />} />
+          <Route path="/catalog-wizard" element={<CatalogWizard />} />
+          <Route path="/catalog-manager" element={<CatalogManager />} />
+          <Route path="/ai-assistant" element={<AIChat />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </Box>
+    </Box>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Router>
-          <Box sx={{ display: 'flex' }}>
-            <Navbar />
-            <Box
-              component="main"
-              sx={{
-                flexGrow: 1,
-                p: { xs: 2, sm: 3 },
-                minHeight: '100vh',
-                backgroundColor: 'background.default',
-                overflow: 'auto',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-              }}
-            >
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/functions/:functionCode" element={<FunctionDetail />} />
-                <Route path="/metrics" element={<MetricsGrid />} />
-                <Route path="/catalog-wizard" element={<CatalogWizard />} />
-                <Route path="/catalog-manager" element={<CatalogManager />} />
-                <Route path="/ai-assistant" element={<AIChat />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Box>
-          </Box>
+          <FrameworkProvider>
+            <AppContent />
+          </FrameworkProvider>
         </Router>
       </ThemeProvider>
     </QueryClientProvider>

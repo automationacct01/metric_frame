@@ -22,6 +22,12 @@ import {
   AIResponse,
   AIAction,
   HealthResponse,
+  Framework,
+  FrameworkFunction,
+  FrameworkScoresResponse,
+  FrameworkCoverage,
+  RecommendationsResponse,
+  CoverageGaps,
 } from '../types';
 
 class APIClient {
@@ -222,11 +228,61 @@ class APIClient {
     );
   }
 
-  // Metrics endpoints
+  // ==============================================================================
+  // FRAMEWORK ENDPOINTS
+  // ==============================================================================
+
+  async getFrameworks(): Promise<Framework[]> {
+    const response = await this.client.get<Framework[]>('/frameworks');
+    return response.data;
+  }
+
+  async getFramework(code: string): Promise<Framework> {
+    const response = await this.client.get<Framework>(`/frameworks/${code}`);
+    return response.data;
+  }
+
+  async getFrameworkFunctions(frameworkCode: string): Promise<FrameworkFunction[]> {
+    const response = await this.client.get<FrameworkFunction[]>(`/frameworks/${frameworkCode}/functions`);
+    return response.data;
+  }
+
+  // Multi-framework scoring
+  async getFrameworkScores(frameworkCode: string): Promise<FrameworkScoresResponse> {
+    const response = await this.client.get<FrameworkScoresResponse>(`/scores/framework/${frameworkCode}`);
+    return response.data;
+  }
+
+  async getFrameworkFunctionScores(frameworkCode: string): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/scores/framework/${frameworkCode}/functions`);
+    return response.data;
+  }
+
+  async getFrameworkCategoryScores(frameworkCode: string, functionCode: string): Promise<any> {
+    const response = await this.client.get(`/scores/framework/${frameworkCode}/functions/${functionCode}/categories`);
+    return response.data;
+  }
+
+  async getFrameworkCoverage(frameworkCode: string): Promise<FrameworkCoverage> {
+    const response = await this.client.get<FrameworkCoverage>(`/scores/framework/${frameworkCode}/coverage`);
+    return response.data;
+  }
+
+  async getFrameworkAttentionMetrics(frameworkCode: string, limit = 10): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/scores/framework/${frameworkCode}/attention?limit=${limit}`);
+    return response.data;
+  }
+
+  // ==============================================================================
+  // METRICS ENDPOINTS
+  // ==============================================================================
+
   async getMetrics(filters?: MetricFilters): Promise<MetricListResponse> {
     const params = new URLSearchParams();
-    
+
+    if (filters?.framework) params.append('framework', filters.framework);
     if (filters?.function) params.append('function', filters.function);
+    if (filters?.function_code) params.append('function_code', filters.function_code);
     if (filters?.priority_rank) params.append('priority_rank', filters.priority_rank.toString());
     if (filters?.active !== undefined) params.append('active', filters.active.toString());
     if (filters?.search) params.append('search', filters.search);
@@ -283,6 +339,35 @@ class APIClient {
 
   async patchMetric(id: string, updates: Partial<Metric>): Promise<Metric> {
     const response = await this.client.patch<Metric>(`/metrics/${id}/`, updates);
+    return response.data;
+  }
+
+  async lockMetric(id: string, user = 'admin'): Promise<Metric> {
+    const params = new URLSearchParams();
+    if (user) params.append('locked_by', user);
+    const response = await this.client.post<Metric>(`/metrics/${id}/lock?${params.toString()}`);
+    return response.data;
+  }
+
+  async unlockMetric(id: string, user = 'admin'): Promise<Metric> {
+    const params = new URLSearchParams();
+    if (user) params.append('unlocked_by', user);
+    const response = await this.client.post<Metric>(`/metrics/${id}/unlock?${params.toString()}`);
+    return response.data;
+  }
+
+  async toggleMetricLock(id: string, user = 'admin'): Promise<Metric> {
+    const params = new URLSearchParams();
+    if (user) params.append('user', user);
+    const response = await this.client.post<Metric>(`/metrics/${id}/toggle-lock?${params.toString()}`);
+    return response.data;
+  }
+
+  async updateMetricField(id: string, field: string, value: any): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('field', field);
+    params.append('value', value !== null && value !== undefined ? String(value) : '');
+    const response = await this.client.patch(`/metrics/${id}/field?${params.toString()}`);
     return response.data;
   }
 
@@ -368,9 +453,14 @@ class APIClient {
     return response.data;
   }
 
-  // AI Assistant endpoints
-  async chatWithAI(request: AIChatRequest): Promise<AIResponse> {
-    const response = await this.client.post<AIResponse>('/ai/chat', request);
+  // ==============================================================================
+  // AI ASSISTANT ENDPOINTS
+  // ==============================================================================
+
+  async chatWithAI(request: AIChatRequest, framework = 'csf_2_0'): Promise<AIResponse> {
+    const params = new URLSearchParams();
+    params.append('framework', request.framework || framework);
+    const response = await this.client.post<AIResponse>(`/ai/chat?${params.toString()}`, request);
     return response.data;
   }
 
@@ -388,7 +478,7 @@ class APIClient {
       offset: offset.toString(),
       applied_only: appliedOnly.toString(),
     });
-    
+
     const response = await this.client.get<any[]>(`/ai/history?${params.toString()}`);
     return response.data;
   }
@@ -398,9 +488,64 @@ class APIClient {
     return response.data;
   }
 
-  async getAISuggestions(functionCode?: string): Promise<any> {
-    const params = functionCode ? `?function_code=${functionCode}` : '';
-    const response = await this.client.get(`/ai/suggest/improvements${params}`);
+  async getAISuggestions(functionCode?: string, framework = 'csf_2_0'): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    if (functionCode) params.append('function_code', functionCode);
+    const response = await this.client.get(`/ai/suggest/improvements?${params.toString()}`);
+    return response.data;
+  }
+
+  // AI Recommendations endpoints
+  async getAIRecommendations(framework = 'csf_2_0', maxRecommendations = 10): Promise<RecommendationsResponse> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    params.append('max_recommendations', maxRecommendations.toString());
+    const response = await this.client.post<RecommendationsResponse>(`/ai/recommendations?${params.toString()}`);
+    return response.data;
+  }
+
+  async getCoverageGaps(framework = 'csf_2_0'): Promise<CoverageGaps> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    const response = await this.client.get<CoverageGaps>(`/ai/recommendations/gaps?${params.toString()}`);
+    return response.data;
+  }
+
+  async suggestMetricsForGap(
+    framework = 'csf_2_0',
+    functionCode?: string,
+    categoryCode?: string,
+    count = 5
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    if (functionCode) params.append('function_code', functionCode);
+    if (categoryCode) params.append('category_code', categoryCode);
+    params.append('count', count.toString());
+    const response = await this.client.post(`/ai/recommendations/suggest?${params.toString()}`);
+    return response.data;
+  }
+
+  async getMetricsDistribution(framework = 'csf_2_0'): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    const response = await this.client.get(`/ai/recommendations/distribution?${params.toString()}`);
+    return response.data;
+  }
+
+  // AI-powered metric generation from name
+  async generateMetricFromName(metricName: string, framework = 'csf_2_0'): Promise<{
+    success: boolean;
+    metric: Partial<Metric>;
+    message?: string;
+    error?: string;
+    raw_response?: string;
+  }> {
+    const params = new URLSearchParams();
+    params.append('metric_name', metricName);
+    params.append('framework', framework);
+    const response = await this.client.post(`/ai/generate-metric?${params.toString()}`);
     return response.data;
   }
 
@@ -448,10 +593,17 @@ class APIClient {
     return response.data;
   }
 
-  async uploadCatalog(file: File, catalogName: string, description?: string, owner?: string): Promise<any> {
+  async uploadCatalog(
+    file: File,
+    catalogName: string,
+    description?: string,
+    owner?: string,
+    framework = 'csf_2_0'
+  ): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('catalog_name', catalogName);
+    formData.append('framework', framework);
     if (description) formData.append('description', description);
     if (owner) formData.append('owner', owner);
 
@@ -463,16 +615,20 @@ class APIClient {
     return response.data;
   }
 
-  async getCatalogMappings(catalogId: string, signal?: AbortSignal): Promise<any[]> {
-    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/mappings`, {
+  async getCatalogMappings(catalogId: string, framework = 'csf_2_0', signal?: AbortSignal): Promise<any[]> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/mappings?${params.toString()}`, {
       timeout: 0, // No timeout - allow unlimited processing time
       signal // Support for cancellation
     });
     return response.data;
   }
 
-  async enhanceCatalogMetrics(catalogId: string, signal?: AbortSignal): Promise<any[]> {
-    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/enhancements`, {
+  async enhanceCatalogMetrics(catalogId: string, framework = 'csf_2_0', signal?: AbortSignal): Promise<any[]> {
+    const params = new URLSearchParams();
+    params.append('framework', framework);
+    const response = await this.client.get<any[]>(`/catalogs/${catalogId}/enhancements?${params.toString()}`, {
       timeout: 0, // No timeout - allow unlimited processing time
       signal // Support for cancellation
     });

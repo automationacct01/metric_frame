@@ -1,4 +1,136 @@
-// Type definitions for NIST CSF 2.0 Metrics Application
+// Type definitions for Multi-Framework Cybersecurity Metrics Application
+// Supports NIST CSF 2.0, AI RMF 1.0, and Cyber AI Profile
+
+// ==============================================================================
+// FRAMEWORK TYPES
+// ==============================================================================
+
+export interface Framework {
+  id: string;
+  code: string;
+  name: string;
+  version?: string;
+  description?: string;
+  source_url?: string;
+  active: boolean;
+  is_extension?: boolean;
+  created_at?: string;
+}
+
+export interface FrameworkFunction {
+  id: string;
+  framework_id: string;
+  code: string;
+  name: string;
+  description?: string;
+  display_order: number;
+  color_hex?: string;
+  icon_name?: string;
+}
+
+export interface FrameworkCategory {
+  id: string;
+  function_id: string;
+  code: string;
+  name: string;
+  description?: string;
+  display_order: number;
+}
+
+export interface FrameworkSubcategory {
+  id: string;
+  category_id: string;
+  code: string;
+  outcome: string;
+  display_order: number;
+}
+
+// Framework score types for multi-framework support
+export interface FrameworkFunctionScore {
+  function_code: string;
+  function_name: string;
+  function_description?: string;
+  color_hex?: string;
+  score_pct: number;
+  risk_rating: string;
+  metrics_count: number;
+  weighted_score: number;
+}
+
+export interface FrameworkScoresResponse {
+  framework_code: string;
+  function_scores: FrameworkFunctionScore[];
+  overall_score_pct: number;
+  overall_risk_rating: string;
+  total_metrics: number;
+  metrics_with_data: number;
+  last_updated: string;
+}
+
+export interface FrameworkCoverage {
+  framework_code: string;
+  total_metrics: number;
+  functions: {
+    function_code: string;
+    function_name: string;
+    metric_count: number;
+    categories: {
+      category_code: string;
+      category_name: string;
+      metric_count: number;
+    }[];
+  }[];
+}
+
+// AI Recommendations types
+export interface MetricRecommendation {
+  metric_name: string;
+  description: string;
+  function_code: string;
+  category_code?: string;
+  priority: number;
+  rationale: string;
+  expected_impact: string;
+}
+
+export interface RecommendationsResponse {
+  success: boolean;
+  framework_code: string;
+  recommendations: MetricRecommendation[];
+  gap_analysis?: {
+    underrepresented_functions: string[];
+    coverage_percentage: number;
+    overall_assessment: string;
+  };
+  current_coverage?: Record<string, number>;
+  current_overall_score?: number;
+  error?: string;
+}
+
+export interface CoverageGaps {
+  framework_code: string;
+  functions_without_metrics: {
+    function_code: string;
+    function_name: string;
+    description?: string;
+  }[];
+  functions_with_low_coverage: {
+    function_code: string;
+    function_name: string;
+    metric_count: number;
+  }[];
+  categories_without_metrics: {
+    category_code: string;
+    category_name: string;
+    function_code: string;
+    function_name: string;
+  }[];
+  total_gap_count: number;
+}
+
+// ==============================================================================
+// CSF 2.0 SPECIFIC TYPES (Legacy support)
+// ==============================================================================
 
 export enum CSFFunction {
   GOVERN = 'gv',
@@ -58,11 +190,16 @@ export interface Metric {
   current_value?: number;
   current_label?: string;
   notes?: string;
+  risk_definition?: string;  // Why this metric matters - business risk context
   active: boolean;
   created_at: string;
   updated_at: string;
   metric_score?: number;
   gap_to_target?: number;
+  // Lock fields for inline editing
+  locked: boolean;
+  locked_by?: string;
+  locked_at?: string;
 }
 
 export interface MetricHistory {
@@ -133,7 +270,9 @@ export interface MetricListResponse {
 }
 
 export interface MetricFilters {
+  framework?: string;  // Framework code (csf_2_0, ai_rmf)
   function?: CSFFunction;
+  function_code?: string;  // Generic function code for any framework
   category_code?: string;
   subcategory_code?: string;
   priority_rank?: number;
@@ -160,7 +299,8 @@ export interface AIResponse {
 
 export interface AIChatRequest {
   message: string;
-  mode: 'metrics' | 'explain' | 'report';
+  mode: 'metrics' | 'explain' | 'report' | 'recommendations';
+  framework?: string;  // Framework code (csf_2_0, ai_rmf, cyber_ai_profile)
   context_opts?: Record<string, any>;
 }
 

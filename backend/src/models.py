@@ -1,4 +1,7 @@
-"""SQLAlchemy ORM models for NIST CSF 2.0 metrics application."""
+"""SQLAlchemy ORM models for multi-framework cybersecurity metrics application.
+
+Supports NIST CSF 2.0 (with integrated Cyber AI Profile) and NIST AI RMF 1.0.
+"""
 
 import enum
 from datetime import datetime
@@ -16,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     Index,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -23,15 +27,9 @@ from sqlalchemy.sql import func
 from .db import Base
 
 
-class CSFFunction(enum.Enum):
-    """NIST CSF 2.0 Core Functions."""
-    GOVERN = "gv"
-    IDENTIFY = "id" 
-    PROTECT = "pr"
-    DETECT = "de"
-    RESPOND = "rs"
-    RECOVER = "rc"
-
+# ==============================================================================
+# ENUMS
+# ==============================================================================
 
 class MetricDirection(enum.Enum):
     """Direction for metric scoring."""
@@ -50,106 +48,378 @@ class CollectionFrequency(enum.Enum):
     AD_HOC = "ad_hoc"
 
 
-class Metric(Base):
-    """Core metrics table aligned to NIST CSF 2.0."""
-    
-    __tablename__ = "metrics"
-    
+class MappingType(enum.Enum):
+    """Type of cross-framework mapping."""
+    DIRECT = "direct"
+    PARTIAL = "partial"
+    RELATED = "related"
+
+
+class MappingMethod(enum.Enum):
+    """How a mapping was created."""
+    AUTO = "auto"
+    MANUAL = "manual"
+    SUGGESTED = "suggested"
+
+
+class CSFFunction(enum.Enum):
+    """NIST CSF 2.0 Core Functions."""
+    GOVERN = "gv"
+    IDENTIFY = "id"
+    PROTECT = "pr"
+    DETECT = "de"
+    RESPOND = "rs"
+    RECOVER = "rc"
+
+
+# ==============================================================================
+# FRAMEWORK HIERARCHY TABLES
+# ==============================================================================
+
+class Framework(Base):
+    """Framework definition table.
+
+    Supports multiple frameworks like NIST CSF 2.0, AI RMF, Cyber AI Profile.
+    """
+
+    __tablename__ = "frameworks"
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    metric_number = Column(String(10), unique=True, index=True)
+    code = Column(String(30), unique=True, nullable=False, index=True)  # 'csf_2_0', 'ai_rmf', 'cyber_ai_profile'
+    name = Column(String(255), nullable=False)
+    version = Column(String(20))
+    description = Column(Text)
+    source_url = Column(String(500))  # Link to official documentation
+    active = Column(Boolean, default=True, index=True)
+    is_extension = Column(Boolean, default=False)  # True for Cyber AI Profile (extends CSF 2.0)
+    parent_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    functions = relationship("FrameworkFunction", back_populates="framework", cascade="all, delete-orphan")
+    metrics = relationship("Metric", back_populates="framework")
+    catalogs = relationship("MetricCatalog", back_populates="framework")
+    source_mappings = relationship(
+        "FrameworkCrossMapping",
+        foreign_keys="FrameworkCrossMapping.source_framework_id",
+        back_populates="source_framework"
+    )
+    target_mappings = relationship(
+        "FrameworkCrossMapping",
+        foreign_keys="FrameworkCrossMapping.target_framework_id",
+        back_populates="target_framework"
+    )
+    parent_framework = relationship("Framework", remote_side=[id])
+
+    def __repr__(self) -> str:
+        return f"<Framework(code='{self.code}', name='{self.name}', version='{self.version}')>"
+
+
+class FrameworkFunction(Base):
+    """Framework functions/focus areas.
+
+    Examples:
+    - CSF 2.0: Govern (GV), Identify (ID), Protect (PR), etc.
+    - AI RMF: Govern, Map, Measure, Manage
+    - Cyber AI Profile: Secure, Defend, Thwart
+    """
+
+    __tablename__ = "framework_functions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
+    code = Column(String(20), nullable=False, index=True)  # 'gv', 'govern', 'secure'
+    name = Column(String(120), nullable=False)
+    description = Column(Text)
+    display_order = Column(Integer, default=0)
+    color_hex = Column(String(7))  # '#4A90D9'
+    icon_name = Column(String(50))  # For frontend icon reference
+
+    __table_args__ = (
+        UniqueConstraint('framework_id', 'code', name='uq_framework_function_code'),
+    )
+
+    # Relationships
+    framework = relationship("Framework", back_populates="functions")
+    categories = relationship("FrameworkCategory", back_populates="function", cascade="all, delete-orphan")
+    metrics = relationship("Metric", back_populates="function")
+
+    def __repr__(self) -> str:
+        return f"<FrameworkFunction(code='{self.code}', name='{self.name}')>"
+
+
+class FrameworkCategory(Base):
+    """Framework categories within functions.
+
+    Examples:
+    - CSF 2.0: GV.OC (Organizational Context), ID.AM (Asset Management)
+    - AI RMF: GOVERN-1 (Policies and Procedures)
+    """
+
+    __tablename__ = "framework_categories"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False)
+    code = Column(String(30), nullable=False, index=True)  # 'GV.OC', 'GOVERN-1'
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    display_order = Column(Integer, default=0)
+
+    __table_args__ = (
+        UniqueConstraint('function_id', 'code', name='uq_category_function_code'),
+    )
+
+    # Relationships
+    function = relationship("FrameworkFunction", back_populates="categories")
+    subcategories = relationship("FrameworkSubcategory", back_populates="category", cascade="all, delete-orphan")
+    metrics = relationship("Metric", back_populates="category")
+
+    def __repr__(self) -> str:
+        return f"<FrameworkCategory(code='{self.code}', name='{self.name}')>"
+
+
+class FrameworkSubcategory(Base):
+    """Framework subcategories/outcomes.
+
+    The most granular level of framework hierarchy.
+    Examples:
+    - CSF 2.0: GV.OC-01, GV.OC-02
+    - AI RMF: GOVERN-1.1, GOVERN-1.2
+    """
+
+    __tablename__ = "framework_subcategories"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=False)
+    code = Column(String(40), nullable=False, index=True)  # 'GV.OC-01', 'GOVERN-1.1'
+    outcome = Column(Text, nullable=False)  # The full outcome/subcategory text
+    display_order = Column(Integer, default=0)
+
+    # AI Profile specific fields (nullable for non-AI profile subcategories)
+    ai_profile_focus = Column(String(50))  # 'secure', 'defend', 'thwart'
+    trustworthiness_characteristic = Column(String(100))  # AI RMF: 'valid_reliable', 'safe', 'secure_resilient', etc.
+
+    __table_args__ = (
+        UniqueConstraint('category_id', 'code', name='uq_subcategory_category_code'),
+    )
+
+    # Relationships
+    category = relationship("FrameworkCategory", back_populates="subcategories")
+    metrics = relationship("Metric", back_populates="subcategory")
+    source_mappings = relationship(
+        "FrameworkCrossMapping",
+        foreign_keys="FrameworkCrossMapping.source_subcategory_id",
+        back_populates="source_subcategory"
+    )
+    target_mappings = relationship(
+        "FrameworkCrossMapping",
+        foreign_keys="FrameworkCrossMapping.target_subcategory_id",
+        back_populates="target_subcategory"
+    )
+
+    def __repr__(self) -> str:
+        return f"<FrameworkSubcategory(code='{self.code}')>"
+
+
+class FrameworkCrossMapping(Base):
+    """Cross-framework mappings.
+
+    Maps subcategories between frameworks, e.g., Cyber AI Profile to CSF 2.0,
+    or future mappings like CSF 2.0 to ISO 27001.
+    """
+
+    __tablename__ = "framework_cross_mappings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
+    target_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
+    source_subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=False)
+    target_subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=False)
+    mapping_type = Column(Enum(MappingType), default=MappingType.DIRECT)
+    confidence = Column(Numeric(3, 2))  # 0.00 - 1.00
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    source_framework = relationship("Framework", foreign_keys=[source_framework_id], back_populates="source_mappings")
+    target_framework = relationship("Framework", foreign_keys=[target_framework_id], back_populates="target_mappings")
+    source_subcategory = relationship("FrameworkSubcategory", foreign_keys=[source_subcategory_id], back_populates="source_mappings")
+    target_subcategory = relationship("FrameworkSubcategory", foreign_keys=[target_subcategory_id], back_populates="target_mappings")
+
+    def __repr__(self) -> str:
+        return f"<FrameworkCrossMapping(source={self.source_subcategory_id}, target={self.target_subcategory_id})>"
+
+
+# ==============================================================================
+# METRICS TABLES
+# ==============================================================================
+
+class Metric(Base):
+    """Core metrics table with multi-framework support.
+
+    Metrics are linked to the framework hierarchy through foreign keys.
+    """
+
+    __tablename__ = "metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    metric_number = Column(String(20), index=True)  # User-friendly metric ID
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     formula = Column(Text)
     calc_expr_json = Column(JSON)
-    
-    # NIST CSF 2.0 alignment
-    csf_function = Column(Enum(CSFFunction, name='csffunction', values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
-    csf_category_code = Column(String(20))
-    csf_subcategory_code = Column(String(20))
-    csf_category_name = Column(String(120))
-    csf_subcategory_outcome = Column(Text)
-    
+
+    # Framework linkage (new multi-framework support)
+    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
+    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False, index=True)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=True, index=True)
+    subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=True, index=True)
+
+    # AI-specific fields (for AI RMF and Cyber AI Profile metrics)
+    trustworthiness_characteristic = Column(String(100))  # AI RMF specific
+    ai_profile_focus = Column(String(50))  # Cyber AI Profile: 'secure', 'defend', 'thwart'
+
     # Priority and weighting
     priority_rank = Column(Integer, default=2, index=True)  # 1=High, 2=Med, 3=Low
     weight = Column(Numeric(4, 2), default=1.0)
-    
+
     # Scoring configuration
     direction = Column(Enum(MetricDirection), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
     tolerance_high = Column(Numeric(10, 4))
-    
+
     # Ownership and data source
     owner_function = Column(String(100))
     data_source = Column(String(200))
     collection_frequency = Column(Enum(CollectionFrequency))
-    
+
     # Current state
     last_collected_at = Column(DateTime(timezone=True))
     current_value = Column(Numeric(10, 4))
     current_label = Column(String(100))
-    
+
     # Metadata
     notes = Column(Text)
+    risk_definition = Column(Text)  # Why this metric matters - business risk context
     active = Column(Boolean, default=True, index=True)
+    locked = Column(Boolean, default=True, index=True)  # Locked metrics cannot be edited
+    locked_by = Column(String(100))  # Who locked/unlocked the metric
+    locked_at = Column(DateTime(timezone=True))  # When it was locked/unlocked
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
+    __table_args__ = (
+        UniqueConstraint('framework_id', 'metric_number', name='uq_framework_metric_number'),
+    )
+
     # Relationships
+    framework = relationship("Framework", back_populates="metrics")
+    function = relationship("FrameworkFunction", back_populates="metrics")
+    category = relationship("FrameworkCategory", back_populates="metrics")
+    subcategory = relationship("FrameworkSubcategory", back_populates="metrics")
     history = relationship("MetricHistory", back_populates="metric", cascade="all, delete-orphan")
     ai_changes = relationship("AIChangeLog", back_populates="metric")
-    
+
+    @property
+    def csf_function(self):
+        """Backward compatibility property - returns CSFFunction enum if applicable."""
+        if self.function:
+            try:
+                return CSFFunction(self.function.code)
+            except ValueError:
+                return None
+        return None
+
+    @property
+    def csf_category_code(self):
+        """Backward compatibility property - returns category code."""
+        return self.category.code if self.category else None
+
+    @property
+    def csf_subcategory_code(self):
+        """Backward compatibility property - returns subcategory code."""
+        return self.subcategory.code if self.subcategory else None
+
+    @property
+    def csf_category_name(self):
+        """Backward compatibility property - returns category name."""
+        return self.category.name if self.category else None
+
+    @property
+    def csf_subcategory_outcome(self):
+        """Backward compatibility property - returns subcategory outcome."""
+        return self.subcategory.outcome if self.subcategory else None
+
     def __repr__(self) -> str:
-        return f"<Metric(id={self.id}, name='{self.name}', function={self.csf_function.value})>"
+        return f"<Metric(id={self.id}, name='{self.name}', framework_id={self.framework_id})>"
 
 
 class MetricHistory(Base):
     """Time series data for metrics."""
-    
+
     __tablename__ = "metric_history"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id"), nullable=False)
-    collected_at = Column(DateTime(timezone=True), nullable=False)
+    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id"), nullable=False, index=True)
+    collected_at = Column(DateTime(timezone=True), nullable=False, index=True)
     raw_value_json = Column(JSON)
     normalized_value = Column(Numeric(10, 4))
     source_ref = Column(String(200))
-    
+    period_label = Column(String(50))  # e.g., 'Q1 2024', 'Jan 2024'
+
     # Relationships
     metric = relationship("Metric", back_populates="history")
-    
+
     def __repr__(self) -> str:
         return f"<MetricHistory(metric_id={self.metric_id}, collected_at={self.collected_at})>"
 
 
+# ==============================================================================
+# AI CHANGE LOG
+# ==============================================================================
+
 class AIChangeLog(Base):
-    """Audit log for AI-driven changes."""
-    
+    """Audit log for AI-driven changes.
+
+    Tracks all AI operations including metric creation, recommendations, and mappings.
+    """
+
     __tablename__ = "ai_change_log"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id"), nullable=True)
+    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=True)
+    operation_type = Column(String(50), nullable=False, index=True)  # 'create', 'recommend', 'map', 'enhance'
     user_prompt = Column(Text, nullable=False)
     ai_response_json = Column(JSON, nullable=False)
-    applied = Column(Boolean, default=False)
+    model_used = Column(String(100))  # 'claude-sonnet-4-5-20250929'
+    applied = Column(Boolean, default=False, index=True)
     applied_by = Column(String(100))
     applied_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships
     metric = relationship("Metric", back_populates="ai_changes")
-    
-    def __repr__(self) -> str:
-        return f"<AIChangeLog(id={self.id}, applied={self.applied})>"
+    catalog = relationship("MetricCatalog", back_populates="ai_changes")
 
+    def __repr__(self) -> str:
+        return f"<AIChangeLog(id={self.id}, operation_type='{self.operation_type}', applied={self.applied})>"
+
+
+# ==============================================================================
+# CATALOG TABLES
+# ==============================================================================
 
 class MetricCatalog(Base):
-    """Metric catalogs for multi-tenant support."""
-    
+    """Metric catalogs for multi-tenant and framework support."""
+
     __tablename__ = "metric_catalogs"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     owner = Column(String(255))  # Future: FK to users table
@@ -159,119 +429,218 @@ class MetricCatalog(Base):
     original_filename = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
+    framework = relationship("Framework", back_populates="catalogs")
     catalog_items = relationship("MetricCatalogItem", back_populates="catalog", cascade="all, delete-orphan")
-    csf_mappings = relationship("MetricCatalogCSFMapping", back_populates="catalog", cascade="all, delete-orphan")
-    
+    framework_mappings = relationship("MetricCatalogFrameworkMapping", back_populates="catalog", cascade="all, delete-orphan")
+    ai_changes = relationship("AIChangeLog", back_populates="catalog")
+
     def __repr__(self) -> str:
-        return f"<MetricCatalog(id={self.id}, name='{self.name}', active={self.active})>"
+        return f"<MetricCatalog(id={self.id}, name='{self.name}', framework_id={self.framework_id})>"
 
 
 class MetricCatalogItem(Base):
     """Items within a metric catalog."""
-    
+
     __tablename__ = "metric_catalog_items"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False)
+    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
     metric_id = Column(String(100), nullable=False)  # User's original metric ID
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     formula = Column(Text)
-    
+
     # Core required fields
     direction = Column(Enum(MetricDirection), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
     tolerance_high = Column(Numeric(10, 4))
-    
+
     # Priority and weighting
     priority_rank = Column(Integer, default=2)  # 1=High, 2=Med, 3=Low
     weight = Column(Numeric(4, 2), default=1.0)
-    
+
     # Data source information
     owner_function = Column(String(100))
     data_source = Column(String(200))
     collection_frequency = Column(Enum(CollectionFrequency))
-    
+
     # Current state
     current_value = Column(Numeric(10, 4))
     current_label = Column(String(100))
-    
+
     # Import metadata
     original_row_data = Column(JSON)  # Store original import data
     import_notes = Column(Text)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     catalog = relationship("MetricCatalog", back_populates="catalog_items")
-    csf_mappings = relationship("MetricCatalogCSFMapping", back_populates="catalog_item")
-    
+    framework_mappings = relationship("MetricCatalogFrameworkMapping", back_populates="catalog_item", cascade="all, delete-orphan")
+
     def __repr__(self) -> str:
         return f"<MetricCatalogItem(id={self.id}, name='{self.name}', catalog_id={self.catalog_id})>"
 
 
-class MetricCatalogCSFMapping(Base):
-    """CSF mappings for catalog items."""
-    
-    __tablename__ = "metric_catalog_csf_mappings"
-    
+class MetricCatalogFrameworkMapping(Base):
+    """Framework mappings for catalog items.
+
+    Maps imported catalog items to framework subcategories.
+    Replaces the old CSF-specific mapping table with a generic one.
+    """
+
+    __tablename__ = "metric_catalog_framework_mappings"
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False)
-    catalog_item_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalog_items.id"), nullable=False)
-    
-    # CSF mapping
-    csf_function = Column(Enum(CSFFunction, name='csffunction', values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
-    csf_category_code = Column(String(20))
-    csf_subcategory_code = Column(String(20))
-    csf_category_name = Column(String(120))
-    csf_subcategory_outcome = Column(Text)
-    
+    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
+    catalog_item_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalog_items.id"), nullable=False, index=True)
+
+    # Framework mapping (generic, not CSF-specific)
+    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=True)
+    subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=True)
+
     # Mapping metadata
     confidence_score = Column(Numeric(3, 2))  # AI confidence in mapping (0.0-1.0)
-    mapping_method = Column(String(50))  # 'auto', 'manual', 'suggested'
+    mapping_method = Column(Enum(MappingMethod), default=MappingMethod.AUTO)
     mapping_notes = Column(Text)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    catalog = relationship("MetricCatalog", back_populates="csf_mappings")
-    catalog_item = relationship("MetricCatalogItem", back_populates="csf_mappings")
-    
-    def __repr__(self) -> str:
-        return f"<MetricCatalogCSFMapping(catalog_item_id={self.catalog_item_id}, csf_function={self.csf_function.value})>"
 
+    # Relationships
+    catalog = relationship("MetricCatalog", back_populates="framework_mappings")
+    catalog_item = relationship("MetricCatalogItem", back_populates="framework_mappings")
+    function = relationship("FrameworkFunction")
+    category = relationship("FrameworkCategory")
+    subcategory = relationship("FrameworkSubcategory")
+
+    def __repr__(self) -> str:
+        return f"<MetricCatalogFrameworkMapping(catalog_item_id={self.catalog_item_id}, function_id={self.function_id})>"
+
+
+# ==============================================================================
+# USER TABLE
+# ==============================================================================
 
 class User(Base):
-    """User table (placeholder for future auth)."""
-    
+    """User table with framework preferences."""
+
     __tablename__ = "users"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True)
     role = Column(String(50))
     active = Column(Boolean, default=True)
+
+    # Framework preferences
+    selected_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=True)
+    onboarding_completed = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
+    # Relationships
+    selected_framework = relationship("Framework")
+
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}')>"
 
 
-# Create composite indices for better query performance
-Index("idx_metrics_function_priority", Metric.csf_function, Metric.priority_rank)
-Index("idx_metrics_active_function", Metric.active, Metric.csf_function)
-Index("idx_metrics_csf_category", Metric.csf_category_code, Metric.csf_subcategory_code)
+# ==============================================================================
+# SCORING TABLES (for caching calculated scores)
+# ==============================================================================
+
+class FrameworkScore(Base):
+    """Cached scores at the framework level."""
+
+    __tablename__ = "framework_scores"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
+    calculated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    overall_score = Column(Numeric(5, 2))  # 0.00 - 100.00
+    risk_level = Column(String(20))  # 'low', 'moderate', 'elevated', 'high', 'critical'
+    metrics_count = Column(Integer)
+    metrics_with_data_count = Column(Integer)
+    score_details_json = Column(JSON)  # Detailed breakdown by function
+
+    # Relationships
+    framework = relationship("Framework")
+
+    def __repr__(self) -> str:
+        return f"<FrameworkScore(framework_id={self.framework_id}, overall_score={self.overall_score})>"
+
+
+class FunctionScore(Base):
+    """Cached scores at the function level."""
+
+    __tablename__ = "function_scores"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False, index=True)
+    calculated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    score = Column(Numeric(5, 2))  # 0.00 - 100.00
+    risk_level = Column(String(20))
+    metrics_count = Column(Integer)
+    metrics_with_data_count = Column(Integer)
+    category_scores_json = Column(JSON)  # Detailed breakdown by category
+
+    # Relationships
+    function = relationship("FrameworkFunction")
+
+    def __repr__(self) -> str:
+        return f"<FunctionScore(function_id={self.function_id}, score={self.score})>"
+
+
+# ==============================================================================
+# INDICES
+# ==============================================================================
+
+# Framework indices
+Index("idx_framework_active", Framework.active)
+Index("idx_framework_code", Framework.code)
+
+# Function indices
+Index("idx_function_framework_order", FrameworkFunction.framework_id, FrameworkFunction.display_order)
+
+# Category indices
+Index("idx_category_function_order", FrameworkCategory.function_id, FrameworkCategory.display_order)
+
+# Subcategory indices
+Index("idx_subcategory_category_order", FrameworkSubcategory.category_id, FrameworkSubcategory.display_order)
+Index("idx_subcategory_ai_profile", FrameworkSubcategory.ai_profile_focus)
+Index("idx_subcategory_trustworthiness", FrameworkSubcategory.trustworthiness_characteristic)
+
+# Metric indices
+Index("idx_metrics_framework_function", Metric.framework_id, Metric.function_id)
+Index("idx_metrics_framework_priority", Metric.framework_id, Metric.priority_rank)
+Index("idx_metrics_active_framework", Metric.active, Metric.framework_id)
+Index("idx_metrics_category", Metric.category_id, Metric.subcategory_id)
+Index("idx_metrics_ai_profile", Metric.ai_profile_focus)
+
+# History indices
 Index("idx_history_metric_collected", MetricHistory.metric_id, MetricHistory.collected_at.desc())
+
+# AI change log indices
 Index("idx_ai_changes_applied", AIChangeLog.applied, AIChangeLog.created_at.desc())
+Index("idx_ai_changes_operation", AIChangeLog.operation_type, AIChangeLog.created_at.desc())
 
 # Catalog indices
+Index("idx_catalog_framework_active", MetricCatalog.framework_id, MetricCatalog.active)
 Index("idx_catalog_active_owner", MetricCatalog.active, MetricCatalog.owner)
 Index("idx_catalog_items_catalog_id", MetricCatalogItem.catalog_id, MetricCatalogItem.name)
-Index("idx_catalog_mappings_catalog_function", MetricCatalogCSFMapping.catalog_id, MetricCatalogCSFMapping.csf_function)
+Index("idx_catalog_mappings_function", MetricCatalogFrameworkMapping.catalog_id, MetricCatalogFrameworkMapping.function_id)
+
+# Score indices
+Index("idx_framework_score_latest", FrameworkScore.framework_id, FrameworkScore.calculated_at.desc())
+Index("idx_function_score_latest", FunctionScore.function_id, FunctionScore.calculated_at.desc())
+
+# Alias for backward compatibility
+MetricCatalogCSFMapping = MetricCatalogFrameworkMapping
