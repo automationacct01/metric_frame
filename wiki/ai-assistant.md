@@ -167,7 +167,11 @@ The AI converts descriptions into complete metric definitions:
   "direction": "higher_is_better",
   "csf_function": "PROTECT",
   "csf_category": "PR.PS",
+  "csf_subcategory": "PR.PS-01",
+  "csf_subcategory_outcome": "Configuration and vulnerability management processes are established and maintained",
   "priority": "High",
+  "formula": "Patched Servers / Total Servers",
+  "risk_definition": "Unpatched systems expose the organization to known vulnerabilities that attackers actively exploit",
   "suggested_data_sources": [
     "Vulnerability scanner",
     "Patch management system",
@@ -187,9 +191,13 @@ User Input (natural language)
 │  1. Parse intent            │
 │  2. Identify metric type    │
 │  3. Determine direction     │
-│  4. Map to CSF category     │
-│  5. Set reasonable target   │
-│  6. Assign priority         │
+│  4. Map to CSF function     │
+│  5. Map to CSF category     │
+│  6. Map to CSF subcategory  │
+│  7. Set reasonable target   │
+│  8. Generate formula        │
+│  9. Define risk rationale   │
+│  10. Assign priority        │
 └────────────────────────────┘
          │
          ▼
@@ -201,6 +209,18 @@ User confirms or modifies
          ▼
 Metric created in database
 ```
+
+### CSF Hierarchy Mapping
+
+AI-generated metrics include complete NIST CSF 2.0 alignment:
+
+| Level | Example | Description |
+|-------|---------|-------------|
+| **Function** | PROTECT (PR) | High-level security domain |
+| **Category** | PR.PS | Platform Security |
+| **Subcategory** | PR.PS-01 | Specific control outcome |
+
+The subcategory outcome text is stored with the metric for reference.
 
 ### Multi-Metric Generation
 

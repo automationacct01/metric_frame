@@ -122,6 +122,25 @@ The MetricsGrid component provides a comprehensive interface for metric manageme
 | **Status** | All, Meeting Target, Below Target | Filter by performance |
 | **Search** | Free text | Matches name, description |
 
+### Column Header Tooltips
+
+Every column header in the MetricsGrid includes a hover tooltip explaining what that column contains:
+
+| Column | Tooltip Description |
+|--------|---------------------|
+| **Lock** | Lock/unlock metric for editing protection |
+| **Number** | Unique identifier code (e.g., GV-01, PR-02) |
+| **Name** | Descriptive name of the metric |
+| **Formula** | Calculation method for metric value |
+| **Current** | Latest measured value |
+| **Target** | Goal value to achieve |
+| **Score** | Gap-to-target performance percentage |
+| **Function** | NIST CSF 2.0 function alignment |
+| **Category** | CSF category within the function |
+| **Subcategory** | Specific CSF subcategory outcome |
+
+Hover over any column header to see its description.
+
 ### Sorting
 
 Click column headers to sort:
@@ -169,8 +188,16 @@ Select multiple metrics for:
 1. Open AI Chat panel
 2. Describe the metric in natural language:
    > "Create a metric for tracking the percentage of endpoints with EDR agents installed"
-3. Review AI-generated structure
+3. Review AI-generated structure including:
+   - Name and description
+   - CSF Function, Category, and Subcategory mapping
+   - Target value with appropriate units
+   - Calculation formula
+   - Risk definition explaining business relevance
+   - Priority assignment
 4. Confirm to create metric
+
+The AI automatically maps metrics to the full NIST CSF 2.0 hierarchy (Function → Category → Subcategory) and generates formulas without percentage conversion (the system handles display formatting).
 
 ### Direction Types
 

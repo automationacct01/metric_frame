@@ -27,15 +27,26 @@ score = min(1.0, max(0.0, current_value / target_value))
 - Current: 87.3%, Target: 95%
 - Score = min(1.0, max(0.0, 87.3/95)) = 0.919
 
-#### Lower-is-Better Metrics  
+#### Lower-is-Better Metrics
 For metrics where lower values indicate better performance (e.g., incident response times):
 ```
-score = max(0.0, min(1.0, 1.0 - (current_value / target_value)))
+if current_value <= target_value:
+    score = 1.0  # At or below target
+elif current_value == 0:
+    score = 1.0  # Zero is best possible
+elif target_value == 0:
+    score = 0.01  # Target is 0 but we have some value
+else:
+    score = min(1.0, target_value / current_value)
 ```
 
+This formula provides intuitive partial scores: as you approach the target from above, your score increases proportionally.
+
 **Example**: Mean Time to Detect
-- Current: 18.7 hours, Target: 24 hours
-- Score = max(0.0, min(1.0, 1.0 - (18.7/24))) = 0.221
+- Current: 4 hours, Target: 1 hour
+- Score = min(1.0, 1 / 4) = 0.25 (25%)
+- Interpretation: You're 4x over target, so you achieve 25% of the goal.
+- At 2 hours: 1/2 = 50%. At target (1 hour): 100%.
 
 #### Target Range Metrics
 For metrics that should fall within a specific range:

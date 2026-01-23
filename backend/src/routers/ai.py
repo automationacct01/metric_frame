@@ -489,14 +489,20 @@ async def generate_metric_from_name(
 
     functions = db.query(FrameworkFunction).filter(FrameworkFunction.framework_id == fw.id).all()
 
-    # Build function and category info for the AI prompt
+    # Build function, category, and subcategory info for the AI prompt
+    from ..models import FrameworkSubcategory
+
     function_info = []
     category_info = []
+    subcategory_info = []
     for func in functions:
         function_info.append(f"{func.code.upper()} ({func.name})")
         categories = db.query(FrameworkCategory).filter(FrameworkCategory.function_id == func.id).all()
         for cat in categories:
             category_info.append(f"{cat.code} ({cat.name}) - under {func.code.upper()}")
+            subcategories = db.query(FrameworkSubcategory).filter(FrameworkSubcategory.category_id == cat.id).all()
+            for subcat in subcategories:
+                subcategory_info.append(f"{subcat.code}: {subcat.outcome[:60]}...")
 
     try:
         # Use Claude directly for simpler, more controlled response
@@ -510,21 +516,25 @@ Available framework functions: {', '.join(function_info)}
 Available categories:
 {chr(10).join(category_info[:30])}
 
+Available subcategories (sample):
+{chr(10).join(subcategory_info[:40])}
+
 IMPORTANT: Respond with ONLY a valid JSON object, no markdown, no explanation, no code blocks. Just the raw JSON."""
 
         user_prompt = f"""Generate a complete metric definition for: "{metric_name}"
 
 Return this exact JSON structure (fill in appropriate values):
-{{"name": "{metric_name}", "description": "description here", "csf_function": "function_code", "csf_category_code": "XX.YY", "priority_rank": 1, "direction": "higher_is_better", "target_value": 95, "target_units": "percent", "current_value": null, "owner_function": "owner here", "collection_frequency": "monthly", "formula": "calculation formula here", "risk_definition": "why this metric matters", "notes": null}}
+{{"name": "{metric_name}", "description": "description here", "csf_function": "function_code", "csf_category_code": "XX.YY", "csf_subcategory_code": "XX.YY-NN", "priority_rank": 1, "direction": "higher_is_better", "target_value": 95, "target_units": "percent", "current_value": null, "owner_function": "owner here", "collection_frequency": "monthly", "formula": "calculation formula here", "risk_definition": "why this metric matters", "notes": null}}
 
 Rules:
 - csf_function must be one of: {', '.join([f.code for f in functions])}
 - csf_category_code must be a valid category code (like GV.OC, PR.AA, DE.CM, etc.)
+- csf_subcategory_code: REQUIRED - must be a valid subcategory code (like PR.PS-02, DE.CM-01, etc.) that matches the category
 - priority_rank: 1=High, 2=Medium, 3=Low
 - direction: higher_is_better, lower_is_better, target_range, or binary
 - target_units: percent, hours, days, count, or similar
 - collection_frequency: daily, weekly, monthly, quarterly, or ad_hoc
-- formula: REQUIRED - provide a clear calculation formula (e.g., "Patched Systems / Total Systems")
+- formula: REQUIRED - provide a clear calculation formula as a ratio (e.g., "Patched Systems / Total Systems"). Do NOT include "× 100" conversion - the system handles percentage display automatically
 - risk_definition: REQUIRED - explain why an organization needs to track this metric and what business risk it addresses (1-2 sentences)"""
 
         response = client.messages.create(
@@ -573,6 +583,7 @@ Rules:
 
             # Look up category_id from csf_category_code
             csf_category_code = metric_data.get("csf_category_code", "")
+            category = None
             if csf_category_code:
                 category = db.query(FrameworkCategory).filter(
                     FrameworkCategory.code == csf_category_code,
@@ -580,6 +591,17 @@ Rules:
                 ).first()
                 if category:
                     metric_data["category_id"] = str(category.id)
+
+            # Look up subcategory_id from csf_subcategory_code
+            csf_subcategory_code = metric_data.get("csf_subcategory_code", "")
+            if csf_subcategory_code and category:
+                subcategory = db.query(FrameworkSubcategory).filter(
+                    FrameworkSubcategory.code == csf_subcategory_code,
+                    FrameworkSubcategory.category_id == category.id
+                ).first()
+                if subcategory:
+                    metric_data["subcategory_id"] = str(subcategory.id)
+                    metric_data["csf_subcategory_outcome"] = subcategory.outcome
 
         # Generate metric_number
         # Pattern: CSF-XX-NNN where XX is function code (uppercase)
