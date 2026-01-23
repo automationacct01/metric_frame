@@ -63,9 +63,15 @@ Score: (85 / 95) * 100 = 89.5%
 ```
 if current_value <= target_value:
     score = 100
+elif current_value == 0:
+    score = 100  # At or below target (0 is best possible)
+elif target_value == 0:
+    score = 1    # Target is 0 but we have some value - minimal score
 else:
-    score = max(0, (target_value / current_value) * 100)
+    score = min(100, (target_value / current_value) * 100)
 ```
+
+This formula provides intuitive partial scores: as you approach the target from above, your score increases proportionally.
 
 **Example:**
 ```
@@ -73,6 +79,10 @@ Metric: Mean Time to Detect (MTTD)
 Current: 4 hours
 Target: 1 hour
 Score: (1 / 4) * 100 = 25%
+
+Interpretation: You're 4x over target, so you get 25% of the way there.
+As MTTD improves to 2 hours: (1 / 2) * 100 = 50%
+At target (1 hour): 100%
 ```
 
 ### Target Range
@@ -148,10 +158,14 @@ def compute_metric_score(metric):
         return min(100, max(0, score))
 
     elif direction == "lower_is_better":
+        # Score = target/current, so approaching target increases score
+        # At target: 100%, at 2x target: 50%, at 4x target: 25%, etc.
         if current <= target:
-            return 100
+            return 100  # At or below target
         if current == 0:
-            return 100
+            return 100  # Zero is best possible
+        if target == 0:
+            return 1    # Target is 0 but we have some value - minimal score
         score = (target / current) * 100
         return min(100, max(0, score))
 
