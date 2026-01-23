@@ -49,10 +49,14 @@ def compute_metric_score(metric: Metric) -> Optional[float]:
         
     elif metric.direction == MetricDirection.LOWER_IS_BETTER:
         # Lower values are better (e.g., incident count, MTTD)
-        if target == 0:
-            score = 1.0 if current == 0 else 0.0
+        # Score = target/current, so approaching target from above increases score
+        # At target: 100%, at 2x target: 50%, at 4x target: 25%, etc.
+        if current == 0:
+            score = 1.0  # At or below target (0 is best possible)
+        elif target == 0:
+            score = 0.01  # Target is 0 but we have some value - minimal score
         else:
-            score = max(0.0, min(1.0, 1.0 - (current / target)))
+            score = min(1.0, target / current)
             
     elif metric.direction == MetricDirection.TARGET_RANGE:
         # Value should be within tolerance range

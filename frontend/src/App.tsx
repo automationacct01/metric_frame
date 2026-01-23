@@ -15,6 +15,7 @@ import Settings from './components/Settings';
 import FunctionDetail from './components/FunctionDetail';
 import CatalogWizard from './components/CatalogWizard';
 import CatalogManager from './components/CatalogManager';
+import Documentation from './components/Documentation';
 import { FrameworkSelection } from './components/onboarding';
 
 // Create MUI theme
@@ -116,6 +117,7 @@ function AppContent() {
           <Route path="/catalog-wizard" element={<CatalogWizard />} />
           <Route path="/catalog-manager" element={<CatalogManager />} />
           <Route path="/ai-assistant" element={<AIChat />} />
+          <Route path="/docs" element={<Documentation />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </Box>

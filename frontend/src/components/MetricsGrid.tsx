@@ -72,6 +72,36 @@ const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
   [CollectionFrequency.AD_HOC]: 'Ad Hoc',
 };
 
+// Column header tooltip definitions
+const COLUMN_TOOLTIPS: Record<string, string> = {
+  locked: 'Lock/unlock metric for editing. Locked metrics are protected from accidental changes.',
+  metric_number: 'Unique identifier code for the metric (e.g., GV-01, ID-02)',
+  name: 'Descriptive name explaining what the metric measures',
+  formula: 'Calculation method used to compute the metric value',
+  risk_definition: 'Description of the risk or security outcome this metric helps measure',
+  csf_function: 'NIST CSF 2.0 Function: Govern, Identify, Protect, Detect, Respond, or Recover',
+  csf_category_name: 'NIST CSF 2.0 Category within the function (e.g., Risk Management, Asset Management)',
+  csf_subcategory_code: 'NIST CSF 2.0 Subcategory identifier (e.g., GV.RM-01, ID.AM-02)',
+  csf_subcategory_outcome: 'Expected outcome or control objective from the NIST CSF subcategory',
+  priority_rank: 'Business priority: High (critical), Medium (important), Low (nice-to-have)',
+  current_value: 'Most recent measured value for this metric',
+  target_value: 'Goal or threshold value the organization aims to achieve',
+  metric_score: 'Gap-to-target performance score (0-100%). Higher is better.',
+  owner_function: 'Team or department responsible for this metric',
+  collection_frequency: 'How often the metric data is collected (Daily, Weekly, Monthly, etc.)',
+  active: 'Whether this metric is actively tracked and included in scoring',
+  actions: 'Edit, delete, or manage metric settings',
+};
+
+// Helper to render column header with tooltip
+const renderHeaderWithTooltip = (field: string, headerName: string) => () => (
+  <Tooltip title={COLUMN_TOOLTIPS[field] || ''} arrow placement="top">
+    <Box component="span" sx={{ cursor: 'help', display: 'inline-flex', alignItems: 'center' }}>
+      {headerName}
+    </Box>
+  </Tooltip>
+);
+
 interface EditingState {
   [metricId: string]: {
     [field: string]: any;
@@ -678,15 +708,31 @@ export default function MetricsGrid() {
     return RISK_RATING_COLORS[RiskRating.HIGH];
   };
 
-  // Format units for display - convert "percent" to "%" and add proper spacing
+  // Format units for display - convert "percent" to "%" and abbreviate time units
   const formatValueWithUnits = (value: number | null | undefined, units: string | null | undefined): string => {
     if (value === null || value === undefined) return 'N/A';
 
     if (!units) return String(value);
 
+    const unitsLower = units.toLowerCase();
+
     // Convert "percent" to "%"
-    if (units.toLowerCase() === 'percent' || units === '%') {
+    if (unitsLower === 'percent' || units === '%') {
       return `${value}%`;
+    }
+
+    // Abbreviate time units
+    if (unitsLower === 'years') {
+      return `${value} yrs`;
+    }
+    if (unitsLower === 'year') {
+      return `${value} yr`;
+    }
+    if (unitsLower === 'hours') {
+      return `${value} hrs`;
+    }
+    if (unitsLower === 'hour') {
+      return `${value} hr`;
     }
 
     // For other units, add a space
@@ -701,9 +747,14 @@ export default function MetricsGrid() {
     // Check for time-based metrics - use the name with unit suffix
     const timePatterns = ['MTTR', 'MTTD', 'Mean Time', 'Time to', 'Duration', 'RTO', 'RPO'];
     const hasTimeInName = timePatterns.some(p => (metric.name || '').includes(p));
-    if (hasTimeInName || units === 'hours' || units === 'days' || units === 'minutes') {
-      // For time metrics, show name with unit in parentheses
-      const unitLabel = units === 'hours' ? 'hrs' : units === 'days' ? 'days' : units === 'minutes' ? 'min' : units;
+    if (hasTimeInName || units === 'hours' || units === 'days' || units === 'minutes' || units === 'years' || units === 'year') {
+      // For time metrics, show name with unit in parentheses (abbreviated)
+      let unitLabel = units;
+      if (units === 'hours') unitLabel = 'hrs';
+      else if (units === 'hour') unitLabel = 'hr';
+      else if (units === 'years') unitLabel = 'yrs';
+      else if (units === 'year') unitLabel = 'yr';
+      else if (units === 'minutes') unitLabel = 'min';
       return unitLabel ? `${metric.name} (${unitLabel})` : metric.name || '';
     }
 
@@ -751,6 +802,7 @@ export default function MetricsGrid() {
       headerName: '',
       width: 50,
       sortable: false,
+      renderHeader: renderHeaderWithTooltip('locked', '🔒'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const saving = state.savingMetric === metric.id;
@@ -780,6 +832,7 @@ export default function MetricsGrid() {
       field: 'metric_number',
       headerName: 'ID',
       width: 120,
+      renderHeader: renderHeaderWithTooltip('metric_number', 'ID'),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value || 'N/A'}
@@ -799,6 +852,7 @@ export default function MetricsGrid() {
       headerName: 'Metric Name',
       width: 380,
       minWidth: 300,
+      renderHeader: renderHeaderWithTooltip('name', 'Metric Name'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const displayName = getMetricDisplayName(metric);
@@ -878,6 +932,7 @@ export default function MetricsGrid() {
       headerName: 'Formula',
       width: 320,
       minWidth: 200,
+      renderHeader: renderHeaderWithTooltip('formula', 'Formula'),
       renderCell: (params: GridRenderCellParams) => {
         const formula = params.row.formula;
 
@@ -909,6 +964,7 @@ export default function MetricsGrid() {
       width: 400,
       minWidth: 250,
       flex: 1,  // Allow this column to grow with available space
+      renderHeader: renderHeaderWithTooltip('risk_definition', 'Risk Definition'),
       renderCell: (params: GridRenderCellParams) => {
         const riskDef = params.row.risk_definition;
 
@@ -938,6 +994,7 @@ export default function MetricsGrid() {
       field: 'csf_function',
       headerName: 'CSF Function',
       width: 140,
+      renderHeader: renderHeaderWithTooltip('csf_function', 'CSF Function'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -975,6 +1032,7 @@ export default function MetricsGrid() {
       headerName: 'CSF Category',
       width: 220,
       minWidth: 180,
+      renderHeader: renderHeaderWithTooltip('csf_category_name', 'CSF Category'),
       renderCell: (params: GridRenderCellParams) => {
         const categoryName = params.row.csf_category_name;
         const categoryCode = params.row.csf_category_code;
@@ -1006,44 +1064,55 @@ export default function MetricsGrid() {
     },
     {
       field: 'csf_subcategory_code',
-      headerName: 'CSF Subcategory',
-      width: 280,
-      minWidth: 200,
+      headerName: 'Subcategory ID',
+      width: 120,
+      minWidth: 100,
+      renderHeader: renderHeaderWithTooltip('csf_subcategory_code', 'Subcategory ID'),
       renderCell: (params: GridRenderCellParams) => {
         const subcategoryCode = params.row.csf_subcategory_code;
-        const subcategoryOutcome = params.row.csf_subcategory_outcome;
 
         if (!subcategoryCode) {
           return <span style={{ color: '#9e9e9e' }}>-</span>;
         }
 
         return (
+          <Chip
+            label={subcategoryCode}
+            size="small"
+            sx={{
+              backgroundColor: '#e3f2fd',
+              color: '#1565c0',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+            }}
+          />
+        );
+      },
+    },
+    {
+      field: 'csf_subcategory_outcome',
+      headerName: 'Subcategory Definition',
+      width: 280,
+      minWidth: 200,
+      flex: 0.5,
+      renderHeader: renderHeaderWithTooltip('csf_subcategory_outcome', 'Subcategory Definition'),
+      renderCell: (params: GridRenderCellParams) => {
+        const subcategoryOutcome = params.row.csf_subcategory_outcome;
+
+        if (!subcategoryOutcome) {
+          return <span style={{ color: '#9e9e9e' }}>-</span>;
+        }
+
+        return (
           <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
+            whiteSpace: 'normal',
+            wordWrap: 'break-word',
+            lineHeight: '1.3',
             padding: '4px 0',
+            fontSize: '0.85rem',
+            color: '#555',
           }}>
-            <Chip
-              label={subcategoryCode}
-              size="small"
-              sx={{
-                backgroundColor: '#e3f2fd',
-                color: '#1565c0',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                flexShrink: 0,
-              }}
-            />
-            {subcategoryOutcome && (
-              <span style={{
-                fontSize: '0.8rem',
-                color: '#555',
-                lineHeight: '1.3',
-              }}>
-                {subcategoryOutcome}
-              </span>
-            )}
+            {subcategoryOutcome}
           </div>
         );
       },
@@ -1052,6 +1121,7 @@ export default function MetricsGrid() {
       field: 'priority_rank',
       headerName: 'Priority',
       width: 110,
+      renderHeader: renderHeaderWithTooltip('priority_rank', 'Priority'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -1087,11 +1157,19 @@ export default function MetricsGrid() {
       headerName: 'Current Value',
       width: 130,
       type: 'number',
+      renderHeader: renderHeaderWithTooltip('current_value', 'Current Value'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
         const value = getEditValue(metric, 'current_value');
-        const unitDisplay = metric.target_units?.toLowerCase() === 'percent' ? '%' : metric.target_units;
+        // Abbreviate units for display
+        let unitDisplay = metric.target_units;
+        const unitsLower = metric.target_units?.toLowerCase();
+        if (unitsLower === 'percent') unitDisplay = '%';
+        else if (unitsLower === 'hours') unitDisplay = 'hrs';
+        else if (unitsLower === 'hour') unitDisplay = 'hr';
+        else if (unitsLower === 'years') unitDisplay = 'yrs';
+        else if (unitsLower === 'year') unitDisplay = 'yr';
 
         if (editing) {
           return (
@@ -1120,13 +1198,21 @@ export default function MetricsGrid() {
     {
       field: 'target_value',
       headerName: 'Target',
-      width: 110,
+      width: 130,
       type: 'number',
+      renderHeader: renderHeaderWithTooltip('target_value', 'Target'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
         const value = getEditValue(metric, 'target_value');
-        const unitDisplay = metric.target_units?.toLowerCase() === 'percent' ? '%' : metric.target_units;
+        // Abbreviate units for display
+        let unitDisplay = metric.target_units;
+        const unitsLower = metric.target_units?.toLowerCase();
+        if (unitsLower === 'percent') unitDisplay = '%';
+        else if (unitsLower === 'hours') unitDisplay = 'hrs';
+        else if (unitsLower === 'hour') unitDisplay = 'hr';
+        else if (unitsLower === 'years') unitDisplay = 'yrs';
+        else if (unitsLower === 'year') unitDisplay = 'yr';
 
         if (editing) {
           return (
@@ -1153,7 +1239,8 @@ export default function MetricsGrid() {
     {
       field: 'metric_score',
       headerName: 'Score',
-      width: 100,
+      width: 130,
+      renderHeader: renderHeaderWithTooltip('metric_score', 'Score'),
       renderCell: (params: GridRenderCellParams) => (
         <Box display="flex" alignItems="center" gap={1}>
           <LinearProgress
@@ -1169,7 +1256,7 @@ export default function MetricsGrid() {
             }}
           />
           <Typography variant="body2" sx={{ minWidth: 35 }}>
-            {params.value ? `${Math.round(params.value)}%` : 'N/A'}
+            {params.value !== null && params.value !== undefined ? `${Math.round(params.value)}%` : 'N/A'}
           </Typography>
         </Box>
       ),
@@ -1178,11 +1265,13 @@ export default function MetricsGrid() {
       field: 'owner_function',
       headerName: 'Owner',
       width: 120,
+      renderHeader: renderHeaderWithTooltip('owner_function', 'Owner'),
     },
     {
       field: 'collection_frequency',
       headerName: 'Frequency',
       width: 100,
+      renderHeader: renderHeaderWithTooltip('collection_frequency', 'Frequency'),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value || 'N/A'}
@@ -1195,6 +1284,7 @@ export default function MetricsGrid() {
       field: 'active',
       headerName: 'Status',
       width: 100,
+      renderHeader: renderHeaderWithTooltip('active', 'Status'),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value ? 'Active' : 'Inactive'}
@@ -1208,6 +1298,7 @@ export default function MetricsGrid() {
       headerName: 'Actions',
       width: 180,
       sortable: false,
+      renderHeader: renderHeaderWithTooltip('actions', 'Actions'),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);

@@ -20,6 +20,7 @@ import {
   Security as SecurityIcon,
   Upload as UploadIcon,
   Storage as StorageIcon,
+  MenuBook as DocsIcon,
 } from '@mui/icons-material';
 
 import { NavItem } from '../types';
@@ -51,6 +52,11 @@ const navItems: NavItem[] = [
     label: 'AI Assistant',
     path: '/ai-assistant',
     icon: AIIcon,
+  },
+  {
+    label: 'Documentation',
+    path: '/docs',
+    icon: DocsIcon,
   },
   {
     label: 'Settings',
