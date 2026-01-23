@@ -14,12 +14,41 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-import { 
-  FunctionScore, 
-  CSF_FUNCTION_NAMES, 
-  CSF_FUNCTION_DESCRIPTIONS, 
-  RISK_RATING_COLORS 
+import {
+  FunctionScore,
+  CSF_FUNCTION_NAMES,
+  CSF_FUNCTION_DESCRIPTIONS,
+  RISK_RATING_COLORS,
+  RiskRating,
 } from '../types';
+
+// Standard risk color lookup that handles string risk ratings
+const getRiskColor = (riskRating: string | RiskRating): string => {
+  // Normalize to lowercase for comparison
+  const normalized = riskRating.toLowerCase().replace(' ', '_');
+
+  // Map to standard colors
+  switch (normalized) {
+    case 'very_low':
+    case 'verylow':
+      return '#2e7d32';  // Dark Green
+    case 'low':
+      return '#66bb6a';  // Light Green
+    case 'medium':
+    case 'moderate':
+      return '#ff9800';  // Orange
+    case 'high':
+    case 'elevated':
+      return '#f44336';  // Red
+    case 'very_high':
+    case 'veryhigh':
+    case 'critical':
+      return '#d32f2f';  // Dark Red
+    default:
+      // Try to use the enum-based lookup as fallback
+      return RISK_RATING_COLORS[riskRating as RiskRating] || '#9e9e9e';
+  }
+};
 
 const formatRiskRating = (riskRating: string): string => {
   return riskRating.replace('_', ' ').toUpperCase();
@@ -51,7 +80,11 @@ export default function ScoreCard({
   // Use override names if provided, otherwise fall back to CSF defaults
   const functionName = overrideFunctionName || CSF_FUNCTION_NAMES[csfFunction] || csfFunction;
   const functionDescription = overrideFunctionDescription || CSF_FUNCTION_DESCRIPTIONS[csfFunction] || '';
-  const riskColor = colorHex || RISK_RATING_COLORS[risk_rating];
+
+  // Always use standardized risk-based colors for score and risk badge
+  const riskColor = getRiskColor(risk_rating);
+  // Use function color for card decoration only, fallback to risk color
+  const decorativeColor = colorHex || riskColor;
   
   const metricsAtTarget = metrics_count - metrics_below_target_count;
   const atTargetPercentage = metrics_count > 0 ? (metricsAtTarget / metrics_count) * 100 : 0;
@@ -74,7 +107,7 @@ export default function ScoreCard({
           transform: 'translateY(-2px)',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         },
-        border: `2px solid ${riskColor}20`,
+        border: `2px solid ${decorativeColor}20`,
       }}
       onClick={handleClick}
     >

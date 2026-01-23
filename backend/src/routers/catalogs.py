@@ -38,6 +38,73 @@ from ..services.claude_client import claude_client, generate_csf_mapping_suggest
 router = APIRouter(prefix="/catalogs", tags=["catalogs"])
 
 
+def _compute_catalog_item_score(current_value, target_value, direction, tolerance_low=None, tolerance_high=None) -> Optional[float]:
+    """Compute performance score for a catalog item (0-100 percentage)."""
+    if current_value is None:
+        return None
+
+    current = float(current_value)
+    target = float(target_value) if target_value is not None else None
+
+    # Handle direction as string or enum
+    dir_value = direction.value if hasattr(direction, 'value') else direction
+
+    if dir_value == 'binary':
+        return 100.0 if bool(current) else 0.0
+
+    if target is None:
+        return None
+
+    if dir_value == 'higher_is_better':
+        score = min(1.0, max(0.0, current / target)) if target > 0 else 0.0
+    elif dir_value == 'lower_is_better':
+        # Score = target/current, so approaching target from above increases score
+        # At target: 100%, at 2x target: 50%, at 4x target: 25%, etc.
+        if current == 0:
+            score = 1.0  # At or below target (0 is best possible)
+        elif target == 0:
+            score = 0.01  # Target is 0 but we have some value - minimal score
+        else:
+            score = min(1.0, target / current)
+    elif dir_value == 'target_range':
+        low = float(tolerance_low) if tolerance_low else target
+        high = float(tolerance_high) if tolerance_high else target
+        if low <= current <= high:
+            score = 1.0
+        else:
+            distance = min(abs(current - low), abs(current - high))
+            range_span = max(high - low, 1.0)
+            penalty_factor = min(2.0, distance / range_span)
+            score = max(0.0, 1.0 - penalty_factor)
+    else:
+        return None
+
+    return score * 100  # Convert to percentage
+
+
+def _compute_catalog_item_gap(current_value, target_value, direction) -> Optional[float]:
+    """Compute gap to target for a catalog item."""
+    if current_value is None or target_value is None:
+        return None
+
+    dir_value = direction.value if hasattr(direction, 'value') else direction
+    if dir_value == 'binary':
+        return None
+
+    current = float(current_value)
+    target = float(target_value)
+
+    if target == 0:
+        return None
+
+    gap_pct = ((current - target) / target) * 100
+
+    if dir_value == 'lower_is_better':
+        gap_pct = -gap_pct
+
+    return gap_pct
+
+
 @router.get("/", response_model=List[MetricCatalogResponse])
 async def list_catalogs(
     owner: Optional[str] = None,
@@ -454,10 +521,23 @@ def safe_float(value) -> float | None:
 
 def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatalogCSFMapping = None) -> dict:
     """Convert a catalog item to metric format for API response."""
-    
+
     # Generate a synthetic metric number if not available
     metric_number = f"C{str(item.id)[:8]}"
-    
+
+    current_val = safe_float(item.current_value)
+    target_val = safe_float(item.target_value)
+    tol_low = safe_float(item.tolerance_low)
+    tol_high = safe_float(item.tolerance_high)
+
+    # Calculate scores
+    metric_score = _compute_catalog_item_score(
+        current_val, target_val, item.direction, tol_low, tol_high
+    ) if item.direction else None
+    gap_to_target = _compute_catalog_item_gap(
+        current_val, target_val, item.direction
+    ) if item.direction else None
+
     metric_data = {
         "id": item.id,
         "metric_number": metric_number,
@@ -473,24 +553,24 @@ def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatal
         "priority_rank": item.priority_rank,
         "weight": safe_float(item.weight) or 1.0,
         "direction": item.direction,
-        "target_value": safe_float(item.target_value),
+        "target_value": target_val,
         "target_units": item.target_units,
-        "tolerance_low": safe_float(item.tolerance_low),
-        "tolerance_high": safe_float(item.tolerance_high),
+        "tolerance_low": tol_low,
+        "tolerance_high": tol_high,
         "owner_function": item.owner_function,
         "data_source": item.data_source,
         "collection_frequency": item.collection_frequency,
         "last_collected_at": None,
-        "current_value": safe_float(item.current_value),
+        "current_value": current_val,
         "current_label": item.current_label,
         "notes": item.import_notes,
         "active": True,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
-        "metric_score": None,
-        "gap_to_target": None
+        "metric_score": metric_score,
+        "gap_to_target": gap_to_target
     }
-    
+
     return metric_data
 
 

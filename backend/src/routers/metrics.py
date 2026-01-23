@@ -25,6 +25,16 @@ from ..schemas import (
     MetricHistoryResponse,
     CSFFunction,
 )
+from ..services.scoring import compute_metric_score, compute_gap_to_target
+
+
+def _add_scores_to_response(metric: Metric) -> MetricResponse:
+    """Create MetricResponse with computed scores."""
+    response = MetricResponse.model_validate(metric)
+    score = compute_metric_score(metric)
+    response.metric_score = score * 100 if score is not None else None  # Convert to percentage
+    response.gap_to_target = compute_gap_to_target(metric)
+    return response
 
 router = APIRouter()
 
@@ -117,7 +127,7 @@ async def list_metrics(
     )
 
     return MetricListResponse(
-        items=[MetricResponse.model_validate(item) for item in items],
+        items=[_add_scores_to_response(item) for item in items],
         total=total,
         limit=limit,
         offset=offset,
@@ -192,7 +202,7 @@ async def create_metric(
     db.commit()
     db.refresh(db_metric)
 
-    return MetricResponse.model_validate(db_metric)
+    return _add_scores_to_response(db_metric)
 
 
 @router.get("/{metric_id}", response_model=MetricResponse)
@@ -201,12 +211,12 @@ async def get_metric(
     db: Session = Depends(get_db),
 ):
     """Get a metric by ID."""
-    
+
     metric = db.query(Metric).filter(Metric.id == metric_id).first()
     if not metric:
         raise HTTPException(status_code=404, detail="Metric not found")
-    
-    return MetricResponse.model_validate(metric)
+
+    return _add_scores_to_response(metric)
 
 
 @router.put("/{metric_id}", response_model=MetricResponse)
@@ -240,14 +250,14 @@ async def update_metric(
     # Validate target_value for non-binary metrics
     if metric.direction != "binary" and metric.target_value is None:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="target_value is required for non-binary metrics"
         )
-    
+
     db.commit()
     db.refresh(metric)
-    
-    return MetricResponse.model_validate(metric)
+
+    return _add_scores_to_response(metric)
 
 
 @router.patch("/{metric_id}", response_model=MetricResponse)
@@ -564,7 +574,7 @@ async def lock_metric(
     db.commit()
     db.refresh(metric)
 
-    return MetricResponse.model_validate(metric)
+    return _add_scores_to_response(metric)
 
 
 @router.post("/{metric_id}/unlock", response_model=MetricResponse)
@@ -589,7 +599,7 @@ async def unlock_metric(
     db.commit()
     db.refresh(metric)
 
-    return MetricResponse.model_validate(metric)
+    return _add_scores_to_response(metric)
 
 
 @router.patch("/{metric_id}/field")
@@ -722,4 +732,4 @@ async def toggle_metric_lock(
     db.commit()
     db.refresh(metric)
 
-    return MetricResponse.model_validate(metric)
+    return _add_scores_to_response(metric)

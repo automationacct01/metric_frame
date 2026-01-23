@@ -22,6 +22,8 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -31,6 +33,8 @@ import {
   Info as InfoIcon,
   NetworkCheck as NetworkCheckIcon,
   CheckCircle as CheckCircleIcon,
+  AccountTree as CoverageIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 
 import apiClient from '../api/client';
@@ -38,6 +42,7 @@ import ScoreCard from './ScoreCard';
 import { ContentFrame } from './layout';
 import { FrameworkSelector } from './FrameworkSelector';
 import { useFramework } from '../contexts/FrameworkContext';
+import CSFCoverageView from './dashboard/CSFCoverageView';
 import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse, FrameworkScoresResponse } from '../types';
 
 interface DetailedError {
@@ -53,6 +58,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailedError, setDetailedError] = useState<DetailedError | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [activeTab, setActiveTab] = useState<'risk' | 'coverage'>('risk');
 
   // Get the selected framework from context
   const { selectedFramework, isLoadingFrameworks } = useFramework();
@@ -356,7 +362,7 @@ export default function Dashboard() {
   return (
     <ContentFrame>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             Cybersecurity Risk Dashboard
@@ -414,6 +420,39 @@ export default function Dashboard() {
           </Button>
         </Box>
       </Box>
+
+      {/* View Toggle Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab
+            value="risk"
+            label="Risk Dashboard"
+            icon={<DashboardIcon />}
+            iconPosition="start"
+            sx={{ minHeight: 56 }}
+          />
+          <Tab
+            value="coverage"
+            label="Framework Coverage"
+            icon={<CoverageIcon />}
+            iconPosition="start"
+            sx={{ minHeight: 56 }}
+          />
+        </Tabs>
+      </Paper>
+
+      {/* Coverage View */}
+      {activeTab === 'coverage' && <CSFCoverageView />}
+
+      {/* Risk Dashboard View */}
+      {activeTab === 'risk' && (
+        <>
 
       {/* Overall Score Summary */}
       <Card sx={{ mb: 4, border: `2px solid ${overallRiskColor}30` }}>
@@ -639,6 +678,8 @@ export default function Dashboard() {
             </TableContainer>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </ContentFrame>
   );
