@@ -12,6 +12,7 @@ import HeroSection from '../components/landing/HeroSection';
 import SocialProofBar from '../components/landing/SocialProofBar';
 import ProblemSection from '../components/landing/ProblemSection';
 import SolutionSection from '../components/landing/SolutionSection';
+import WhyNowSection from '../components/landing/WhyNowSection';
 import FeatureShowcase from '../components/landing/FeatureShowcase';
 import HowItWorks from '../components/landing/HowItWorks';
 import UseCasesSection from '../components/landing/UseCasesSection';
@@ -28,6 +29,7 @@ export default function LandingPage() {
       <SocialProofBar />
       <ProblemSection />
       <SolutionSection />
+      <WhyNowSection />
       <FeatureShowcase />
       <HowItWorks />
       <UseCasesSection />

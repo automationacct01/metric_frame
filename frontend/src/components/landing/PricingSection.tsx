@@ -13,7 +13,7 @@ const pricingTiers = [
     name: 'Basic',
     price: '$99',
     period: '/month',
-    description: 'Essential metrics management for small AI and security teams.',
+    description: 'Essential metrics management for small AI and cybersecurity teams.',
     features: [
       'Up to 100 metrics',
       'Single framework (CSF or AI RMF)',
@@ -28,7 +28,7 @@ const pricingTiers = [
     name: 'Plus',
     price: '$249',
     period: '/month',
-    description: 'Advanced features for growing AI and security programs.',
+    description: 'Advanced features for growing AI and cybersecurity programs.',
     features: [
       'Up to 300 metrics',
       'Both frameworks included',
@@ -45,7 +45,7 @@ const pricingTiers = [
     name: 'Professional',
     price: '$499',
     period: '/month',
-    description: 'Full platform access for enterprise AI and security teams.',
+    description: 'Full platform access for enterprise AI and cybersecurity teams.',
     features: [
       'Unlimited metrics',
       'Everything in Plus',
@@ -102,7 +102,7 @@ export default function PricingSection() {
               fontSize: '1.1rem',
             }}
           >
-            Start free and scale as your AI and security metrics program grows.
+            Start free and scale as your AI and cybersecurity metrics program grows.
             No hidden fees, no surprises.
           </Typography>
         </Box>
