@@ -29,7 +29,7 @@ const useCases = [
     icon: <SecOpsIcon sx={{ fontSize: 32 }} />,
     title: 'Security Operations Teams',
     description:
-      'Track 208+ metrics across all CSF functions with drill-down detail. Identify gaps and prioritize remediation efforts.',
+      'Track 250+ metrics across all CSF functions with drill-down detail. Identify gaps and prioritize remediation efforts.',
     benefits: [
       'Real-time metric tracking',
       'Gap identification',
@@ -81,7 +81,7 @@ export default function UseCasesSection() {
               mb: 2,
             }}
           >
-            Built for Security Professionals
+            Built for AI and Security Professionals
           </Typography>
           <Typography
             variant="body1"

@@ -41,7 +41,7 @@ export default function HeroSection() {
               color: '#0f172a',
             }}
           >
-            Manage cybersecurity risk with confidence
+            Manage AI and Cybersecurity Risk with Confidence
           </Typography>
 
           {/* Subheadline */}
@@ -57,7 +57,7 @@ export default function HeroSection() {
               mx: 'auto',
             }}
           >
-            MetricFrame is the platform to track, measure, and report your security metrics aligned to NIST CSF 2.0 and AI RMF. Start free today.
+            MetricFrame is the platform to track, measure, and report your security and AI metrics aligned to NIST CSF 2.0 and AI RMF. Start free today.
           </Typography>
 
           {/* CTA Buttons */}
@@ -87,7 +87,7 @@ export default function HeroSection() {
                 },
               }}
             >
-              Start free trial
+              Start Free Trial
             </Button>
           </Box>
 

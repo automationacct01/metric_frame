@@ -145,7 +145,10 @@ export default function PricingCard({
             mb: 3,
             py: 1.5,
             ...(highlighted && {
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
+              backgroundColor: '#0ea5e9',
+              '&:hover': {
+                backgroundColor: '#0284c7',
+              },
             }),
           }}
         >

@@ -94,8 +94,8 @@ export default function LandingFooter() {
                   maxWidth: 300,
                 }}
               >
-                Unified cybersecurity risk visibility across frameworks.
-                Transform your security metrics into executive-ready insights.
+                Unified AI and cybersecurity risk visibility across frameworks.
+                Transform your AI and security metrics into executive-ready insights.
               </Typography>
             </Box>
 

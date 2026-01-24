@@ -30,7 +30,7 @@ export default function CTASection() {
               mb: 3,
             }}
           >
-            Ready to simplify your security metrics?
+            Ready to simplify your AI and security metrics?
           </Typography>
 
           {/* Subheadline */}
@@ -43,7 +43,7 @@ export default function CTASection() {
               mx: 'auto',
             }}
           >
-            Join security teams using MetricFrame to track, measure, and report with confidence.
+            Join AI and security teams using MetricFrame to track, measure, and report with confidence.
           </Typography>
 
           {/* CTA */}
@@ -64,7 +64,7 @@ export default function CTASection() {
               },
             }}
           >
-            Start free trial
+            Start Free Trial
           </Button>
 
           {/* Trust Note */}
