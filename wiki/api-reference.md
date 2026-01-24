@@ -5,7 +5,7 @@
 
 ---
 
-Complete REST API documentation for Cyber Metrics Flow backend services.
+Complete REST API documentation for MetricFrame backend services.
 
 ## Base URL
 

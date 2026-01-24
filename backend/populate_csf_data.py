@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # Database connection
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/cyber_metrics_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/metricframe_db")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

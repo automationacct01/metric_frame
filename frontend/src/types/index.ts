@@ -141,6 +141,13 @@ export enum CSFFunction {
   RECOVER = 'rc'
 }
 
+export enum AIRMFFunction {
+  GOVERN = 'govern',
+  MAP = 'map',
+  MEASURE = 'measure',
+  MANAGE = 'manage'
+}
+
 export enum MetricDirection {
   HIGHER_IS_BETTER = 'higher_is_better',
   LOWER_IS_BETTER = 'lower_is_better',
@@ -171,11 +178,21 @@ export interface Metric {
   description?: string;
   formula?: string;
   calc_expr_json?: any;
+  // NIST CSF 2.0 fields
   csf_function: CSFFunction;
   csf_category_code?: string;
   csf_subcategory_code?: string;
   csf_category_name?: string;
   csf_subcategory_outcome?: string;
+  // NIST AI RMF 1.0 fields
+  ai_rmf_function?: AIRMFFunction;
+  ai_rmf_function_name?: string;
+  ai_rmf_category_code?: string;
+  ai_rmf_category_name?: string;
+  ai_rmf_subcategory_code?: string;
+  ai_rmf_subcategory_outcome?: string;
+  trustworthiness_characteristic?: string;
+  // Common fields
   priority_rank: number;
   weight: number;
   direction: MetricDirection;
@@ -269,6 +286,8 @@ export interface MetricListResponse {
   has_more: boolean;
 }
 
+export type MetricType = 'all' | 'cyber' | 'ai_profile';
+
 export interface MetricFilters {
   framework?: string;  // Framework code (csf_2_0, ai_rmf)
   function?: CSFFunction;
@@ -279,6 +298,7 @@ export interface MetricFilters {
   active?: boolean;
   search?: string;
   owner_function?: string;
+  metric_type?: MetricType;  // Filter by Cyber vs AI Profile metrics
   limit?: number;
   offset?: number;
 }
@@ -373,8 +393,34 @@ export const RISK_RATING_COLORS: Record<RiskRating, string> = {
 
 export const PRIORITY_NAMES: Record<number, string> = {
   1: 'High',
-  2: 'Medium', 
+  2: 'Medium',
   3: 'Low'
+};
+
+// AI RMF Function names and descriptions
+export const AI_RMF_FUNCTION_NAMES: Record<AIRMFFunction, string> = {
+  [AIRMFFunction.GOVERN]: 'Govern',
+  [AIRMFFunction.MAP]: 'Map',
+  [AIRMFFunction.MEASURE]: 'Measure',
+  [AIRMFFunction.MANAGE]: 'Manage'
+};
+
+export const AI_RMF_FUNCTION_DESCRIPTIONS: Record<AIRMFFunction, string> = {
+  [AIRMFFunction.GOVERN]: 'AI governance and risk management culture',
+  [AIRMFFunction.MAP]: 'Context recognition and risk identification',
+  [AIRMFFunction.MEASURE]: 'Risk analysis, tracking, and measurement',
+  [AIRMFFunction.MANAGE]: 'Risk prioritization and response'
+};
+
+// AI RMF Trustworthiness Characteristics
+export const AI_RMF_TRUSTWORTHINESS: Record<string, string> = {
+  'valid_reliable': 'Valid and Reliable',
+  'safe': 'Safe',
+  'secure_resilient': 'Secure and Resilient',
+  'accountable_transparent': 'Accountable and Transparent',
+  'explainable_interpretable': 'Explainable and Interpretable',
+  'privacy_enhanced': 'Privacy-Enhanced',
+  'fair': 'Fair (Harmful Bias Managed)'
 };
 
 // CSF Reference Types

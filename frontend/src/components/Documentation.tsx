@@ -10,6 +10,8 @@ import {
   Typography,
   Divider,
   Collapse,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -186,7 +188,7 @@ const SubSection = ({ title, children }: { title: string; children: React.ReactN
 function HomeContent() {
   return (
     <Box>
-      <Typography variant="h4" gutterBottom fontWeight={600}>Cyber Metrics Flow</Typography>
+      <Typography variant="h4" gutterBottom fontWeight={600}>MetricFrame</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
         A comprehensive web application for managing and visualizing cybersecurity Key Risk Indicators (KRIs)
         aligned with multiple security frameworks including NIST CSF 2.0, AI RMF, and the Cyber AI Profile.
@@ -202,13 +204,15 @@ function HomeContent() {
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>208 Pre-Configured Metrics</strong></td><td>Security KRIs mapped to NIST CSF 2.0 functions</td></tr>
-            <tr><td><strong>6 CSF Functions</strong></td><td>GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER</td></tr>
-            <tr><td><strong>Multi-Framework Support</strong></td><td>NIST CSF 2.0, AI RMF 1.0, Cyber AI Profile</td></tr>
+            <tr><td><strong>226 Pre-Configured Metrics</strong></td><td>208 CSF 2.0 + 18 AI RMF metrics</td></tr>
+            <tr><td><strong>Multi-Framework Support</strong></td><td>NIST CSF 2.0 and AI RMF 1.0 with unified dashboard</td></tr>
+            <tr><td><strong>10 Framework Functions</strong></td><td>6 CSF (Govern-Recover) + 4 AI RMF (Govern-Manage)</td></tr>
+            <tr><td><strong>7 AI Trustworthiness Types</strong></td><td>Track AI system trustworthiness characteristics</td></tr>
             <tr><td><strong>AI Integration</strong></td><td>Claude-powered metrics creation and analysis</td></tr>
             <tr><td><strong>Bring Your Own Catalog</strong></td><td>Import and manage custom metric catalogs</td></tr>
             <tr><td><strong>Gap-to-Target Scoring</strong></td><td>Transparent weighted risk calculations</td></tr>
             <tr><td><strong>Executive Dashboard</strong></td><td>RAG-colored risk visualization</td></tr>
+            <tr><td><strong>Column Tooltips</strong></td><td>Hover over any column header for field explanations</td></tr>
           </tbody>
         </Box>
       </Section>
@@ -218,7 +222,7 @@ function HomeContent() {
 {`┌───────────────────┐     ┌───────────────────┐     ┌───────────────────┐
 │                   │     │                   │     │                   │
 │   React Frontend  │<--->│  FastAPI Backend  │<--->│   PostgreSQL DB   │
-│   Material-UI     │     │  SQLAlchemy ORM   │     │   208 Metrics     │
+│   Material-UI     │     │  SQLAlchemy ORM   │     │   226 Metrics     │
 │                   │     │                   │     │                   │
 └───────────────────┘     └───────────────────┘     └───────────────────┘
          │                        │
@@ -241,11 +245,13 @@ function HomeContent() {
         <Box component="ul" sx={{ pl: 3, '& li': { mb: 0.5 } }}>
           <li>Executive risk dashboard with RAG scoring</li>
           <li>Complete metrics CRUD operations</li>
+          <li>Multi-framework support (NIST CSF 2.0 and AI RMF 1.0)</li>
           <li>Multi-catalog support (BYOC)</li>
           <li>5-step catalog import wizard</li>
           <li>AI-powered metrics creation and enhancement</li>
           <li>Framework-specific scoring and views</li>
           <li>CSV import/export functionality</li>
+          <li>Column tooltips for all metrics fields</li>
         </Box>
       </Section>
 
@@ -293,7 +299,7 @@ function GettingStartedContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Getting Started</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Get Cyber Metrics Flow running locally in 5 minutes.
+        Get MetricFrame running locally in 5 minutes.
       </Typography>
 
       <Section title="Prerequisites">
@@ -319,8 +325,8 @@ function GettingStartedContent() {
       <Section title="Quick Start">
         <SubSection title="Step 1: Clone the Repository">
           <Box component="pre" sx={codeBlockStyles}>
-{`git clone https://github.com/your-org/cyber_metrics_flow.git
-cd cyber_metrics_flow`}
+{`git clone https://github.com/your-org/metricframe.git
+cd metricframe`}
           </Box>
         </SubSection>
 
@@ -332,7 +338,7 @@ cd cyber_metrics_flow`}
           <Typography variant="body2" sx={{ mt: 2 }}>Edit <code>backend/.env</code> with your configuration:</Typography>
           <Box component="pre" sx={codeBlockStyles}>
 {`# Database (default works with Docker)
-DATABASE_URL=postgresql://postgres:postgres@db:5432/cyber_metrics
+DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
 
 # AI Integration (optional but recommended)
 ANTHROPIC_API_KEY=sk-ant-your-key-here
@@ -363,9 +369,9 @@ docker compose ps
 
 # Expected output:
 # NAME                    STATUS
-# cyber_metrics_flow-db   running
-# cyber_metrics_flow-api  running
-# cyber_metrics_flow-web  running`}
+# metricframe-db   running
+# metricframe-api  running
+# metricframe-web  running`}
           </Box>
         </SubSection>
       </Section>
@@ -490,7 +496,7 @@ function HowItWorksContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>How It Works</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        A technical overview of Cyber Metrics Flow's architecture, data flow, and component interactions.
+        A technical overview of MetricFrame's architecture, data flow, and component interactions.
       </Typography>
 
       <Section title="System Architecture">
@@ -844,7 +850,7 @@ function MetricsManagementContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Metrics Management</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Comprehensive guide to managing Key Risk Indicators (KRIs) in Cyber Metrics Flow, including the 208
+        Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 208
         pre-configured metrics, catalog system, and import/export capabilities.
       </Typography>
 
@@ -1064,7 +1070,7 @@ function AIAssistantContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>AI Assistant</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Cyber Metrics Flow integrates AI capabilities powered by Anthropic Claude to assist with metrics creation,
+        MetricFrame integrates AI capabilities powered by Anthropic Claude to assist with metrics creation,
         analysis, recommendations, and catalog management.
       </Typography>
 
@@ -1284,7 +1290,7 @@ function ScoringMethodologyContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Scoring Methodology</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        A detailed explanation of how Cyber Metrics Flow calculates risk scores, from individual metrics through organizational rollups.
+        A detailed explanation of how MetricFrame calculates risk scores, from individual metrics through organizational rollups.
       </Typography>
 
       <Section title="Gap-to-Target Philosophy">
@@ -1553,13 +1559,48 @@ SCORE_ELEVATED_THRESHOLD=50`}
 }
 
 function FrameworksReferenceContent() {
+  const [activeTab, setActiveTab] = useState(0);
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Frameworks Reference</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Cyber Metrics Flow supports multiple security and AI governance frameworks. This reference covers the structure, functions, and relationships of each supported framework.
+        MetricFrame supports multiple security and AI governance frameworks. This reference covers the structure, functions, and relationships of each supported framework.
       </Typography>
 
+      {/* Sub-tabs for navigation */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              minWidth: 'auto',
+              px: 2,
+            },
+          }}
+        >
+          <Tab label="Overview" />
+          <Tab label="NIST CSF 2.0" />
+          <Tab label="NIST AI RMF" />
+          <Tab label="Cyber AI Profile" />
+          <Tab label="Cross-Framework" />
+          <Tab label="Resources" />
+        </Tabs>
+      </Paper>
+
+      {/* Tab 0: Overview */}
+      {activeTab === 0 && (
+        <>
       <Section title="Supported Frameworks Overview">
         <Box component="table" sx={tableStyles}>
           <thead>
@@ -1568,12 +1609,13 @@ function FrameworksReferenceContent() {
               <Box component="th" sx={{ fontWeight: 600 }}>Version</Box>
               <Box component="th" sx={{ fontWeight: 600 }}>Focus</Box>
               <Box component="th" sx={{ fontWeight: 600 }}>Functions</Box>
+              <Box component="th" sx={{ fontWeight: 600 }}>Metrics</Box>
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>NIST CSF</strong></td><td>2.0</td><td>Cybersecurity risk management</td><td>6</td></tr>
-            <tr><td><strong>NIST AI RMF</strong></td><td>1.0</td><td>AI system risk management</td><td>4</td></tr>
-            <tr><td><strong>Cyber AI Profile</strong></td><td>1.0</td><td>AI-enhanced cybersecurity</td><td>6 (extended)</td></tr>
+            <tr><td><strong>NIST CSF</strong></td><td>2.0</td><td>Cybersecurity risk management</td><td>6</td><td>208</td></tr>
+            <tr><td><strong>NIST AI RMF</strong></td><td>1.0</td><td>AI system risk management</td><td>4</td><td>18</td></tr>
+            <tr><td><strong>Cyber AI Profile</strong></td><td>1.0</td><td>AI-enhanced cybersecurity</td><td>6 (extended)</td><td>TBD</td></tr>
           </tbody>
         </Box>
 
@@ -1584,19 +1626,36 @@ function FrameworksReferenceContent() {
                 <Box component="th" sx={{ fontWeight: 600 }}>Aspect</Box>
                 <Box component="th" sx={{ fontWeight: 600 }}>NIST CSF 2.0</Box>
                 <Box component="th" sx={{ fontWeight: 600 }}>AI RMF 1.0</Box>
-                <Box component="th" sx={{ fontWeight: 600 }}>Cyber AI Profile</Box>
               </tr>
             </thead>
             <tbody>
-              <tr><td><strong>Primary Use</strong></td><td>General cybersecurity</td><td>AI systems</td><td>AI in security</td></tr>
-              <tr><td><strong>Scope</strong></td><td>Organization-wide</td><td>AI lifecycle</td><td>Security AI systems</td></tr>
-              <tr><td><strong>Structure</strong></td><td>Functions/Categories</td><td>Functions/Characteristics</td><td>Extended CSF</td></tr>
-              <tr><td><strong>Metrics in App</strong></td><td>208</td><td>TBD</td><td>TBD</td></tr>
+              <tr><td><strong>Primary Use</strong></td><td>General cybersecurity</td><td>AI systems</td></tr>
+              <tr><td><strong>Scope</strong></td><td>Organization-wide IT systems</td><td>AI lifecycle management</td></tr>
+              <tr><td><strong>Structure</strong></td><td>Functions → Categories → Subcategories</td><td>Functions → Categories → Trustworthiness</td></tr>
+              <tr><td><strong>Metrics in App</strong></td><td>208</td><td>18</td></tr>
+              <tr><td><strong>Maturity</strong></td><td>Established (since 2014)</td><td>Newer (2023)</td></tr>
+              <tr><td><strong>Mandatory For</strong></td><td>US Federal agencies</td><td>Voluntary</td></tr>
             </tbody>
           </Box>
         </SubSection>
-      </Section>
 
+        <SubSection title="Why Use Multiple Frameworks?">
+          <Typography variant="body2" paragraph>
+            Organizations increasingly need both frameworks:
+          </Typography>
+          <ul style={{ marginTop: 0 }}>
+            <li><Typography variant="body2"><strong>CSF 2.0</strong> secures IT infrastructure, networks, and data</Typography></li>
+            <li><Typography variant="body2"><strong>AI RMF</strong> ensures AI systems are trustworthy and don't cause harm</Typography></li>
+            <li><Typography variant="body2">Together, they provide comprehensive risk coverage for modern digital environments</Typography></li>
+          </ul>
+        </SubSection>
+      </Section>
+        </>
+      )}
+
+      {/* Tab 1: NIST CSF 2.0 */}
+      {activeTab === 1 && (
+        <>
       <Section title="NIST Cybersecurity Framework 2.0">
         <Typography variant="body2" paragraph>
           The NIST Cybersecurity Framework provides a policy framework for organizations to assess and improve their ability to prevent, detect, and respond to cyber attacks.
@@ -1654,6 +1713,23 @@ function FrameworksReferenceContent() {
           </Box>
         </SubSection>
 
+        <SubSection title="IDENTIFY (ID) Categories">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Code</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Category</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>ID.AM</td><td>Asset Management</td><td>Hardware, software, data, and systems inventoried</td></tr>
+              <tr><td>ID.RA</td><td>Risk Assessment</td><td>Cybersecurity risk to the organization understood</td></tr>
+              <tr><td>ID.IM</td><td>Improvement</td><td>Improvements to organizational cybersecurity identified</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
         <SubSection title="PROTECT (PR) Categories">
           <Box component="table" sx={tableStyles}>
             <thead>
@@ -1664,21 +1740,96 @@ function FrameworksReferenceContent() {
               </tr>
             </thead>
             <tbody>
-              <tr><td>PR.AA</td><td>Identity Management</td><td>Access to assets managed</td></tr>
-              <tr><td>PR.AT</td><td>Awareness & Training</td><td>Personnel trained</td></tr>
-              <tr><td>PR.DS</td><td>Data Security</td><td>Data protected</td></tr>
-              <tr><td>PR.PS</td><td>Platform Security</td><td>Technology platforms secured</td></tr>
-              <tr><td>PR.IR</td><td>Technology Infrastructure</td><td>Security architecture managed</td></tr>
+              <tr><td>PR.AA</td><td>Identity Management, Authentication & Access Control</td><td>Access to assets managed through credentials and authentication</td></tr>
+              <tr><td>PR.AT</td><td>Awareness & Training</td><td>Personnel are trained and aware of security responsibilities</td></tr>
+              <tr><td>PR.DS</td><td>Data Security</td><td>Data is managed consistent with risk strategy to protect confidentiality, integrity, and availability</td></tr>
+              <tr><td>PR.PS</td><td>Platform Security</td><td>Hardware, software, and services managed consistent with risk strategy</td></tr>
+              <tr><td>PR.IR</td><td>Technology Infrastructure Resilience</td><td>Security architecture managed with the organization's risk strategy</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
+        <SubSection title="DETECT (DE) Categories">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Code</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Category</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>DE.CM</td><td>Continuous Monitoring</td><td>Assets are monitored to find anomalies, indicators of compromise, and other potentially adverse events</td></tr>
+              <tr><td>DE.AE</td><td>Adverse Event Analysis</td><td>Anomalies, indicators of compromise, and other potentially adverse events are analyzed</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
+        <SubSection title="RESPOND (RS) Categories">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Code</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Category</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>RS.MA</td><td>Incident Management</td><td>Responses to detected cybersecurity incidents are managed</td></tr>
+              <tr><td>RS.AN</td><td>Incident Analysis</td><td>Investigations are conducted to ensure effective response and support forensics/recovery</td></tr>
+              <tr><td>RS.CO</td><td>Incident Response Reporting & Communication</td><td>Response activities are coordinated with internal and external stakeholders</td></tr>
+              <tr><td>RS.MI</td><td>Incident Mitigation</td><td>Activities performed to prevent expansion of an event and mitigate its effects</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
+        <SubSection title="RECOVER (RC) Categories">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Code</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Category</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>RC.RP</td><td>Incident Recovery Plan Execution</td><td>Restoration activities are performed to ensure operational availability</td></tr>
+              <tr><td>RC.CO</td><td>Incident Recovery Communication</td><td>Restoration activities are coordinated with internal and external parties</td></tr>
             </tbody>
           </Box>
         </SubSection>
       </Section>
+        </>
+      )}
 
+      {/* Tab 2: NIST AI RMF */}
+      {activeTab === 2 && (
+        <>
       <Section title="NIST AI Risk Management Framework 1.0">
         <Typography variant="body2" paragraph>
-          The NIST AI RMF provides guidance for managing risks associated with artificial intelligence systems throughout their lifecycle.
+          The <strong>NIST AI Risk Management Framework (AI RMF)</strong> is a voluntary framework released in January 2023 to help organizations design, develop, deploy, and use AI systems responsibly. It addresses the unique risks posed by artificial intelligence that traditional cybersecurity frameworks don't fully cover.
         </Typography>
-        <Typography variant="body2"><strong>Key Characteristics:</strong> Voluntary framework, Applies to AI developers and deployers, Risk-based and outcome-focused</Typography>
+        <Typography variant="body2"><strong>Key Characteristics:</strong> Voluntary framework, Applies to AI developers/deployers/users, Risk-based and outcome-focused, Lifecycle approach from design through decommissioning</Typography>
+
+        <SubSection title="Why AI Needs Its Own Framework">
+          <Typography variant="body2" paragraph>AI systems present unique challenges not addressed by traditional cybersecurity:</Typography>
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Challenge</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Example</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Opacity</strong></td><td>AI decisions can be difficult to explain</td><td>Why did the model deny this loan?</td></tr>
+              <tr><td><strong>Bias</strong></td><td>AI can perpetuate societal biases</td><td>Hiring algorithm favoring demographics</td></tr>
+              <tr><td><strong>Emergent Behavior</strong></td><td>AI may behave unexpectedly</td><td>Chatbot producing harmful content</td></tr>
+              <tr><td><strong>Data Dependency</strong></td><td>AI quality depends on training data</td><td>Model trained on biased data</td></tr>
+              <tr><td><strong>Societal Impact</strong></td><td>AI affects employment, justice, healthcare</td><td>Automated parole recommendations</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
 
         <SubSection title="4 Core Functions">
           <Box component="table" sx={tableStyles}>
@@ -1686,38 +1837,109 @@ function FrameworksReferenceContent() {
               <tr>
                 <Box component="th" sx={{ fontWeight: 600 }}>Function</Box>
                 <Box component="th" sx={{ fontWeight: 600 }}>Purpose</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Metrics</Box>
               </tr>
             </thead>
             <tbody>
-              <tr><td><strong>GOVERN</strong></td><td>Cultivate culture of risk management</td></tr>
-              <tr><td><strong>MAP</strong></td><td>Context and risk framing</td></tr>
-              <tr><td><strong>MEASURE</strong></td><td>Identify and analyze AI risks</td></tr>
-              <tr><td><strong>MANAGE</strong></td><td>Prioritize and respond to risks</td></tr>
+              <tr><td><strong>GOVERN</strong></td><td>Cultivate culture of risk management; establish policies and accountability</td><td>4</td></tr>
+              <tr><td><strong>MAP</strong></td><td>Context and risk framing; document AI purposes and impacts</td><td>3</td></tr>
+              <tr><td><strong>MEASURE</strong></td><td>Analyze and track AI risks; test for bias, accuracy, security</td><td>6</td></tr>
+              <tr><td><strong>MANAGE</strong></td><td>Prioritize and respond to risks; incident management</td><td>5</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
+        <SubSection title="AI RMF Function Details">
+          <Typography variant="body2" sx={{ mt: 2 }}><strong>GOVERN</strong> - Establish AI governance and risk culture</Typography>
+          <Box component="table" sx={{ ...tableStyles, mt: 1 }}>
+            <tbody>
+              <tr><td>GOVERN-1</td><td>Legal & Regulatory</td><td>Compliance with AI laws and regulations</td></tr>
+              <tr><td>GOVERN-2</td><td>Accountability</td><td>Clear roles, responsibilities, and authority</td></tr>
+              <tr><td>GOVERN-3</td><td>Workforce</td><td>Diverse teams with AI skills and training</td></tr>
+              <tr><td>GOVERN-4</td><td>Organizational Commitments</td><td>Responsible AI principles and values</td></tr>
+              <tr><td>GOVERN-5</td><td>Processes & Procedures</td><td>Policies for AI risk management</td></tr>
+              <tr><td>GOVERN-6</td><td>Oversight & Documentation</td><td>Monitoring and record-keeping</td></tr>
+            </tbody>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 2 }}><strong>MAP</strong> - Establish context and identify risks</Typography>
+          <Box component="table" sx={{ ...tableStyles, mt: 1 }}>
+            <tbody>
+              <tr><td>MAP-1</td><td>Context & Purpose</td><td>Document intended use and deployment context</td></tr>
+              <tr><td>MAP-2</td><td>Categorization</td><td>Classify AI systems by risk level</td></tr>
+              <tr><td>MAP-3</td><td>Capabilities & Limitations</td><td>Understand what AI can and cannot do</td></tr>
+              <tr><td>MAP-4</td><td>Risk Identification</td><td>Identify potential risks and benefits</td></tr>
+              <tr><td>MAP-5</td><td>Impact Assessment</td><td>Assess impacts on individuals and groups</td></tr>
+            </tbody>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 2 }}><strong>MEASURE</strong> - Analyze and track AI risks</Typography>
+          <Box component="table" sx={{ ...tableStyles, mt: 1 }}>
+            <tbody>
+              <tr><td>MEASURE-1</td><td>Risk Measurement</td><td>Approaches for quantifying AI risks</td></tr>
+              <tr><td>MEASURE-2</td><td>Evaluation</td><td>Test performance, bias, security, drift</td></tr>
+              <tr><td>MEASURE-3</td><td>Risk Tracking</td><td>Monitor risks over time</td></tr>
+              <tr><td>MEASURE-4</td><td>Feedback Integration</td><td>Incorporate stakeholder feedback</td></tr>
+            </tbody>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 2 }}><strong>MANAGE</strong> - Respond to AI risks</Typography>
+          <Box component="table" sx={{ ...tableStyles, mt: 1 }}>
+            <tbody>
+              <tr><td>MANAGE-1</td><td>Risk Prioritization</td><td>Rank and prioritize identified risks</td></tr>
+              <tr><td>MANAGE-2</td><td>Treatment</td><td>Risk response strategies (mitigate, transfer, accept)</td></tr>
+              <tr><td>MANAGE-3</td><td>Third-Party</td><td>Vendor and supply chain AI risk management</td></tr>
+              <tr><td>MANAGE-4</td><td>Response</td><td>Incident management and decommissioning</td></tr>
             </tbody>
           </Box>
         </SubSection>
 
         <SubSection title="AI Trustworthiness Characteristics">
+          <Typography variant="body2" paragraph>
+            AI RMF defines seven characteristics that make AI systems worthy of trust. Each metric in the app is tagged with its primary trustworthiness characteristic, displayed as a <strong style={{ color: '#1565c0' }}>blue chip</strong> in the Metrics Grid.
+          </Typography>
           <Box component="table" sx={tableStyles}>
             <thead>
               <tr>
                 <Box component="th" sx={{ fontWeight: 600 }}>Characteristic</Box>
-                <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Code</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>What It Means</Box>
               </tr>
             </thead>
             <tbody>
-              <tr><td><strong>Valid & Reliable</strong></td><td>AI functions as intended</td></tr>
-              <tr><td><strong>Safe</strong></td><td>Does not endanger human life</td></tr>
-              <tr><td><strong>Secure & Resilient</strong></td><td>Resistant to attacks and failures</td></tr>
-              <tr><td><strong>Accountable & Transparent</strong></td><td>Decision processes explainable</td></tr>
-              <tr><td><strong>Explainable & Interpretable</strong></td><td>Outputs understandable</td></tr>
-              <tr><td><strong>Privacy-Enhanced</strong></td><td>Protects personal information</td></tr>
-              <tr><td><strong>Fair</strong></td><td>Manages harmful bias</td></tr>
+              <tr><td><strong>Valid & Reliable</strong></td><td>valid_reliable</td><td>The AI does what it's supposed to do, reliably</td></tr>
+              <tr><td><strong>Safe</strong></td><td>safe</td><td>The AI won't hurt people, property, or environment</td></tr>
+              <tr><td><strong>Secure & Resilient</strong></td><td>secure_resilient</td><td>The AI can't be easily hacked or manipulated</td></tr>
+              <tr><td><strong>Accountable & Transparent</strong></td><td>accountable_transparent</td><td>Someone is responsible; decisions are traceable</td></tr>
+              <tr><td><strong>Explainable & Interpretable</strong></td><td>explainable_interpretable</td><td>Users can understand why the AI made a decision</td></tr>
+              <tr><td><strong>Privacy-Enhanced</strong></td><td>privacy_enhanced</td><td>The AI respects privacy and data protection laws</td></tr>
+              <tr><td><strong>Fair</strong></td><td>fair</td><td>The AI doesn't discriminate or show bias</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+
+        <SubSection title="Example AI RMF Metrics in App">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Metric</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Function</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Current → Target</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Trustworthiness</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>AI Systems Inventory Completeness</td><td>GOVERN</td><td>75% → 100%</td><td>Accountable</td></tr>
+              <tr><td>AI Model Accuracy</td><td>MEASURE</td><td>89% → 95%</td><td>Valid & Reliable</td></tr>
+              <tr><td>AI Bias Detection Rate</td><td>MEASURE</td><td>55% → 100%</td><td>Fair</td></tr>
+              <tr><td>AI Incident Response Time</td><td>MANAGE</td><td>6.5 hrs → 2 hrs</td><td>Accountable</td></tr>
             </tbody>
           </Box>
         </SubSection>
       </Section>
+        </>
+      )}
 
+      {/* Tab 3: Cyber AI Profile */}
+      {activeTab === 3 && (
+        <>
       <Section title="Cyber AI Profile">
         <Typography variant="body2" paragraph>
           The Cyber AI Profile extends NIST CSF 2.0 to address the unique risks and controls associated with AI systems used in cybersecurity contexts.
@@ -1758,7 +1980,12 @@ function FrameworksReferenceContent() {
           </Box>
         </SubSection>
       </Section>
+        </>
+      )}
 
+      {/* Tab 4: Cross-Framework */}
+      {activeTab === 4 && (
+        <>
       <Section title="Cross-Framework Mapping">
         <Box component="table" sx={tableStyles}>
           <thead>
@@ -1806,6 +2033,75 @@ function FrameworksReferenceContent() {
           </tbody>
         </Box>
       </Section>
+
+      <Section title="Getting Started with Frameworks">
+        <Typography variant="body2" paragraph><strong>For Organizations New to These Frameworks:</strong></Typography>
+        <ol style={{ marginTop: 0 }}>
+          <li><Typography variant="body2"><strong>Assess Your Needs:</strong> Do you have AI systems? → Use AI RMF. Do you have IT systems? → Use CSF 2.0. Most organizations need both.</Typography></li>
+          <li><Typography variant="body2"><strong>Start with Governance:</strong> Both frameworks emphasize governance as foundational. Establish policies, roles, and accountability first.</Typography></li>
+          <li><Typography variant="body2"><strong>Identify Your Assets:</strong> CSF: IT assets, networks, data. AI RMF: AI systems, models, training data.</Typography></li>
+          <li><Typography variant="body2"><strong>Implement Metrics:</strong> Use this dashboard to track key risk indicators. Start with high-priority metrics first.</Typography></li>
+          <li><Typography variant="body2"><strong>Iterate and Improve:</strong> Review scores regularly. Adjust targets as maturity improves.</Typography></li>
+        </ol>
+
+        <SubSection title="Framework Selection Tips">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>If You...</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Start With...</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Are new to cybersecurity frameworks</td><td>CSF 2.0</td></tr>
+              <tr><td>Already have a security program</td><td>Add AI RMF for AI systems</td></tr>
+              <tr><td>Are deploying AI systems</td><td>AI RMF + relevant CSF controls</td></tr>
+              <tr><td>Need regulatory compliance</td><td>Check which framework applies</td></tr>
+              <tr><td>Want comprehensive coverage</td><td>Both frameworks together</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+      </Section>
+        </>
+      )}
+
+      {/* Tab 5: Resources */}
+      {activeTab === 5 && (
+        <>
+      <Section title="Additional Resources">
+        <SubSection title="Official NIST Resources">
+          <Typography variant="body2"><strong>NIST CSF 2.0:</strong></Typography>
+          <ul style={{ marginTop: 4 }}>
+            <li><Typography variant="body2">NIST CSF 2.0 Official Document - nist.gov/cyberframework</Typography></li>
+            <li><Typography variant="body2">CSF 2.0 Quick Start Guides - nist.gov/cyberframework/getting-started</Typography></li>
+          </ul>
+          <Typography variant="body2" sx={{ mt: 2 }}><strong>NIST AI RMF 1.0:</strong></Typography>
+          <ul style={{ marginTop: 4 }}>
+            <li><Typography variant="body2">AI RMF Official Document - nist.gov/itl/ai-risk-management-framework</Typography></li>
+            <li><Typography variant="body2">AI RMF Playbook - airc.nist.gov/AI_RMF_Knowledge_Base/Playbook</Typography></li>
+          </ul>
+        </SubSection>
+
+        <SubSection title="Related Standards">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Standard</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Focus</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Relationship</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>ISO/IEC 27001</td><td>Information Security Management</td><td>Maps to CSF</td></tr>
+              <tr><td>ISO/IEC 42001</td><td>AI Management System</td><td>Maps to AI RMF</td></tr>
+              <tr><td>NIST SP 800-53</td><td>Security Controls</td><td>Detailed controls for CSF</td></tr>
+              <tr><td>EU AI Act</td><td>AI Regulation</td><td>AI RMF helps compliance</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+      </Section>
+        </>
+      )}
     </Box>
   );
 }
@@ -1815,7 +2111,7 @@ function APIReferenceContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>API Reference</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Complete REST API documentation for Cyber Metrics Flow backend services.
+        Complete REST API documentation for MetricFrame backend services.
       </Typography>
 
       <Section title="Base URL & Authentication">
@@ -2057,7 +2353,7 @@ function DatabaseSchemaContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Database Schema</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Documentation of the PostgreSQL database schema, models, relationships, and migrations for Cyber Metrics Flow.
+        Documentation of the PostgreSQL database schema, models, relationships, and migrations for MetricFrame.
       </Typography>
 
       <Section title="Entity Relationship Diagram">
@@ -2232,7 +2528,7 @@ function DevelopmentGuideContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Development Guide</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Complete guide for setting up a development environment and contributing to Cyber Metrics Flow.
+        Complete guide for setting up a development environment and contributing to MetricFrame.
       </Typography>
 
       <Section title="Prerequisites">
@@ -2258,8 +2554,8 @@ function DevelopmentGuideContent() {
       <Section title="Quick Setup (Docker)">
         <Box component="pre" sx={codeBlockStyles}>
 {`# Clone repository
-git clone https://github.com/your-org/cyber_metrics_flow.git
-cd cyber_metrics_flow
+git clone https://github.com/your-org/metricframe.git
+cd metricframe
 
 # Copy environment file
 cp backend/.env.example backend/.env
@@ -2311,10 +2607,10 @@ npm run dev`}
           <Box component="pre" sx={codeBlockStyles}>
 {`# Start PostgreSQL (Docker)
 docker run -d \\
-  --name cyber_metrics_db \\
+  --name metricframe_db \\
   -e POSTGRES_USER=postgres \\
   -e POSTGRES_PASSWORD=postgres \\
-  -e POSTGRES_DB=cyber_metrics \\
+  -e POSTGRES_DB=metricframe \\
   -p 5432:5432 \\
   postgres:15`}
           </Box>
@@ -2323,7 +2619,7 @@ docker run -d \\
 
       <Section title="Project Structure">
         <Box component="pre" sx={codeBlockStyles}>
-{`cyber_metrics_flow/
+{`metricframe/
 ├── backend/
 │   ├── src/
 │   │   ├── main.py           # FastAPI application entry
@@ -2438,7 +2734,7 @@ logger.debug(f"Processing metric: {metric.id}")`}
         <SubSection title="Database Debugging">
           <Box component="pre" sx={codeBlockStyles}>
 {`# Connect to PostgreSQL
-docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics
+docker exec -it metricframe_db psql -U postgres -d metricframe
 
 # Useful queries
 SELECT * FROM metrics LIMIT 10;
@@ -2455,7 +2751,7 @@ function TroubleshootingContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Troubleshooting</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Solutions to common issues and problems when using Cyber Metrics Flow.
+        Solutions to common issues and problems when using MetricFrame.
       </Typography>
 
       <Section title="Connection Issues">
@@ -2503,7 +2799,7 @@ docker compose ps db
 docker compose logs db
 
 # Verify connection string in backend/.env
-DATABASE_URL=postgresql://postgres:postgres@db:5432/cyber_metrics
+DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
 
 # Recreate database
 docker compose down -v
@@ -2512,7 +2808,7 @@ docker compose up -d db
 docker compose up -d api
 
 # Test connection
-docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics -c "SELECT 1"`}
+docker exec -it metricframe_db psql -U postgres -d metricframe -c "SELECT 1"`}
           </Box>
         </SubSection>
       </Section>
@@ -2580,7 +2876,7 @@ alembic upgrade head
 python -m src.seeds.seed_metrics
 
 # Check for existing data
-docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics \\
+docker exec -it metricframe_db psql -U postgres -d metricframe \\
   -c "SELECT COUNT(*) FROM metrics"`}
           </Box>
         </SubSection>
@@ -2614,7 +2910,7 @@ docker compose logs --tail=50
 curl http://localhost:8000/health
 
 # Database connectivity
-docker exec cyber_metrics_db pg_isready
+docker exec metricframe_db pg_isready
 
 # Container resource usage
 docker stats --no-stream`}

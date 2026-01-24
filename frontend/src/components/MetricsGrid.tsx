@@ -47,8 +47,12 @@ import { useFramework } from '../contexts/FrameworkContext';
 import {
   Metric,
   MetricFilters,
+  MetricType,
   CSFFunction,
+  AIRMFFunction,
   CSF_FUNCTION_NAMES,
+  AI_RMF_FUNCTION_NAMES,
+  AI_RMF_TRUSTWORTHINESS,
   PRIORITY_NAMES,
   RISK_RATING_COLORS,
   RiskRating,
@@ -72,8 +76,27 @@ const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
   [CollectionFrequency.AD_HOC]: 'Ad Hoc',
 };
 
-// Column header tooltip definitions
-const COLUMN_TOOLTIPS: Record<string, string> = {
+// Helper to filter metrics by type (Cyber vs AI Profile)
+const filterMetricsByType = (metrics: Metric[], metricType?: MetricType): Metric[] => {
+  if (!metricType || metricType === 'all') {
+    return metrics;
+  }
+
+  return metrics.filter(metric => {
+    const metricNumber = metric.metric_number || '';
+    const isAIProfile = metricNumber.includes('-AI-');
+
+    if (metricType === 'ai_profile') {
+      return isAIProfile;
+    } else if (metricType === 'cyber') {
+      return !isAIProfile;
+    }
+    return true;
+  });
+};
+
+// Column header tooltip definitions for CSF 2.0
+const CSF_COLUMN_TOOLTIPS: Record<string, string> = {
   locked: 'Lock/unlock metric for editing. Locked metrics are protected from accidental changes.',
   metric_number: 'Unique identifier code for the metric (e.g., GV-01, ID-02)',
   name: 'Descriptive name explaining what the metric measures',
@@ -93,9 +116,31 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
   actions: 'Edit, delete, or manage metric settings',
 };
 
-// Helper to render column header with tooltip
-const renderHeaderWithTooltip = (field: string, headerName: string) => () => (
-  <Tooltip title={COLUMN_TOOLTIPS[field] || ''} arrow placement="top">
+// Column header tooltip definitions for AI RMF
+const AI_RMF_COLUMN_TOOLTIPS: Record<string, string> = {
+  locked: 'Lock/unlock metric for editing. Locked metrics are protected from accidental changes.',
+  metric_number: 'Unique identifier code for the metric (e.g., AI-GOV-001, AI-MAP-002)',
+  name: 'Descriptive name explaining what the metric measures',
+  formula: 'Calculation method used to compute the metric value',
+  risk_definition: 'Description of the AI risk or trustworthiness outcome this metric helps measure',
+  ai_rmf_function: 'NIST AI RMF 1.0 Function: Govern, Map, Measure, or Manage',
+  ai_rmf_category_name: 'NIST AI RMF 1.0 Category within the function (e.g., Policies & Processes, Context & Purpose)',
+  ai_rmf_subcategory_code: 'NIST AI RMF 1.0 Subcategory identifier (e.g., GOVERN-1.1, MAP-2.3)',
+  ai_rmf_subcategory_outcome: 'Expected outcome from the NIST AI RMF subcategory',
+  trustworthiness: 'AI RMF Trustworthiness Characteristic (e.g., Valid & Reliable, Fair, Safe)',
+  priority_rank: 'Business priority: High (critical), Medium (important), Low (nice-to-have)',
+  current_value: 'Most recent measured value for this metric',
+  target_value: 'Goal or threshold value the organization aims to achieve',
+  metric_score: 'Gap-to-target performance score (0-100%). Higher is better.',
+  owner_function: 'Team or department responsible for this metric',
+  collection_frequency: 'How often the metric data is collected (Daily, Weekly, Monthly, etc.)',
+  active: 'Whether this metric is actively tracked and included in scoring',
+  actions: 'Edit, delete, or manage metric settings',
+};
+
+// Helper to render column header with tooltip (takes tooltip map as parameter)
+const renderHeaderWithTooltipMap = (field: string, headerName: string, tooltips: Record<string, string>) => () => (
+  <Tooltip title={tooltips[field] || ''} arrow placement="top">
     <Box component="span" sx={{ cursor: 'help', display: 'inline-flex', alignItems: 'center' }}>
       {headerName}
     </Box>
@@ -106,6 +151,13 @@ interface EditingState {
   [metricId: string]: {
     [field: string]: any;
   };
+}
+
+interface SummaryStats {
+  totalMetrics: number;
+  activeMetrics: number;
+  highPriority: number;
+  needAttention: number;
 }
 
 interface MetricsGridState {
@@ -130,6 +182,8 @@ interface MetricsGridState {
   aiGenerating: boolean;
   aiGenerated: boolean;
   aiError: string | null;
+  // Summary stats (independent of filters)
+  summaryStats: SummaryStats;
 }
 
 export default function MetricsGrid() {
@@ -161,6 +215,12 @@ export default function MetricsGrid() {
     aiGenerating: false,
     aiGenerated: false,
     aiError: null,
+    summaryStats: {
+      totalMetrics: 0,
+      activeMetrics: 0,
+      highPriority: 0,
+      needAttention: 0,
+    },
   });
 
   const showSnackbar = (message: string, severity: typeof state.snackbarSeverity = 'info') => {
@@ -214,6 +274,38 @@ export default function MetricsGrid() {
     }
   }, []);
 
+  // Load summary stats independently of filters/pagination
+  const loadSummaryStats = useCallback(async () => {
+    try {
+      // Fetch all metrics without pagination to get accurate totals
+      const allMetricsFilters = {
+        framework: frameworkCode,
+        limit: 1000,  // High limit to get all metrics
+        offset: 0,
+      };
+
+      const response = state.activeCatalog
+        ? await apiClient.getActiveCatalogMetrics(allMetricsFilters, 'admin')
+        : await apiClient.getMetrics(allMetricsFilters);
+
+      // Apply metric type filter to summary stats as well
+      const allMetrics = filterMetricsByType(response.items, state.filters.metric_type);
+
+      setState(prev => ({
+        ...prev,
+        summaryStats: {
+          totalMetrics: allMetrics.length,
+          activeMetrics: allMetrics.filter(m => m.active).length,
+          highPriority: allMetrics.filter(m => m.priority_rank === 1).length,
+          needAttention: allMetrics.filter(m => (m.metric_score || 0) < 65).length,
+        },
+      }));
+    } catch (error) {
+      console.error('Failed to load summary stats:', error);
+      // Don't show error to user - summary stats are secondary
+    }
+  }, [frameworkCode, state.activeCatalog, state.filters.metric_type]);
+
   const loadMetrics = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -235,11 +327,14 @@ export default function MetricsGrid() {
       const response = state.activeCatalog
         ? await apiClient.getActiveCatalogMetrics(filtersWithFramework, 'admin')
         : await apiClient.getMetrics(filtersWithFramework);
-      
+
+      // Apply client-side metric type filter (Cyber vs AI Profile)
+      const filteredMetrics = filterMetricsByType(response.items, state.filters.metric_type);
+
       setState(prev => ({
         ...prev,
-        metrics: response.items,
-        total: response.total,
+        metrics: filteredMetrics,
+        total: state.filters.metric_type ? filteredMetrics.length : response.total,
         loading: false,
       }));
     } catch (error: any) {
@@ -292,6 +387,13 @@ export default function MetricsGrid() {
     }
   }, [loadMetrics, state.catalogLoading, state.activeCatalog, isLoadingFrameworks, frameworkCode]);
 
+  // Load summary stats when catalog or framework changes (independent of filters)
+  useEffect(() => {
+    if (!state.catalogLoading && !isLoadingFrameworks) {
+      loadSummaryStats();
+    }
+  }, [loadSummaryStats, state.catalogLoading, isLoadingFrameworks]);
+
   const handleFilterChange = (field: keyof MetricFilters, value: any) => {
     setState(prev => ({
       ...prev,
@@ -331,8 +433,9 @@ export default function MetricsGrid() {
         await apiClient.createMetric(state.selectedMetric);
         showSnackbar('Metric created successfully', 'success');
       }
-      
+
       await loadMetrics();
+      await loadSummaryStats(); // Refresh summary stats after changes
       setState(prev => ({ ...prev, editDialogOpen: false, selectedMetric: null }));
     } catch (error) {
       console.error('Failed to save metric:', error);
@@ -349,6 +452,7 @@ export default function MetricsGrid() {
       await apiClient.deleteMetric(state.selectedMetric.id);
       showSnackbar('Metric deleted successfully', 'success');
       await loadMetrics();
+      await loadSummaryStats(); // Refresh summary stats after deletion
       setState(prev => ({ ...prev, deleteDialogOpen: false, selectedMetric: null }));
     } catch (error) {
       console.error('Failed to delete metric:', error);
@@ -645,17 +749,23 @@ export default function MetricsGrid() {
     try {
       setState(prev => ({ ...prev, loading: true }));
       showSnackbar('Preparing export...', 'info');
-      
+
+      // Build filters with framework to ensure we only export metrics from the current framework
+      const filtersWithFramework = {
+        ...state.filters,
+        framework: frameworkCode,
+      };
+
       // Use appropriate export endpoint based on active catalog
-      const blob = state.activeCatalog 
-        ? await apiClient.exportActiveCatalogMetricsCSV(state.filters, 'admin')
-        : await apiClient.exportMetricsCSV(state.filters);
+      const blob = state.activeCatalog
+        ? await apiClient.exportActiveCatalogMetricsCSV(filtersWithFramework, 'admin')
+        : await apiClient.exportMetricsCSV(filtersWithFramework);
       
       // Extract filename from Content-Disposition header or generate one
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
       const filename = state.activeCatalog
-        ? `active_catalog_metrics_export_${timestamp}.csv`
-        : `metrics_export_${timestamp}.csv`;
+        ? `${frameworkCode}_active_catalog_metrics_${timestamp}.csv`
+        : `${frameworkCode}_metrics_${timestamp}.csv`;
       
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -709,8 +819,13 @@ export default function MetricsGrid() {
   };
 
   // Format units for display - convert "percent" to "%" and abbreviate time units
-  const formatValueWithUnits = (value: number | null | undefined, units: string | null | undefined): string => {
+  const formatValueWithUnits = (value: number | null | undefined, units: string | null | undefined, direction?: string): string => {
     if (value === null || value === undefined) return 'N/A';
+
+    // Handle binary direction - show Yes/No instead of 1/0
+    if (direction === 'binary' || direction === MetricDirection.BINARY) {
+      return value >= 1 ? 'Yes' : 'No';
+    }
 
     if (!units) return String(value);
 
@@ -721,19 +836,33 @@ export default function MetricsGrid() {
       return `${value}%`;
     }
 
-    // Abbreviate time units
-    if (unitsLower === 'years') {
-      return `${value} yrs`;
+    // Remove "count" - just show the number
+    if (unitsLower === 'count') {
+      return String(value);
     }
-    if (unitsLower === 'year') {
-      return `${value} yr`;
+
+    // Convert "per X" to "/X" format
+    if (unitsLower.startsWith('per ')) {
+      const timeUnit = unitsLower.substring(4); // Remove "per "
+      if (timeUnit === 'year') return `${value}/yr`;
+      if (timeUnit === 'month') return `${value}/mo`;
+      if (timeUnit === 'quarter') return `${value}/qtr`;
+      if (timeUnit === 'week') return `${value}/wk`;
+      if (timeUnit === 'day') return `${value}/day`;
+      return `${value}/${timeUnit}`;
     }
-    if (unitsLower === 'hours') {
-      return `${value} hrs`;
-    }
-    if (unitsLower === 'hour') {
-      return `${value} hr`;
-    }
+
+    // Abbreviate standalone time units
+    if (unitsLower === 'years') return `${value} yrs`;
+    if (unitsLower === 'year') return `${value} yr`;
+    if (unitsLower === 'months') return `${value} mo`;
+    if (unitsLower === 'month') return `${value} mo`;
+    if (unitsLower === 'hours') return `${value} hrs`;
+    if (unitsLower === 'hour') return `${value} hr`;
+    if (unitsLower === 'minutes') return `${value} min`;
+    if (unitsLower === 'minute') return `${value} min`;
+    if (unitsLower === 'days') return `${value}d`;
+    if (unitsLower === 'day') return `${value}d`;
 
     // For other units, add a space
     return `${value} ${units}`;
@@ -802,7 +931,7 @@ export default function MetricsGrid() {
       headerName: '',
       width: 50,
       sortable: false,
-      renderHeader: renderHeaderWithTooltip('locked', '🔒'),
+      renderHeader: renderHeaderWithTooltipMap('locked', '🔒', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const saving = state.savingMetric === metric.id;
@@ -831,8 +960,9 @@ export default function MetricsGrid() {
     {
       field: 'metric_number',
       headerName: 'ID',
-      width: 120,
-      renderHeader: renderHeaderWithTooltip('metric_number', 'ID'),
+      width: 150,
+      minWidth: 130,
+      renderHeader: renderHeaderWithTooltipMap('metric_number', 'ID', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value || 'N/A'}
@@ -852,7 +982,7 @@ export default function MetricsGrid() {
       headerName: 'Metric Name',
       width: 380,
       minWidth: 300,
-      renderHeader: renderHeaderWithTooltip('name', 'Metric Name'),
+      renderHeader: renderHeaderWithTooltipMap('name', 'Metric Name', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const displayName = getMetricDisplayName(metric);
@@ -932,7 +1062,7 @@ export default function MetricsGrid() {
       headerName: 'Formula',
       width: 320,
       minWidth: 200,
-      renderHeader: renderHeaderWithTooltip('formula', 'Formula'),
+      renderHeader: renderHeaderWithTooltipMap('formula', 'Formula', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const formula = params.row.formula;
 
@@ -964,7 +1094,7 @@ export default function MetricsGrid() {
       width: 400,
       minWidth: 250,
       flex: 1,  // Allow this column to grow with available space
-      renderHeader: renderHeaderWithTooltip('risk_definition', 'Risk Definition'),
+      renderHeader: renderHeaderWithTooltipMap('risk_definition', 'Risk Definition', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const riskDef = params.row.risk_definition;
 
@@ -990,138 +1120,301 @@ export default function MetricsGrid() {
         );
       },
     },
-    {
-      field: 'csf_function',
-      headerName: 'CSF Function',
-      width: 140,
-      renderHeader: renderHeaderWithTooltip('csf_function', 'CSF Function'),
-      renderCell: (params: GridRenderCellParams) => {
-        const metric = params.row as Metric;
-        const editing = isEditing(metric.id);
-        const value = getEditValue(metric, 'csf_function') as CSFFunction;
+    // Framework-specific columns: CSF 2.0 or AI RMF based on selected framework
+    ...(frameworkCode === 'ai_rmf' ? [
+      // AI RMF Function column
+      {
+        field: 'ai_rmf_function',
+        headerName: 'AI RMF Function',
+        width: 140,
+        renderHeader: renderHeaderWithTooltipMap('ai_rmf_function', 'AI RMF Function', AI_RMF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const funcName = metric.ai_rmf_function_name || AI_RMF_FUNCTION_NAMES[params.value as AIRMFFunction];
 
-        if (editing) {
+          if (!funcName) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
+
           return (
-            <FormControl size="small" fullWidth>
-              <Select
-                value={value || ''}
-                onChange={(e) => handleFieldChange(metric.id, 'csf_function', e.target.value)}
-                sx={{ minWidth: 100 }}
-              >
-                {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
-                  <MenuItem key={key} value={key}>
-                    {name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Chip
+              label={funcName}
+              size="small"
+              sx={{ backgroundColor: '#00897b', color: 'white' }}
+            />
           );
-        }
-
-        return (
-          <Chip
-            label={CSF_FUNCTION_NAMES[params.value as CSFFunction]}
-            size="small"
-            color="primary"
-          />
-        );
+        },
       },
-    },
-    {
-      field: 'csf_category_name',
-      headerName: 'CSF Category',
-      width: 220,
-      minWidth: 180,
-      renderHeader: renderHeaderWithTooltip('csf_category_name', 'CSF Category'),
-      renderCell: (params: GridRenderCellParams) => {
-        const categoryName = params.row.csf_category_name;
-        const categoryCode = params.row.csf_category_code;
+      // AI RMF Category column
+      {
+        field: 'ai_rmf_category_name',
+        headerName: 'AI RMF Category',
+        width: 220,
+        minWidth: 180,
+        renderHeader: renderHeaderWithTooltipMap('ai_rmf_category_name', 'AI RMF Category', AI_RMF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const categoryName = metric.ai_rmf_category_name;
+          const categoryCode = metric.ai_rmf_category_code;
 
-        if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
+          if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
 
-        const displayText = categoryName || categoryCode;
+          const displayText = categoryName || categoryCode;
 
-        return (
-          <Chip
-            label={displayText}
-            size="small"
-            sx={{
-              backgroundColor: '#8a73ff',
-              color: 'white',
-              height: 'auto',
-              '& .MuiChip-label': {
-                whiteSpace: 'normal',
-                padding: '6px 10px',
-                lineHeight: '1.3',
-              },
-              '&:hover': {
-                backgroundColor: '#7c4dff'
-              }
-            }}
-          />
-        );
+          return (
+            <Chip
+              label={displayText}
+              size="small"
+              sx={{
+                backgroundColor: '#26a69a',
+                color: 'white',
+                height: 'auto',
+                '& .MuiChip-label': {
+                  whiteSpace: 'normal',
+                  padding: '6px 10px',
+                  lineHeight: '1.3',
+                },
+                '&:hover': {
+                  backgroundColor: '#00897b'
+                }
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      field: 'csf_subcategory_code',
-      headerName: 'Subcategory ID',
-      width: 120,
-      minWidth: 100,
-      renderHeader: renderHeaderWithTooltip('csf_subcategory_code', 'Subcategory ID'),
-      renderCell: (params: GridRenderCellParams) => {
-        const subcategoryCode = params.row.csf_subcategory_code;
+      // AI RMF Subcategory Code column
+      {
+        field: 'ai_rmf_subcategory_code',
+        headerName: 'Subcategory ID',
+        width: 140,
+        minWidth: 120,
+        renderHeader: renderHeaderWithTooltipMap('ai_rmf_subcategory_code', 'Subcategory ID', AI_RMF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const subcategoryCode = metric.ai_rmf_subcategory_code;
 
-        if (!subcategoryCode) {
-          return <span style={{ color: '#9e9e9e' }}>-</span>;
-        }
+          if (!subcategoryCode) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
 
-        return (
-          <Chip
-            label={subcategoryCode}
-            size="small"
-            sx={{
-              backgroundColor: '#e3f2fd',
-              color: '#1565c0',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-            }}
-          />
-        );
+          return (
+            <Chip
+              label={subcategoryCode}
+              size="small"
+              sx={{
+                backgroundColor: '#e0f2f1',
+                color: '#00695c',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      field: 'csf_subcategory_outcome',
-      headerName: 'Subcategory Definition',
-      width: 280,
-      minWidth: 200,
-      flex: 0.5,
-      renderHeader: renderHeaderWithTooltip('csf_subcategory_outcome', 'Subcategory Definition'),
-      renderCell: (params: GridRenderCellParams) => {
-        const subcategoryOutcome = params.row.csf_subcategory_outcome;
+      // AI RMF Subcategory Outcome column
+      {
+        field: 'ai_rmf_subcategory_outcome',
+        headerName: 'Subcategory Definition',
+        width: 280,
+        minWidth: 200,
+        flex: 0.5,
+        renderHeader: renderHeaderWithTooltipMap('ai_rmf_subcategory_outcome', 'Subcategory Definition', AI_RMF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const subcategoryOutcome = metric.ai_rmf_subcategory_outcome;
 
-        if (!subcategoryOutcome) {
-          return <span style={{ color: '#9e9e9e' }}>-</span>;
-        }
+          if (!subcategoryOutcome) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
 
-        return (
-          <div style={{
-            whiteSpace: 'normal',
-            wordWrap: 'break-word',
-            lineHeight: '1.3',
-            padding: '4px 0',
-            fontSize: '0.85rem',
-            color: '#555',
-          }}>
-            {subcategoryOutcome}
-          </div>
-        );
+          return (
+            <div style={{
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
+              lineHeight: '1.3',
+              padding: '4px 0',
+              fontSize: '0.85rem',
+              color: '#555',
+            }}>
+              {subcategoryOutcome}
+            </div>
+          );
+        },
       },
-    },
+      // AI RMF Trustworthiness Characteristic column
+      {
+        field: 'trustworthiness_characteristic',
+        headerName: 'Trustworthiness',
+        width: 180,
+        minWidth: 150,
+        renderHeader: renderHeaderWithTooltipMap('trustworthiness', 'Trustworthiness', AI_RMF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const trustworthiness = metric.trustworthiness_characteristic;
+
+          if (!trustworthiness) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
+
+          const displayText = AI_RMF_TRUSTWORTHINESS[trustworthiness] || trustworthiness;
+
+          return (
+            <Chip
+              label={displayText}
+              size="small"
+              sx={{
+                backgroundColor: '#e3f2fd',
+                color: '#1565c0',
+                fontWeight: 500,
+                height: 'auto',
+                '& .MuiChip-label': {
+                  whiteSpace: 'normal',
+                  padding: '4px 8px',
+                  lineHeight: '1.2',
+                },
+              }}
+            />
+          );
+        },
+      },
+    ] : [
+      // CSF 2.0 Function column
+      {
+        field: 'csf_function',
+        headerName: 'CSF Function',
+        width: 140,
+        renderHeader: renderHeaderWithTooltipMap('csf_function', 'CSF Function', CSF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const metric = params.row as Metric;
+          const editing = isEditing(metric.id);
+          const value = getEditValue(metric, 'csf_function') as CSFFunction;
+
+          if (editing) {
+            return (
+              <FormControl size="small" fullWidth>
+                <Select
+                  value={value || ''}
+                  onChange={(e) => handleFieldChange(metric.id, 'csf_function', e.target.value)}
+                  sx={{ minWidth: 100 }}
+                >
+                  {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
+                    <MenuItem key={key} value={key}>
+                      {name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            );
+          }
+
+          return (
+            <Chip
+              label={CSF_FUNCTION_NAMES[params.value as CSFFunction]}
+              size="small"
+              color="primary"
+            />
+          );
+        },
+      },
+      // CSF 2.0 Category column
+      {
+        field: 'csf_category_name',
+        headerName: 'CSF Category',
+        width: 220,
+        minWidth: 180,
+        renderHeader: renderHeaderWithTooltipMap('csf_category_name', 'CSF Category', CSF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const categoryName = params.row.csf_category_name;
+          const categoryCode = params.row.csf_category_code;
+
+          if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
+
+          const displayText = categoryName || categoryCode;
+
+          return (
+            <Chip
+              label={displayText}
+              size="small"
+              sx={{
+                backgroundColor: '#8a73ff',
+                color: 'white',
+                height: 'auto',
+                '& .MuiChip-label': {
+                  whiteSpace: 'normal',
+                  padding: '6px 10px',
+                  lineHeight: '1.3',
+                },
+                '&:hover': {
+                  backgroundColor: '#7c4dff'
+                }
+              }}
+            />
+          );
+        },
+      },
+      // CSF 2.0 Subcategory Code column
+      {
+        field: 'csf_subcategory_code',
+        headerName: 'Subcategory ID',
+        width: 120,
+        minWidth: 100,
+        renderHeader: renderHeaderWithTooltipMap('csf_subcategory_code', 'Subcategory ID', CSF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const subcategoryCode = params.row.csf_subcategory_code;
+
+          if (!subcategoryCode) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
+
+          return (
+            <Chip
+              label={subcategoryCode}
+              size="small"
+              sx={{
+                backgroundColor: '#e3f2fd',
+                color: '#1565c0',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+              }}
+            />
+          );
+        },
+      },
+      // CSF 2.0 Subcategory Outcome column
+      {
+        field: 'csf_subcategory_outcome',
+        headerName: 'Subcategory Definition',
+        width: 280,
+        minWidth: 200,
+        flex: 0.5,
+        renderHeader: renderHeaderWithTooltipMap('csf_subcategory_outcome', 'Subcategory Definition', CSF_COLUMN_TOOLTIPS),
+        renderCell: (params: GridRenderCellParams) => {
+          const subcategoryOutcome = params.row.csf_subcategory_outcome;
+
+          if (!subcategoryOutcome) {
+            return <span style={{ color: '#9e9e9e' }}>-</span>;
+          }
+
+          return (
+            <div style={{
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
+              lineHeight: '1.3',
+              padding: '4px 0',
+              fontSize: '0.85rem',
+              color: '#555',
+            }}>
+              {subcategoryOutcome}
+            </div>
+          );
+        },
+      },
+    ]),
     {
       field: 'priority_rank',
       headerName: 'Priority',
       width: 110,
-      renderHeader: renderHeaderWithTooltip('priority_rank', 'Priority'),
+      renderHeader: renderHeaderWithTooltipMap('priority_rank', 'Priority', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -1157,7 +1450,7 @@ export default function MetricsGrid() {
       headerName: 'Current Value',
       width: 130,
       type: 'number',
-      renderHeader: renderHeaderWithTooltip('current_value', 'Current Value'),
+      renderHeader: renderHeaderWithTooltipMap('current_value', 'Current Value', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -1189,7 +1482,7 @@ export default function MetricsGrid() {
         return (
           <span style={{ whiteSpace: 'nowrap' }}>
             {params.value !== null && params.value !== undefined
-              ? formatValueWithUnits(params.value, params.row.target_units)
+              ? formatValueWithUnits(params.value, params.row.target_units, params.row.direction)
               : 'No data'}
           </span>
         );
@@ -1200,7 +1493,7 @@ export default function MetricsGrid() {
       headerName: 'Target',
       width: 130,
       type: 'number',
-      renderHeader: renderHeaderWithTooltip('target_value', 'Target'),
+      renderHeader: renderHeaderWithTooltipMap('target_value', 'Target', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -1231,7 +1524,7 @@ export default function MetricsGrid() {
 
         return (
           <span style={{ whiteSpace: 'nowrap' }}>
-            {formatValueWithUnits(params.value, params.row.target_units)}
+            {formatValueWithUnits(params.value, params.row.target_units, params.row.direction)}
           </span>
         );
       },
@@ -1239,39 +1532,42 @@ export default function MetricsGrid() {
     {
       field: 'metric_score',
       headerName: 'Score',
-      width: 130,
-      renderHeader: renderHeaderWithTooltip('metric_score', 'Score'),
+      width: 100,
+      renderHeader: renderHeaderWithTooltipMap('metric_score', 'Score', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => (
-        <Box display="flex" alignItems="center" gap={1}>
-          <LinearProgress
-            variant="determinate"
-            value={params.value || 0}
-            sx={{
-              width: 60,
-              height: 8,
-              borderRadius: 4,
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: getRiskColor(params.value),
-              },
-            }}
-          />
-          <Typography variant="body2" sx={{ minWidth: 35 }}>
-            {params.value !== null && params.value !== undefined ? `${Math.round(params.value)}%` : 'N/A'}
-          </Typography>
-        </Box>
+        <Tooltip
+          title={params.value !== null && params.value !== undefined ? `${Math.round(params.value)}%` : 'N/A'}
+          arrow
+          placement="top"
+        >
+          <Box display="flex" alignItems="center" justifyContent="center" sx={{ width: '100%' }}>
+            <LinearProgress
+              variant="determinate"
+              value={params.value || 0}
+              sx={{
+                width: 70,
+                height: 8,
+                borderRadius: 4,
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: getRiskColor(params.value),
+                },
+              }}
+            />
+          </Box>
+        </Tooltip>
       ),
     },
     {
       field: 'owner_function',
       headerName: 'Owner',
       width: 120,
-      renderHeader: renderHeaderWithTooltip('owner_function', 'Owner'),
+      renderHeader: renderHeaderWithTooltipMap('owner_function', 'Owner', CSF_COLUMN_TOOLTIPS),
     },
     {
       field: 'collection_frequency',
       headerName: 'Frequency',
       width: 100,
-      renderHeader: renderHeaderWithTooltip('collection_frequency', 'Frequency'),
+      renderHeader: renderHeaderWithTooltipMap('collection_frequency', 'Frequency', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value || 'N/A'}
@@ -1284,7 +1580,7 @@ export default function MetricsGrid() {
       field: 'active',
       headerName: 'Status',
       width: 100,
-      renderHeader: renderHeaderWithTooltip('active', 'Status'),
+      renderHeader: renderHeaderWithTooltipMap('active', 'Status', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value ? 'Active' : 'Inactive'}
@@ -1298,7 +1594,7 @@ export default function MetricsGrid() {
       headerName: 'Actions',
       width: 180,
       sortable: false,
-      renderHeader: renderHeaderWithTooltip('actions', 'Actions'),
+      renderHeader: renderHeaderWithTooltipMap('actions', 'Actions', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
@@ -1404,7 +1700,7 @@ export default function MetricsGrid() {
         </Box>
       </Box>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - These show totals independent of pagination/filters */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
@@ -1412,7 +1708,7 @@ export default function MetricsGrid() {
               <Typography color="textSecondary" gutterBottom>
                 Total Metrics
               </Typography>
-              <Typography variant="h5">{state.total}</Typography>
+              <Typography variant="h5">{state.summaryStats.totalMetrics}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -1423,7 +1719,7 @@ export default function MetricsGrid() {
                 Active Metrics
               </Typography>
               <Typography variant="h5">
-                {state.metrics.filter(m => m.active).length}
+                {state.summaryStats.activeMetrics}
               </Typography>
             </CardContent>
           </Card>
@@ -1435,7 +1731,7 @@ export default function MetricsGrid() {
                 High Priority
               </Typography>
               <Typography variant="h5">
-                {state.metrics.filter(m => m.priority_rank === 1).length}
+                {state.summaryStats.highPriority}
               </Typography>
             </CardContent>
           </Card>
@@ -1447,7 +1743,7 @@ export default function MetricsGrid() {
                 Need Attention
               </Typography>
               <Typography variant="h5" color="error">
-                {state.metrics.filter(m => (m.metric_score || 0) < 65).length}
+                {state.summaryStats.needAttention}
               </Typography>
             </CardContent>
           </Card>
@@ -1469,18 +1765,26 @@ export default function MetricsGrid() {
           </Grid>
           <Grid item xs={6} md={2}>
             <FormControl fullWidth size="small">
-              <InputLabel>CSF Function</InputLabel>
+              <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
               <Select
                 value={state.filters.function || ''}
-                label="CSF Function"
+                label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
                 onChange={(e) => handleFilterChange('function', e.target.value || undefined)}
               >
                 <MenuItem value="">All Functions</MenuItem>
-                {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
-                  <MenuItem key={key} value={key}>
-                    {name}
-                  </MenuItem>
-                ))}
+                {frameworkCode === 'ai_rmf' ? (
+                  Object.entries(AI_RMF_FUNCTION_NAMES).map(([key, name]) => (
+                    <MenuItem key={key} value={key}>
+                      {name}
+                    </MenuItem>
+                  ))
+                ) : (
+                  Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
+                    <MenuItem key={key} value={key}>
+                      {name}
+                    </MenuItem>
+                  ))
+                )}
               </Select>
             </FormControl>
           </Grid>
@@ -1513,7 +1817,24 @@ export default function MetricsGrid() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={4.5}>
+          {/* Metric Type filter - only show for CSF 2.0 framework */}
+          {frameworkCode === 'csf_2_0' && (
+            <Grid item xs={6} md={1.5}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Metric Type</InputLabel>
+                <Select
+                  value={state.filters.metric_type || 'all'}
+                  label="Metric Type"
+                  onChange={(e) => handleFilterChange('metric_type', e.target.value === 'all' ? undefined : e.target.value as MetricType)}
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="cyber">Cyber</MenuItem>
+                  <MenuItem value="ai_profile">AI Profile</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          )}
+          <Grid item xs={12} md={frameworkCode === 'csf_2_0' ? 3 : 4.5}>
             <Box display="flex" gap={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
               <Tooltip title="Add a new metric - AI will auto-fill details from the name">
                 <Button
@@ -1717,20 +2038,32 @@ export default function MetricsGrid() {
                   </Grid>
                   <Grid item xs={6}>
                     <FormControl fullWidth>
-                      <InputLabel>CSF Function</InputLabel>
+                      <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
                       <Select
-                        value={state.selectedMetric.csf_function || ''}
-                        label="CSF Function"
+                        value={frameworkCode === 'ai_rmf'
+                          ? (state.selectedMetric.ai_rmf_function || '')
+                          : (state.selectedMetric.csf_function || '')}
+                        label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
                         onChange={(e) => setState(prev => ({
                           ...prev,
-                          selectedMetric: { ...prev.selectedMetric!, csf_function: e.target.value as CSFFunction }
+                          selectedMetric: frameworkCode === 'ai_rmf'
+                            ? { ...prev.selectedMetric!, ai_rmf_function: e.target.value as AIRMFFunction }
+                            : { ...prev.selectedMetric!, csf_function: e.target.value as CSFFunction }
                         }))}
                       >
-                        {Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
-                          <MenuItem key={key} value={key}>
-                            {name}
-                          </MenuItem>
-                        ))}
+                        {frameworkCode === 'ai_rmf' ? (
+                          Object.entries(AI_RMF_FUNCTION_NAMES).map(([key, name]) => (
+                            <MenuItem key={key} value={key}>
+                              {name}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          Object.entries(CSF_FUNCTION_NAMES).map(([key, name]) => (
+                            <MenuItem key={key} value={key}>
+                              {name}
+                            </MenuItem>
+                          ))
+                        )}
                       </Select>
                     </FormControl>
                   </Grid>

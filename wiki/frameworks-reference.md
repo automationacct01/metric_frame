@@ -5,15 +5,15 @@
 
 ---
 
-Cyber Metrics Flow supports multiple security and AI governance frameworks. This reference covers the structure, functions, and relationships of each supported framework.
+MetricFrame supports multiple security and AI governance frameworks. This reference covers the structure, functions, and relationships of each supported framework.
 
 ## Supported Frameworks Overview
 
-| Framework | Version | Focus | Functions |
-|-----------|---------|-------|-----------|
-| **NIST CSF** | 2.0 | Cybersecurity risk management | 6 |
-| **NIST AI RMF** | 1.0 | AI system risk management | 4 |
-| **Cyber AI Profile** | 1.0 | AI-enhanced cybersecurity | 6 (extended) |
+| Framework | Version | Focus | Functions | Metrics |
+|-----------|---------|-------|-----------|---------|
+| **NIST CSF** | 2.0 | Cybersecurity risk management | 6 | 208 |
+| **NIST AI RMF** | 1.0 | AI system risk management | 4 | 18 |
+| **Cyber AI Profile** | 1.0 | AI-enhanced cybersecurity | 6 (extended) | TBD |
 
 ### Framework Comparison
 
@@ -21,9 +21,17 @@ Cyber Metrics Flow supports multiple security and AI governance frameworks. This
 |--------|--------------|------------|------------------|
 | **Primary Use** | General cybersecurity | AI systems | AI in security |
 | **Scope** | Organization-wide | AI lifecycle | Security AI systems |
-| **Structure** | Functions/Categories | Functions/Characteristics | Extended CSF |
-| **Metrics in App** | 208 | TBD | TBD |
-| **Maturity** | Established | Newer | Emerging |
+| **Structure** | Functions/Categories/Subcategories | Functions/Categories/Trustworthiness | Extended CSF |
+| **Metrics in App** | 208 | 18 | TBD |
+| **Maturity** | Established (since 2014) | Newer (2023) | Emerging |
+| **Mandatory For** | US Federal agencies | Voluntary | Voluntary |
+
+### Why Use Multiple Frameworks?
+
+Organizations increasingly need both frameworks:
+- **CSF 2.0** secures IT infrastructure, networks, and data
+- **AI RMF** ensures AI systems are trustworthy and don't cause harm
+- Together, they provide comprehensive risk coverage for modern digital environments
 
 ## NIST Cybersecurity Framework 2.0
 
@@ -175,91 +183,138 @@ Framework
 
 ### What is AI RMF?
 
-The NIST AI Risk Management Framework provides guidance for managing risks associated with artificial intelligence systems throughout their lifecycle.
+The **NIST AI Risk Management Framework (AI RMF)** is a voluntary framework released in January 2023 to help organizations design, develop, deploy, and use AI systems responsibly. It addresses the unique risks posed by artificial intelligence that traditional cybersecurity frameworks don't fully cover.
 
 **Key Characteristics:**
-- Voluntary framework
-- Applies to AI system developers and deployers
+- Voluntary framework for all organizations
+- Applies to AI system developers, deployers, and users
 - Risk-based and outcome-focused
-- Complements existing risk management practices
+- Complements existing risk management practices (including CSF)
+- Lifecycle approach from design through decommissioning
+
+### Why AI Needs Its Own Framework
+
+AI systems present unique challenges:
+
+| Challenge | Description | Example |
+|-----------|-------------|---------|
+| **Opacity** | AI decisions can be difficult to explain | Why did the model deny this loan? |
+| **Bias** | AI can perpetuate or amplify societal biases | Hiring algorithm favoring certain demographics |
+| **Emergent Behavior** | AI may behave unexpectedly in deployment | Chatbot producing harmful content |
+| **Data Dependency** | AI quality depends on training data quality | Model trained on biased historical data |
+| **Rapid Evolution** | AI changes faster than traditional software | Weekly model updates changing behavior |
+| **Societal Impact** | AI decisions affect employment, justice, healthcare | Automated parole recommendations |
 
 ### AI RMF Structure
 
 ```
 AI RMF
 └── Core Functions (4)
-    └── Categories
-        └── Subcategories
+    └── Categories (varies by function)
+        └── Subcategories (specific outcomes)
+            └── Trustworthiness Characteristics (7 types)
 ```
 
 ### 4 Core Functions
 
-| Code | Function | Purpose |
-|------|----------|---------|
-| **GOVERN** | Governance | Cultivate culture of risk management |
-| **MAP** | Map | Context and risk framing |
-| **MEASURE** | Measure | Identify and analyze AI risks |
-| **MANAGE** | Manage | Prioritize and respond to risks |
+| Code | Function | Purpose | Metrics in App |
+|------|----------|---------|----------------|
+| **GOVERN** | Governance | Cultivate culture of risk management | 4 |
+| **MAP** | Map | Context and risk framing | 3 |
+| **MEASURE** | Measure | Identify and analyze AI risks | 6 |
+| **MANAGE** | Manage | Prioritize and respond to risks | 5 |
 
 ### Function Details
 
 #### GOVERN
 
-**Purpose:** Establish organizational AI governance and risk culture
+**Purpose:** Establish organizational AI governance and risk culture. This is a cross-cutting function that informs and is informed by the other three functions.
 
-| Category | Description |
-|----------|-------------|
-| Policies & Procedures | AI risk policies established |
-| Accountability | Roles and responsibilities defined |
-| Workforce | AI risk management skills developed |
-| Culture | Risk-aware culture fostered |
+| Category | Code | Description |
+|----------|------|-------------|
+| Legal & Regulatory | GOVERN-1 | Compliance with AI-related laws and standards |
+| Accountability | GOVERN-2 | Clear roles, responsibilities, and authority |
+| Workforce | GOVERN-3 | Diverse teams with AI risk management skills |
+| Organizational Commitment | GOVERN-4 | Leadership support and resource allocation |
+| Policies & Processes | GOVERN-5 | Documented AI risk management procedures |
+| Oversight | GOVERN-6 | Monitoring and documentation requirements |
+
+**Example Metrics in App:**
+- AI Systems Inventory Completeness (75% current → 100% target)
+- AI Policy Coverage (68% → 100%)
+- AI Risk Management Training Completion (52% → 100%)
+- AI Team Diversity Index (62 → 80 score)
 
 #### MAP
 
-**Purpose:** Establish context and frame AI risks
+**Purpose:** Establish context, categorize AI systems, and identify risks. Understanding what AI systems do and where they're used is essential before measuring or managing risks.
 
-| Category | Description |
-|----------|-------------|
-| Context | AI system context established |
-| Risks | Potential risks categorized |
-| Impacts | Potential impacts assessed |
-| Trustworthiness | Trustworthiness requirements defined |
+| Category | Code | Description |
+|----------|------|-------------|
+| Context & Purpose | MAP-1 | Document intended use and deployment context |
+| Categorization | MAP-2 | Classify AI systems by risk level |
+| Capabilities | MAP-3 | Understand AI system abilities and limitations |
+| Risk Identification | MAP-4 | Identify potential risks and negative impacts |
+| Impact Assessment | MAP-5 | Assess impacts on individuals and groups |
+
+**Example Metrics in App:**
+- AI System Purpose Documentation (80% → 100%)
+- AI Risk Assessment Completion (65% → 100%)
+- AI Impact Assessment Coverage for high-risk systems (45% → 100%)
 
 #### MEASURE
 
-**Purpose:** Analyze and assess AI risks
+**Purpose:** Analyze, assess, and track AI risks. This function ensures risks are quantified and monitored over time.
 
-| Category | Description |
-|----------|-------------|
-| Metrics | AI risk metrics established |
-| Assessment | Risks assessed and documented |
-| Monitoring | Risks monitored over time |
-| Evaluation | Third-party evaluations conducted |
+| Category | Code | Description |
+|----------|------|-------------|
+| Approaches | MEASURE-1 | Methods for measuring AI risks |
+| Evaluation | MEASURE-2 | Testing for performance, bias, security |
+| Tracking | MEASURE-3 | Ongoing monitoring of risks |
+| Feedback | MEASURE-4 | Incorporating stakeholder input |
+
+**Example Metrics in App:**
+- AI Model Accuracy (89% → 95%)
+- AI Bias Detection Rate (55% → 100%)
+- AI Explainability Score (72% → 90%)
+- AI Security Testing Coverage (40% → 100%)
+- AI Model Drift Detection (60% → 100%)
+- AI Privacy Compliance Rate (78% → 100%)
 
 #### MANAGE
 
-**Purpose:** Respond to and manage AI risks
+**Purpose:** Allocate resources and respond to AI risks. This function turns risk awareness into action.
 
-| Category | Description |
-|----------|-------------|
-| Response | Risk response strategies defined |
-| Documentation | Risk documentation maintained |
-| Communication | Risks communicated to stakeholders |
-| Improvement | Continuous improvement implemented |
+| Category | Code | Description |
+|----------|------|-------------|
+| Prioritization | MANAGE-1 | Risk ranking and resource allocation |
+| Treatment | MANAGE-2 | Strategies to address risks |
+| Third-Party | MANAGE-3 | Managing vendor and partner AI risks |
+| Response | MANAGE-4 | Incident management and communication |
+
+**Example Metrics in App:**
+- AI Incident Response Time (6.5 hrs current → 2 hrs target)
+- AI Model Decommission Compliance (85% → 100%)
+- Third-Party AI Risk Monitoring (50% → 100%)
+- AI Stakeholder Feedback Integration (45% → 80%)
 
 ### AI Trustworthiness Characteristics
 
-AI RMF emphasizes seven trustworthiness characteristics:
+AI RMF defines seven characteristics that make AI systems worthy of trust. Each metric in the app is tagged with its primary trustworthiness characteristic.
 
-| Characteristic | Description |
-|----------------|-------------|
-| **Valid & Reliable** | AI functions as intended |
-| **Safe** | Does not endanger human life |
-| **Secure & Resilient** | Resistant to attacks and failures |
-| **Accountable & Transparent** | Decision processes explainable |
-| **Explainable & Interpretable** | Outputs understandable |
-| **Privacy-Enhanced** | Protects personal information |
-| **Fair** | Manages harmful bias |
+| Characteristic | Code | Description | What It Means |
+|----------------|------|-------------|---------------|
+| **Valid & Reliable** | `valid_reliable` | AI outputs are accurate and consistent | The AI does what it's supposed to do, reliably |
+| **Safe** | `safe` | AI does not cause harm | The AI won't hurt people, property, or environment |
+| **Secure & Resilient** | `secure_resilient` | AI resists attacks and recovers from failures | The AI can't be easily hacked or manipulated |
+| **Accountable & Transparent** | `accountable_transparent` | Clear responsibility and audit trails | Someone is responsible; decisions are traceable |
+| **Explainable & Interpretable** | `explainable_interpretable` | Outputs can be understood | Users can understand why the AI made a decision |
+| **Privacy-Enhanced** | `privacy_enhanced` | Personal data is protected | The AI respects privacy and data protection laws |
+| **Fair** | `fair` | Treats all groups equitably | The AI doesn't discriminate or show bias |
+
+### Trustworthiness in the Dashboard
+
+In the Metrics Grid, the **Trustworthiness** column displays which characteristic each metric primarily measures, shown as a blue chip for easy identification. This helps organizations ensure they have coverage across all seven characteristics.
 
 ## Cyber AI Profile
 
@@ -464,6 +519,69 @@ Response:
   ]
 }
 ```
+
+## Getting Started with Frameworks
+
+### For Organizations New to These Frameworks
+
+1. **Assess Your Needs:**
+   - Do you have AI systems? → Use AI RMF
+   - Do you have IT systems? → Use CSF 2.0
+   - Most organizations need both
+
+2. **Start with Governance:**
+   - Both frameworks emphasize governance as foundational
+   - Establish policies, roles, and accountability first
+
+3. **Identify Your Assets:**
+   - CSF: IT assets, networks, data
+   - AI RMF: AI systems, models, training data
+
+4. **Implement Metrics:**
+   - Use this dashboard to track key risk indicators
+   - Start with high-priority metrics first
+
+5. **Iterate and Improve:**
+   - Review scores regularly
+   - Adjust targets as maturity improves
+
+### Framework Selection Tips
+
+| If You... | Start With... |
+|-----------|---------------|
+| Are new to cybersecurity frameworks | CSF 2.0 |
+| Already have a security program | Add AI RMF for AI systems |
+| Are deploying AI systems | AI RMF + relevant CSF controls |
+| Need regulatory compliance | Check which framework applies |
+| Want comprehensive coverage | Both frameworks together |
+
+## Additional Resources
+
+### Official NIST Resources
+
+**NIST CSF 2.0:**
+- [NIST CSF 2.0 Official Document](https://www.nist.gov/cyberframework)
+- [CSF 2.0 Quick Start Guides](https://www.nist.gov/cyberframework/getting-started)
+- [CSF Reference Tool](https://csrc.nist.gov/Projects/Cybersecurity-Framework)
+
+**NIST AI RMF 1.0:**
+- [AI RMF Official Document](https://www.nist.gov/itl/ai-risk-management-framework)
+- [AI RMF Playbook](https://airc.nist.gov/AI_RMF_Knowledge_Base/Playbook)
+- [AI RMF Roadmap](https://www.nist.gov/itl/ai-risk-management-framework/roadmap-nist-artificial-intelligence-risk-management-framework)
+
+**Crosswalks:**
+- [AI RMF Crosswalk to CSF 2.0](https://www.nist.gov/document/crosswalk-ai-rmf-10-csf-20)
+- [CSF 2.0 Reference Mappings](https://csrc.nist.gov/Projects/Cybersecurity-Framework/Filters)
+
+### Related Standards
+
+| Standard | Focus | Relationship |
+|----------|-------|--------------|
+| ISO/IEC 27001 | Information Security Management | Maps to CSF |
+| ISO/IEC 42001 | AI Management System | Maps to AI RMF |
+| NIST SP 800-53 | Security Controls | Detailed controls for CSF |
+| NIST SP 800-218 | Secure Software Development | Supports both frameworks |
+| EU AI Act | AI Regulation | AI RMF helps compliance |
 
 ---
 

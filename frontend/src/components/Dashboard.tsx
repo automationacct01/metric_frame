@@ -43,7 +43,7 @@ import { ContentFrame } from './layout';
 import { FrameworkSelector } from './FrameworkSelector';
 import { useFramework } from '../contexts/FrameworkContext';
 import CSFCoverageView from './dashboard/CSFCoverageView';
-import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, HealthResponse, FrameworkScoresResponse } from '../types';
+import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, AI_RMF_FUNCTION_NAMES, HealthResponse, FrameworkScoresResponse } from '../types';
 
 interface DetailedError {
   message: string;
@@ -107,7 +107,7 @@ export default function Dashboard() {
   }, [health]);
 
   // Fetch framework-specific scores
-  const { data: frameworkScores, isLoading: isLoadingFrameworkScores, error: frameworkError, refetch: refetchFramework } = useQuery<FrameworkScoresResponse>({
+  const { data: frameworkScores, isLoading: isLoadingFrameworkScores, error: frameworkError } = useQuery<FrameworkScoresResponse>({
     queryKey: ['framework-scores', frameworkCode],
     queryFn: async () => {
       try {
@@ -147,6 +147,14 @@ export default function Dashboard() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
+  });
+
+  // Fetch framework-specific metrics needing attention
+  const { data: frameworkAttentionMetrics } = useQuery<any[]>({
+    queryKey: ['framework-attention', frameworkCode],
+    queryFn: () => apiClient.getFrameworkAttentionMetrics(frameworkCode, 10),
+    enabled: !isLoadingFrameworks && !!frameworkCode,
+    refetchInterval: 30000,
   });
 
   // Fetch dashboard data with enhanced error handling (legacy CSF 2.0 support)
@@ -252,7 +260,10 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) {
+  // Show loading state - prefer framework-specific loading for non-CSF frameworks
+  const showLoading = frameworkCode === 'csf_2_0' ? isLoading : isLoadingFrameworkScores;
+
+  if (showLoading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 2 }}>
         <CircularProgress size={60} />
@@ -260,13 +271,16 @@ export default function Dashboard() {
           Loading dashboard data...
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          Fetching NIST CSF 2.0 metrics from API
+          Fetching {selectedFramework?.name || 'framework'} metrics from API
         </Typography>
       </Box>
     );
   }
 
-  if (error || detailedError) {
+  // Determine the relevant error based on framework
+  const relevantError = frameworkCode === 'csf_2_0' ? (error || frameworkError) : frameworkError;
+
+  if (relevantError || detailedError) {
     return (
       <Box sx={{ mt: 2 }}>
         {/* Connection Status */}
@@ -283,7 +297,7 @@ export default function Dashboard() {
             Dashboard Data Loading Failed
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            {detailedError?.message || error?.message || 'Unable to load dashboard data from the API.'}
+            {detailedError?.message || (relevantError as any)?.message || 'Unable to load dashboard data from the API.'}
           </Typography>
           
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -349,15 +363,28 @@ export default function Dashboard() {
     );
   }
 
-  if (!dashboard) {
+  // For CSF 2.0, require dashboard data; for other frameworks, require frameworkScores
+  const hasData = frameworkCode === 'csf_2_0' ? !!dashboard : !!frameworkScores;
+
+  if (!hasData) {
     return (
       <Alert severity="info" sx={{ mt: 2 }}>
-        No data available. Please ensure metrics are configured.
+        No data available for {selectedFramework?.name || 'this framework'}. Please ensure metrics are configured.
       </Alert>
     );
   }
 
-  const overallRiskColor = RISK_RATING_COLORS[dashboard.overall_risk_rating];
+  // Use framework scores data when available, fallback to legacy dashboard for CSF 2.0
+  const overallScore = frameworkScores?.overall_score_pct ?? dashboard?.overall_score_pct ?? 0;
+  const overallRating = frameworkScores?.overall_risk_rating ?? dashboard?.overall_risk_rating ?? 'medium';
+  const totalMetrics = frameworkScores?.total_metrics ?? dashboard?.total_metrics ?? 0;
+  const metricsWithData = frameworkScores?.metrics_with_data ?? dashboard?.total_metrics ?? 0;
+  const metricsAtTargetPct = dashboard?.metrics_at_target_pct ?? (metricsWithData > 0 ? Math.round((metricsWithData / totalMetrics) * 100) : 0);
+  const metricsBelowTarget = dashboard?.metrics_below_target ?? (totalMetrics - metricsWithData);
+  const riskDistribution = dashboard?.risk_distribution ?? {};
+  const metricsNeedingAttention = frameworkAttentionMetrics ?? dashboard?.metrics_needing_attention ?? [];
+
+  const overallRiskColor = RISK_RATING_COLORS[overallRating as keyof typeof RISK_RATING_COLORS] || '#ff9800';
 
   return (
     <ContentFrame>
@@ -461,10 +488,10 @@ export default function Dashboard() {
             <Grid item xs={12} md={4}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h1" sx={{ fontWeight: 700, color: overallRiskColor, mb: 2, fontSize: '3.5rem' }}>
-                  {dashboard.overall_score_pct.toFixed(1)}%
+                  {overallScore.toFixed(1)}%
                 </Typography>
                 <Chip
-                  label={`${dashboard.overall_risk_rating.toUpperCase()} RISK`}
+                  label={`${overallRating.replace('_', ' ').toUpperCase()} RISK`}
                   sx={{
                     backgroundColor: `${overallRiskColor}20`,
                     color: overallRiskColor,
@@ -476,46 +503,46 @@ export default function Dashboard() {
                 />
               </Box>
             </Grid>
-            
+
             <Grid item xs={12} md={8}>
               <Grid container spacing={3}>
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
-                      {dashboard.total_metrics}
+                      {totalMetrics}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       Total Metrics
                     </Typography>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'success.main', mb: 1 }}>
-                      {dashboard.metrics_at_target_pct.toFixed(0)}%
+                      {metricsAtTargetPct}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       At Target
                     </Typography>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'warning.main', mb: 1 }}>
-                      {dashboard.metrics_below_target}
+                      {metricsBelowTarget}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       Below Target
                     </Typography>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'error.main', mb: 1 }}>
-                      {(dashboard.risk_distribution.high || 0) + (dashboard.risk_distribution.very_high || 0)}
+                      {(riskDistribution.high || 0) + (riskDistribution.very_high || 0)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       High Risk Functions
@@ -537,8 +564,8 @@ export default function Dashboard() {
 
         <Grid container spacing={3}>
           {/* Use framework-specific scores if available, fallback to legacy dashboard */}
-          {frameworkScores?.function_scores?.length > 0 ? (
-            frameworkScores.function_scores.map((functionScore) => (
+          {(frameworkScores?.function_scores?.length ?? 0) > 0 ? (
+            frameworkScores!.function_scores.map((functionScore) => (
               <Grid item xs={12} sm={6} md={4} key={functionScore.function_code}>
                 <ScoreCard
                   functionScore={{
@@ -567,14 +594,14 @@ export default function Dashboard() {
       </Box>
 
       {/* Metrics Needing Attention */}
-      {dashboard.metrics_needing_attention.length > 0 && (
+      {metricsNeedingAttention.length > 0 && (
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <WarningIcon color="warning" />
               Metrics Needing Attention
             </Typography>
-            
+
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
@@ -591,88 +618,102 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {dashboard.metrics_needing_attention.slice(0, 10).map((metric) => (
-                    <TableRow key={metric.id} hover>
-                      <TableCell>
-                        <Chip
-                          label={metric.metric_number || 'N/A'}
-                          size="small"
-                          sx={{ 
-                            fontFamily: 'monospace', 
-                            fontWeight: 600,
-                            backgroundColor: '#f5f5f5',
-                            color: '#666666',
-                            border: '1px solid #e0e0e0'
-                          }}
-                        />
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Tooltip title={metric.name} placement="top">
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {metric.name}
+                  {metricsNeedingAttention.slice(0, 10).map((metric: any) => {
+                    // Get function name based on framework
+                    const functionCode = frameworkCode === 'ai_rmf'
+                      ? metric.ai_rmf_function || metric.function_code
+                      : metric.csf_function || metric.function_code;
+                    const functionName = frameworkCode === 'ai_rmf'
+                      ? AI_RMF_FUNCTION_NAMES[functionCode as keyof typeof AI_RMF_FUNCTION_NAMES] || functionCode
+                      : CSF_FUNCTION_NAMES[functionCode as keyof typeof CSF_FUNCTION_NAMES] || functionCode;
+
+                    return (
+                      <TableRow key={metric.id} hover>
+                        <TableCell>
+                          <Chip
+                            label={metric.metric_number || 'N/A'}
+                            size="small"
+                            sx={{
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              backgroundColor: '#f5f5f5',
+                              color: '#666666',
+                              border: '1px solid #e0e0e0'
+                            }}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          <Tooltip title={metric.name} placement="top">
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                              {metric.name}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+
+                        <TableCell>
+                          <Chip
+                            label={functionName}
+                            size="small"
+                            variant="outlined"
+                            sx={frameworkCode === 'ai_rmf' ? {
+                              borderColor: '#00897b',
+                              color: '#00897b',
+                            } : undefined}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          <Chip
+                            label={metric.priority_rank === 1 ? 'High' : metric.priority_rank === 2 ? 'Med' : 'Low'}
+                            size="small"
+                            color={metric.priority_rank === 1 ? 'error' : metric.priority_rank === 2 ? 'warning' : 'default'}
+                          />
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {metric.current_label || metric.current_value?.toFixed(1)}
                           </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Chip
-                          label={CSF_FUNCTION_NAMES[metric.csf_function as keyof typeof CSF_FUNCTION_NAMES]}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Chip
-                          label={metric.priority_rank === 1 ? 'High' : metric.priority_rank === 2 ? 'Med' : 'Low'}
-                          size="small"
-                          color={metric.priority_rank === 1 ? 'error' : metric.priority_rank === 2 ? 'warning' : 'default'}
-                        />
-                      </TableCell>
-                      
-                      <TableCell align="right">
-                        <Typography variant="body2">
-                          {metric.current_label || metric.current_value?.toFixed(1)}
-                        </Typography>
-                      </TableCell>
-                      
-                      <TableCell align="right">
-                        <Typography variant="body2">
-                          {metric.target_value?.toFixed(1)}
-                        </Typography>
-                      </TableCell>
-                      
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          color={metric.gap_to_target_pct < 0 ? 'error' : 'success'}
-                        >
-                          {metric.gap_to_target_pct?.toFixed(1)}%
-                        </Typography>
-                      </TableCell>
-                      
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: metric.score_pct < 40 ? 'error.main' : 
-                                   metric.score_pct < 65 ? 'warning.main' : 
-                                   metric.score_pct < 85 ? 'info.main' : 'success.main',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {metric.score_pct?.toFixed(0)}%
-                        </Typography>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Typography variant="caption">
-                          {metric.owner_function}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {metric.target_value?.toFixed(1)}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            color={(metric.gap_to_target_pct ?? 0) < 0 ? 'error' : 'success'}
+                          >
+                            {metric.gap_to_target_pct?.toFixed(1) ?? 'N/A'}%
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: (metric.score_pct ?? 0) < 40 ? 'error.main' :
+                                     (metric.score_pct ?? 0) < 65 ? 'warning.main' :
+                                     (metric.score_pct ?? 0) < 85 ? 'info.main' : 'success.main',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {metric.score_pct?.toFixed(0) ?? 'N/A'}%
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant="caption">
+                            {metric.owner_function}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

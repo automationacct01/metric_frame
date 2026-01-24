@@ -24,14 +24,20 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { useFramework } from '../../contexts/FrameworkContext';
 
-// Unified blue color for all CSF functions (neutral, non-risk color)
+// Unified colors for framework functions (neutral, non-risk color)
 const FUNCTION_COLORS: Record<string, { bg: string; text: string }> = {
+  // CSF 2.0 functions - Blue
   gv: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Govern
   id: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Identify
   pr: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Protect
   de: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Detect
   rs: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Respond
   rc: { bg: '#e3f2fd', text: '#1565c0' },   // Blue - Recover
+  // AI RMF functions - Teal
+  govern: { bg: '#e0f2f1', text: '#00695c' },   // Teal - Govern
+  map: { bg: '#e0f2f1', text: '#00695c' },      // Teal - Map
+  measure: { bg: '#e0f2f1', text: '#00695c' },  // Teal - Measure
+  manage: { bg: '#e0f2f1', text: '#00695c' },   // Teal - Manage
 };
 
 // Category colors (purple)
@@ -287,6 +293,7 @@ export default function CSFCoverageView() {
     if (!frameworkDetail || !metricsData) return null;
 
     const metrics = metricsData.items || [];
+    const isAIRMF = frameworkCode === 'ai_rmf';
 
     // Count metrics by subcategory code
     const subcategoryMetricCounts: Record<string, number> = {};
@@ -294,9 +301,10 @@ export default function CSFCoverageView() {
     const functionMetricCounts: Record<string, number> = {};
 
     metrics.forEach((metric: any) => {
-      const subcatCode = metric.csf_subcategory_code;
-      const catCode = metric.csf_category_code;
-      const funcCode = metric.csf_function;
+      // Use framework-appropriate field names
+      const subcatCode = isAIRMF ? metric.ai_rmf_subcategory_code : metric.csf_subcategory_code;
+      const catCode = isAIRMF ? metric.ai_rmf_category_code : metric.csf_category_code;
+      const funcCode = isAIRMF ? metric.ai_rmf_function : metric.csf_function;
 
       if (subcatCode) {
         subcategoryMetricCounts[subcatCode] = (subcategoryMetricCounts[subcatCode] || 0) + 1;
@@ -316,7 +324,7 @@ export default function CSFCoverageView() {
           code: subcat.code,
           outcome: subcat.outcome,
           metric_count: subcategoryMetricCounts[subcat.code] || 0,
-        })).sort((a, b) => a.code.localeCompare(b.code));  // Sort subcategories by code
+        })).sort((a: SubcategoryData, b: SubcategoryData) => a.code.localeCompare(b.code));  // Sort subcategories by code
 
         const coveredSubcats = subcategories.filter(s => s.metric_count > 0).length;
 
@@ -329,7 +337,7 @@ export default function CSFCoverageView() {
           covered_subcategories: coveredSubcats,
           metric_count: categoryMetricCounts[cat.code] || subcategories.reduce((sum, s) => sum + s.metric_count, 0),
         };
-      }).sort((a, b) => a.code.localeCompare(b.code));  // Sort categories by code
+      }).sort((a: CategoryData, b: CategoryData) => a.code.localeCompare(b.code));  // Sort categories by code
 
       const totalSubcats = categories.reduce((sum, c) => sum + c.total_subcategories, 0);
       const coveredSubcats = categories.reduce((sum, c) => sum + c.covered_subcategories, 0);
@@ -347,9 +355,11 @@ export default function CSFCoverageView() {
         covered_subcategories: coveredSubcats,
         metric_count: functionMetricCounts[func.code] || categories.reduce((sum, c) => sum + c.metric_count, 0),
       };
-    }).sort((a, b) => {
-      // Sort functions in CSF order: GV, ID, PR, DE, RS, RC
-      const order = ['gv', 'id', 'pr', 'de', 'rs', 'rc'];
+    }).sort((a: FunctionData, b: FunctionData) => {
+      // Sort functions in framework-specific order
+      const csfOrder = ['gv', 'id', 'pr', 'de', 'rs', 'rc'];
+      const aiRmfOrder = ['govern', 'map', 'measure', 'manage'];
+      const order = isAIRMF ? aiRmfOrder : csfOrder;
       return order.indexOf(a.code.toLowerCase()) - order.indexOf(b.code.toLowerCase());
     });
 

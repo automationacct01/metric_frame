@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
 from ..db import get_db
-from ..models import Metric, MetricHistory, Framework, FrameworkFunction
+from ..models import Metric, MetricHistory, Framework, FrameworkFunction, FrameworkCategory
 from ..schemas import (
     MetricResponse,
     MetricCreate,
@@ -425,9 +425,15 @@ async def export_metrics_csv(
     db: Session = Depends(get_db),
 ):
     """Export metrics to CSV with all available columns. Supports multi-framework filtering."""
+    from sqlalchemy.orm import joinedload
 
     # Build the same query as list_metrics but without pagination
-    query = db.query(Metric)
+    # Use joinedload to eagerly load relationships needed for properties
+    query = db.query(Metric).options(
+        joinedload(Metric.function),
+        joinedload(Metric.category),
+        joinedload(Metric.subcategory),
+    )
 
     # Apply the same filters as list_metrics
     filters = []

@@ -552,7 +552,9 @@ class APIClient {
   // CSV Export with all filters
   async exportMetricsCSV(filters?: MetricFilters): Promise<Blob> {
     const params = new URLSearchParams();
+    if (filters?.framework) params.append('framework', filters.framework);
     if (filters?.function) params.append('function', filters.function);
+    if (filters?.function_code) params.append('function_code', filters.function_code);
     if (filters?.category_code) params.append('category_code', filters.category_code);
     if (filters?.subcategory_code) params.append('subcategory_code', filters.subcategory_code);
     if (filters?.priority_rank) params.append('priority_rank', filters.priority_rank.toString());

@@ -1,16 +1,24 @@
-# NIST CSF 2.0 Cybersecurity Metrics Dashboard
+# MetricFrame - AI & Cyber Risk Metrics
 
-A comprehensive web application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with the NIST Cybersecurity Framework 2.0.
+A comprehensive web application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with **NIST Cybersecurity Framework 2.0** and **NIST AI Risk Management Framework 1.0**.
 
 ## 🎯 Overview
 
 This application provides:
 
-- **Executive Dashboard**: RAG-rated risk scores across all 6 NIST CSF 2.0 Functions (Govern, Identify, Protect, Detect, Respond, Recover)
-- **Metrics Catalog**: 200+ comprehensive security metrics with transparent gap-to-target scoring
+- **Multi-Framework Support**: Unified dashboard for NIST CSF 2.0 (cybersecurity) and AI RMF 1.0 (AI risk)
+- **Executive Dashboard**: RAG-rated risk scores across all framework functions
+- **Metrics Catalog**: 200+ cybersecurity metrics + 18 AI risk metrics with transparent gap-to-target scoring
 - **AI Assistant**: OpenAI/Claude integration for intelligent metrics management and explanation
-- **Interactive UI**: Spreadsheet-like editing with real-time score calculations
+- **Interactive UI**: Spreadsheet-like editing with real-time score calculations and column tooltips
 - **Local-First**: Runs entirely on Docker for secure, offline-capable deployment
+
+### Supported Frameworks
+
+| Framework | Functions | Metrics |
+|-----------|-----------|---------|
+| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 200+ |
+| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 18 |
 
 ## 🏗️ Architecture
 
@@ -34,7 +42,7 @@ This application provides:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd cyber_metrics_flow
+   cd metricframe
    ```
 
 2. **Configure environment**
@@ -189,11 +197,37 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Recovery Team Cross-Training Coverage
 - And 20 additional recovery metrics...
 
+## 🤖 NIST AI RMF 1.0 Metrics
+
+The application also includes metrics aligned with the **NIST AI Risk Management Framework 1.0** for organizations managing AI-specific risks.
+
+### AI RMF Functions
+
+| Function | Metrics | Focus |
+|----------|---------|-------|
+| **Govern** | 4 | AI policies, training, team diversity |
+| **Map** | 3 | AI system documentation, risk/impact assessments |
+| **Measure** | 6 | Model accuracy, bias, explainability, security, drift |
+| **Manage** | 4 | Incident response, decommissioning, third-party risk |
+
+### Trustworthiness Characteristics
+
+AI RMF metrics are categorized by trustworthiness characteristics:
+- **Valid & Reliable** - Accuracy and consistency
+- **Safe** - Harm prevention
+- **Secure & Resilient** - Attack resistance
+- **Accountable & Transparent** - Traceability
+- **Explainable & Interpretable** - Understandable reasoning
+- **Privacy Enhanced** - Data protection
+- **Fair** - Equitable treatment
+
+See [docs/ai-rmf-support.md](docs/ai-rmf-support.md) for complete AI RMF documentation.
+
 ## 🛠️ Development
 
 ### Project Structure
 ```
-cyber_metrics_flow/
+metricframe/
 ├── backend/
 │   ├── src/
 │   │   ├── models.py          # SQLAlchemy ORM models
@@ -260,13 +294,14 @@ npm test
 ## 📚 Documentation
 
 - **API Documentation**: http://localhost:8000/docs (Swagger UI)
+- **Frameworks Guide**: [docs/frameworks-guide.md](docs/frameworks-guide.md) - Learn about NIST CSF 2.0 and AI RMF 1.0
 - **Scoring Methodology**: [docs/scoring-method.md](docs/scoring-method.md)
-- **Metric Fields**: [docs/metric-fields.md](docs/metric-fields.md)
-- **AI Usage Guide**: [docs/ai-usage-guide.md](docs/ai-usage-guide.md)
+- **AI RMF Support**: [docs/ai-rmf-support.md](docs/ai-rmf-support.md)
+- **Catalog Import Guide**: [docs/catalog-import-guide.md](docs/catalog-import-guide.md)
 
 ## 🛡️ Security & Compliance
 
-- **NIST CSF 2.0 Aligned**: All metrics mapped to Framework functions
+- **Multi-Framework Aligned**: Support for NIST CSF 2.0 and NIST AI RMF 1.0
 - **Gap-to-Target Scoring**: Industry-standard risk measurement methodology
 - **Audit Logging**: All AI-driven changes tracked and attributed
 - **Local Deployment**: No external data transmission required

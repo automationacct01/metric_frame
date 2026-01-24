@@ -5,7 +5,7 @@
 
 ---
 
-Cyber Metrics Flow integrates AI capabilities powered by Anthropic Claude to assist with metrics creation, analysis, recommendations, and catalog management.
+MetricFrame integrates AI capabilities powered by Anthropic Claude to assist with metrics creation, analysis, recommendations, and catalog management.
 
 ## AI Integration Overview
 

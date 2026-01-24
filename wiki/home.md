@@ -1,25 +1,27 @@
-# Cyber Metrics Flow
+# MetricFrame
 
 > **Last Updated:** January 2026
 > **Status:** Active Development
 
 ---
 
-## What is Cyber Metrics Flow?
+## What is MetricFrame?
 
-Cyber Metrics Flow is a comprehensive web application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with multiple security frameworks including NIST CSF 2.0, AI RMF, and the Cyber AI Profile. The application provides executive dashboards, AI-powered metrics management, and transparent risk scoring.
+MetricFrame is a comprehensive web application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with multiple security frameworks including NIST CSF 2.0, AI RMF, and the Cyber AI Profile. The application provides executive dashboards, AI-powered metrics management, and transparent risk scoring.
 
 ## Key Highlights
 
 | Feature | Description |
 |---------|-------------|
-| **208 Pre-Configured Metrics** | Security KRIs mapped to NIST CSF 2.0 functions |
-| **6 CSF Functions** | GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER |
-| **Multi-Framework Support** | NIST CSF 2.0, AI RMF 1.0, Cyber AI Profile |
+| **226 Pre-Configured Metrics** | 208 CSF 2.0 + 18 AI RMF metrics |
+| **Multi-Framework Support** | NIST CSF 2.0 and AI RMF 1.0 with unified dashboard |
+| **10 Framework Functions** | 6 CSF + 4 AI RMF functions |
+| **7 AI Trustworthiness Types** | Track AI system trustworthiness characteristics |
 | **AI Integration** | Claude-powered metrics creation and analysis |
 | **Bring Your Own Catalog** | Import and manage custom metric catalogs |
 | **Gap-to-Target Scoring** | Transparent weighted risk calculations |
 | **Executive Dashboard** | RAG-colored risk visualization |
+| **Column Tooltips** | Hover over any column header for field explanations |
 
 ## How It Works
 
@@ -48,17 +50,28 @@ Cyber Metrics Flow is a comprehensive web application for managing and visualizi
 5. AI assistant provides intelligent analysis
 6. Results render in executive dashboard
 
+## Supported Frameworks
+
+| Framework | Functions | Metrics | Focus |
+|-----------|-----------|---------|-------|
+| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 208 | Cybersecurity risk |
+| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 18 | AI trustworthiness |
+
+See [Frameworks Reference](frameworks-reference.md) for detailed information about each framework.
+
 ## Current Status
 
 The application is under active development with the following features implemented:
 
 - Executive risk dashboard with RAG scoring
 - Complete metrics CRUD operations
+- Multi-framework support (CSF 2.0 and AI RMF 1.0)
 - Multi-catalog support (BYOC)
 - 5-step catalog import wizard
 - AI-powered metrics creation and enhancement
 - Framework-specific scoring and views
 - CSV import/export functionality
+- Column tooltips for all metrics fields
 
 ## Dashboard Sections
 
@@ -99,7 +112,7 @@ The application is under active development with the following features implemen
 ## Repository Structure
 
 ```
-cyber_metrics_flow/
+metricframe/
 ├── backend/           # FastAPI application
 │   ├── src/
 │   │   ├── routers/   # API endpoints
