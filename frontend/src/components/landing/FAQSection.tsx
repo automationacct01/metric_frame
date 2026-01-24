@@ -41,6 +41,11 @@ const faqs = [
     answer:
       'Our AI assistant understands your natural language descriptions and generates complete metrics. You describe what you want to measure (e.g., "track our phishing training completion rate"), and the AI creates a metric with name, description, formula, target value, and appropriate NIST CSF mapping. You always have final approval before any metric is added.',
   },
+  {
+    question: 'Do I need automated data collection to get started?',
+    answer:
+      'No. MetricFrame is designed for teams at any stage of maturity. You can start by manually entering your current understanding of metric values—no data pipelines or integrations required. Many organizations begin with manual entry to establish baselines and prove value, then integrate automated data feeds as their metrics program matures. Start measuring today and build towards automation over time.',
+  },
 ];
 
 export default function FAQSection() {

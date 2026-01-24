@@ -9,6 +9,7 @@ export { default as HeroSection } from './HeroSection';
 export { default as SocialProofBar } from './SocialProofBar';
 export { default as ProblemSection } from './ProblemSection';
 export { default as SolutionSection } from './SolutionSection';
+export { default as WhyNowSection } from './WhyNowSection';
 export { default as FeatureShowcase } from './FeatureShowcase';
 export { default as FeatureCard } from './FeatureCard';
 export { default as HowItWorks } from './HowItWorks';

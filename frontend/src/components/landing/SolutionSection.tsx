@@ -17,7 +17,7 @@ const solutions = [
     icon: <DashboardIcon sx={{ fontSize: 40 }} />,
     title: 'Unified Dashboard',
     description:
-      'All 6 NIST CSF functions in one view. See your entire risk posture at a glance.',
+      'All NIST CSF and AI RMF aligned metrics in one platform. See your risk posture in one place.',
     color: '#0ea5e9',
   },
   {
@@ -66,7 +66,7 @@ export default function SolutionSection() {
               mb: 2,
             }}
           >
-            One Dashboard. Complete Risk Visibility.
+            One Platform. Complete Risk Visibility.
           </Typography>
           <Typography
             variant="body1"
@@ -77,8 +77,9 @@ export default function SolutionSection() {
               fontSize: '1.1rem',
             }}
           >
-            MetricFrame unifies your AI and cybersecurity metrics into a single,
-            framework-aligned view that executives understand.
+            MetricFrame unifies your AI and cybersecurity metrics into
+            framework-aligned views that executives understand. Start with manual entry
+            today and build towards automation as your program matures.
           </Typography>
         </Box>
 

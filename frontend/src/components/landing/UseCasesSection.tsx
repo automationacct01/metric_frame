@@ -8,31 +8,31 @@ import React from 'react';
 import { Box, Container, Typography, Grid, Card, CardContent, Avatar } from '@mui/material';
 import {
   Shield as CISOIcon,
-  Security as SecOpsIcon,
+  Assessment as RiskIcon,
   Gavel as ComplianceIcon,
 } from '@mui/icons-material';
 
 const useCases = [
   {
     icon: <CISOIcon sx={{ fontSize: 32 }} />,
-    title: 'CISOs & Security Leaders',
+    title: 'CISOs & AI/Cybersecurity Leaders',
     description:
-      'Present unified risk posture to the board with confidence. Executive dashboards translate technical metrics into business language.',
+      'Present unified AI and cybersecurity risk posture to the board with confidence. Executive dashboards translate technical metrics into business language.',
     benefits: [
       'Board-ready visualizations',
-      'Risk trend analysis',
+      'AI and cyber risk trend analysis',
       'Framework alignment proof',
     ],
     color: '#0ea5e9',
   },
   {
-    icon: <SecOpsIcon sx={{ fontSize: 32 }} />,
-    title: 'Security Operations Teams',
+    icon: <RiskIcon sx={{ fontSize: 32 }} />,
+    title: 'Risk and GRC Teams',
     description:
-      'Track 250+ metrics across all CSF functions with drill-down detail. Identify gaps and prioritize remediation efforts.',
+      'Track 250+ AI and cybersecurity metrics across NIST frameworks with drill-down detail. Identify gaps and prioritize remediation efforts.',
     benefits: [
       'Real-time metric tracking',
-      'Gap identification',
+      'AI and cyber risk identification',
       'Prioritized action items',
     ],
     color: '#7c3aed',
@@ -41,7 +41,7 @@ const useCases = [
     icon: <ComplianceIcon sx={{ fontSize: 32 }} />,
     title: 'Compliance Officers',
     description:
-      'Demonstrate NIST alignment with auditable scoring methodology. Every calculation is transparent and defensible.',
+      'Demonstrate NIST CSF and AI RMF alignment with auditable scoring methodology. Every calculation is transparent and defensible.',
     benefits: [
       'Audit-ready reports',
       'Transparent calculations',
@@ -81,7 +81,7 @@ export default function UseCasesSection() {
               mb: 2,
             }}
           >
-            Built for AI and Security Professionals
+            Built for AI and Cybersecurity Professionals
           </Typography>
           <Typography
             variant="body1"
@@ -92,7 +92,7 @@ export default function UseCasesSection() {
               fontSize: '1.1rem',
             }}
           >
-            Whether you're presenting to the board or tracking daily operations,
+            Whether you're managing AI risk, cybersecurity posture, or presenting to leadership,
             MetricFrame adapts to your needs.
           </Typography>
         </Box>

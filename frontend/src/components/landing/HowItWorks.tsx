@@ -19,7 +19,7 @@ const steps = [
     icon: <UploadIcon sx={{ fontSize: 40 }} />,
     title: 'Choose Your Metrics',
     description:
-      'Start with our standard metrics catalog or import your own via CSV.',
+      'Start with our standard metrics catalog or import your own via CSV. No data pipelines required—your team can input values manually to establish baselines immediately.',
   },
   {
     number: '02',
@@ -86,7 +86,7 @@ export default function HowItWorks() {
               fontSize: '1.1rem',
             }}
           >
-            Four simple steps to transform your AI and security metrics management.
+            Four simple steps to transform your AI and cybersecurity metrics management.
           </Typography>
         </Box>
 

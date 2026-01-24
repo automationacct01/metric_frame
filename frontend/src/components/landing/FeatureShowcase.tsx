@@ -12,7 +12,7 @@ const features = [
   {
     title: 'Executive Dashboard',
     description:
-      'See your entire AI and security posture at a glance. Risk scores across all 6 NIST CSF 2.0 functions give you instant visibility into what needs attention.',
+      'See your entire AI and cybersecurity posture at a glance. Risk scores across all 6 NIST CSF 2.0 functions give you instant visibility into what needs attention.',
     badge: 'Core',
     badgeColor: '#0ea5e9',
     image: '', // Placeholder - will be /landing/screenshots/dashboard-hero.png
@@ -52,7 +52,7 @@ const features = [
   {
     title: 'Inline Editing',
     description:
-      'Update metric values directly in the grid. Lock/unlock controls ensure data integrity while making updates quick and easy.',
+      'Update metric values directly in the grid—whether entering baseline data manually or updating as automated feeds come online. Lock/unlock controls ensure data integrity while keeping updates quick and easy.',
     badge: 'Edit',
     badgeColor: '#0891b2',
     image: '', // Placeholder - will be /landing/gifs/inline-editing.gif

@@ -57,7 +57,7 @@ export default function HeroSection() {
               mx: 'auto',
             }}
           >
-            MetricFrame is the platform to track, measure, and report your security and AI metrics aligned to NIST CSF 2.0 and AI RMF. Start free today.
+            MetricFrame is the platform to track, measure, and report your cybersecurity and AI metrics aligned to NIST CSF 2.0 and AI RMF. Start free today.
           </Typography>
 
           {/* CTA Buttons */}
