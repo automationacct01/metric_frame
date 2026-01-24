@@ -88,8 +88,11 @@ export default function LandingNavbar() {
             fullWidth
             onClick={handleStartTrial}
             sx={{
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
+              backgroundColor: '#0ea5e9',
               py: 1.5,
+              '&:hover': {
+                backgroundColor: '#0284c7',
+              },
             }}
           >
             Start Free Trial
@@ -168,9 +171,9 @@ export default function LandingNavbar() {
                   onClick={handleStartTrial}
                   sx={{
                     ml: 1,
-                    background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
+                    backgroundColor: '#0ea5e9',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, #0284c7 0%, #075985 100%)',
+                      backgroundColor: '#0284c7',
                     },
                   }}
                 >

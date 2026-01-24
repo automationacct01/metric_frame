@@ -39,7 +39,7 @@ const faqs = [
   {
     question: 'How does AI metric generation work?',
     answer:
-      'Our AI assistant uses Claude to understand your natural language descriptions and generate complete metrics. You describe what you want to measure (e.g., "track our phishing training completion rate"), and the AI creates a metric with name, description, formula, target value, and appropriate NIST CSF mapping. You always have final approval before any metric is added.',
+      'Our AI assistant understands your natural language descriptions and generates complete metrics. You describe what you want to measure (e.g., "track our phishing training completion rate"), and the AI creates a metric with name, description, formula, target value, and appropriate NIST CSF mapping. You always have final approval before any metric is added.',
   },
 ];
 

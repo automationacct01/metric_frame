@@ -10,53 +10,53 @@ import PricingCard from './PricingCard';
 
 const pricingTiers = [
   {
-    name: 'Starter',
-    price: 'Free',
-    period: '',
-    description: 'Perfect for exploring MetricFrame and small teams.',
+    name: 'Basic',
+    price: '$99',
+    period: '/month',
+    description: 'Essential metrics management for small AI and security teams.',
     features: [
-      'Up to 50 metrics',
+      'Up to 100 metrics',
       'Single framework (CSF or AI RMF)',
-      'Basic dashboard',
+      'Executive dashboard',
       'CSV import/export',
-      'Community support',
+      'Email support',
     ],
     highlighted: false,
-    ctaText: 'Start Free',
+    ctaText: 'Start Free Trial',
   },
   {
-    name: 'Professional',
-    price: '$299',
+    name: 'Plus',
+    price: '$249',
     period: '/month',
-    description: 'For security teams ready to scale their metrics program.',
+    description: 'Advanced features for growing AI and security programs.',
     features: [
-      'Unlimited metrics',
+      'Up to 300 metrics',
       'Both frameworks included',
       'AI metric generation',
       'Custom catalog import',
-      'Priority email support',
+      'Priority support',
       'API access',
-      'Advanced reporting',
+      'Trend analysis',
     ],
     highlighted: true,
     ctaText: 'Start Free Trial',
   },
   {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    description: 'For large organizations with advanced requirements.',
+    name: 'Professional',
+    price: '$499',
+    period: '/month',
+    description: 'Full platform access for enterprise AI and security teams.',
     features: [
-      'Everything in Professional',
+      'Unlimited metrics',
+      'Everything in Plus',
       'SSO/SAML authentication',
       'Custom integrations',
       'Dedicated success manager',
-      'SLA guarantees',
-      'On-premise deployment',
-      'Custom training',
+      'Advanced reporting & analytics',
+      'On-premise deployment option',
     ],
     highlighted: false,
-    ctaText: 'Contact Sales',
+    ctaText: 'Start Free Trial',
   },
 ];
 
@@ -102,7 +102,7 @@ export default function PricingSection() {
               fontSize: '1.1rem',
             }}
           >
-            Start free and scale as your security metrics program grows.
+            Start free and scale as your AI and security metrics program grows.
             No hidden fees, no surprises.
           </Typography>
         </Box>

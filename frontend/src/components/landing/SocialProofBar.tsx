@@ -9,7 +9,7 @@ import { Box, Container, Typography, Grid } from '@mui/material';
 
 const stats = [
   { value: '250+', label: 'Pre-configured Metrics' },
-  { value: '2', label: 'NIST Frameworks' },
+  { value: '10', label: 'Risk Functions Covered' },
   { value: '100%', label: 'Audit-Ready' },
 ];
 

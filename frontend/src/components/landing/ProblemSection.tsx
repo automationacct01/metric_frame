@@ -17,7 +17,7 @@ const problems = [
     icon: <SpreadsheetIcon sx={{ fontSize: 48 }} />,
     title: 'Spreadsheet Chaos',
     description:
-      'Security metrics scattered across spreadsheets, tools, and systems. No single source of truth for your security posture.',
+      'AI and security metrics scattered across spreadsheets, tools, and systems. No single source of truth for your AI and security posture.',
   },
   {
     icon: <ComplianceIcon sx={{ fontSize: 48 }} />,
@@ -29,7 +29,7 @@ const problems = [
     icon: <TranslateIcon sx={{ fontSize: 48 }} />,
     title: 'Executive Translation',
     description:
-      'Struggling to communicate technical security metrics to the board in a language they understand.',
+      'Struggling to communicate technical AI and security metrics to the board in a language they understand.',
   },
 ];
 
@@ -58,7 +58,7 @@ export default function ProblemSection() {
               mb: 2,
             }}
           >
-            Your Security Metrics Are Scattered.
+            Your AI and Security Metrics Are Scattered.
             <br />
             Your Board Wants Answers.
           </Typography>
@@ -71,7 +71,7 @@ export default function ProblemSection() {
               fontSize: '1.1rem',
             }}
           >
-            Sound familiar? You're not alone. Security teams everywhere face these challenges.
+            Sound familiar? You're not alone. AI and security teams everywhere face these challenges.
           </Typography>
         </Box>
 
