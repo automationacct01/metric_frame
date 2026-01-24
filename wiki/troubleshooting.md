@@ -5,7 +5,7 @@
 
 ---
 
-Solutions to common issues and problems when using Cyber Metrics Flow.
+Solutions to common issues and problems when using MetricFrame.
 
 ## Connection Issues
 
@@ -80,7 +80,7 @@ Solutions to common issues and problems when using Cyber Metrics Flow.
 2. **Verify connection string:**
    ```bash
    # In backend/.env
-   DATABASE_URL=postgresql://postgres:postgres@db:5432/cyber_metrics
+   DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
    ```
 
 3. **Recreate database:**
@@ -93,7 +93,7 @@ Solutions to common issues and problems when using Cyber Metrics Flow.
 
 4. **Test connection:**
    ```bash
-   docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics -c "SELECT 1"
+   docker exec -it metricframe_db psql -U postgres -d metricframe -c "SELECT 1"
    ```
 
 ## AI Integration Issues
@@ -206,7 +206,7 @@ Solutions to common issues and problems when using Cyber Metrics Flow.
 
 3. **Check for existing data:**
    ```bash
-   docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics \
+   docker exec -it metricframe_db psql -U postgres -d metricframe \
      -c "SELECT COUNT(*) FROM metrics"
    ```
 
@@ -359,7 +359,7 @@ docker compose logs --tail=50
 curl http://localhost:8000/health
 
 # Database connectivity
-docker exec cyber_metrics_db pg_isready
+docker exec metricframe_db pg_isready
 
 # Container resource usage
 docker stats --no-stream
@@ -391,7 +391,7 @@ When reporting issues, include:
 ### GitHub Issues
 
 Report bugs and request features at:
-[https://github.com/your-org/cyber_metrics_flow/issues](https://github.com/your-org/cyber_metrics_flow/issues)
+[https://github.com/your-org/metricframe/issues](https://github.com/your-org/metricframe/issues)
 
 ---
 

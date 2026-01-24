@@ -5,7 +5,7 @@
 
 ---
 
-Get Cyber Metrics Flow running locally in 5 minutes.
+Get MetricFrame running locally in 5 minutes.
 
 ## Prerequisites
 
@@ -24,8 +24,8 @@ Optional (for AI features):
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/cyber_metrics_flow.git
-cd cyber_metrics_flow
+git clone https://github.com/your-org/metricframe.git
+cd metricframe
 ```
 
 ### Step 2: Configure Environment
@@ -40,7 +40,7 @@ Edit `backend/.env` with your configuration:
 
 ```env
 # Database (default works with Docker)
-DATABASE_URL=postgresql://postgres:postgres@db:5432/cyber_metrics
+DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
 
 # AI Integration (optional but recommended)
 ANTHROPIC_API_KEY=sk-ant-your-key-here
@@ -74,9 +74,9 @@ docker compose ps
 
 # Expected output:
 # NAME                    STATUS
-# cyber_metrics_flow-db   running
-# cyber_metrics_flow-api  running
-# cyber_metrics_flow-web  running
+# metricframe-db   running
+# metricframe-api  running
+# metricframe-web  running
 ```
 
 ### Step 5: Access the Application

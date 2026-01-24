@@ -219,6 +219,90 @@
               "display_order": 10
             }
           ]
+        },
+        {
+          "code": "GV.AI-OC",
+          "name": "AI Organizational Context",
+          "description": "The organizational context for AI systems, including mission alignment, stakeholder expectations, and AI-specific legal, regulatory, and contractual requirements, is understood and managed.",
+          "display_order": 7,
+          "subcategories": [
+            {
+              "code": "GV.AI-OC-01",
+              "outcome": "AI system purposes, intended uses, and business contexts are documented and aligned with organizational mission",
+              "display_order": 1
+            },
+            {
+              "code": "GV.AI-OC-02",
+              "outcome": "Internal and external stakeholder expectations regarding AI system performance, safety, and ethics are understood and considered",
+              "display_order": 2
+            },
+            {
+              "code": "GV.AI-OC-03",
+              "outcome": "Legal, regulatory, and contractual requirements specific to AI systems, including privacy, fairness, and transparency obligations, are understood and managed",
+              "display_order": 3
+            },
+            {
+              "code": "GV.AI-OC-04",
+              "outcome": "AI system dependencies on data sources, third-party models, and infrastructure components are identified and documented",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "GV.AI-RM",
+          "name": "AI Risk Management",
+          "description": "The organization's AI risk management priorities, constraints, risk tolerance, and appetite are established and used to support AI-related operational decisions.",
+          "display_order": 8,
+          "subcategories": [
+            {
+              "code": "GV.AI-RM-01",
+              "outcome": "AI-specific risk tolerance levels are established based on system criticality, potential harm, and organizational context",
+              "display_order": 1
+            },
+            {
+              "code": "GV.AI-RM-02",
+              "outcome": "AI risk assessment methodology addressing model risks, data risks, and adversarial threats is defined and applied",
+              "display_order": 2
+            },
+            {
+              "code": "GV.AI-RM-03",
+              "outcome": "AI system risks are integrated into enterprise risk management processes and risk registers",
+              "display_order": 3
+            },
+            {
+              "code": "GV.AI-RM-04",
+              "outcome": "AI risk communication processes are established to inform stakeholders of AI-related risks and mitigations",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "GV.AI-PO",
+          "name": "AI Policy",
+          "description": "Organizational policies governing AI system development, deployment, and operation are established, communicated, and enforced.",
+          "display_order": 9,
+          "subcategories": [
+            {
+              "code": "GV.AI-PO-01",
+              "outcome": "AI governance policies addressing development, deployment, monitoring, and retirement of AI systems are established",
+              "display_order": 1
+            },
+            {
+              "code": "GV.AI-PO-02",
+              "outcome": "AI ethics guidelines covering fairness, transparency, accountability, and human oversight are documented and communicated",
+              "display_order": 2
+            },
+            {
+              "code": "GV.AI-PO-03",
+              "outcome": "AI acceptable use policies defining permitted and prohibited uses of AI systems are communicated to all personnel",
+              "display_order": 3
+            },
+            {
+              "code": "GV.AI-PO-04",
+              "outcome": "AI policy compliance is monitored and policy violations are addressed through established procedures",
+              "display_order": 4
+            }
+          ]
         }
       ]
     },
@@ -361,6 +445,90 @@
               "code": "ID.RA-10",
               "outcome": "Critical suppliers are assessed prior to acquisition",
               "display_order": 10
+            }
+          ]
+        },
+        {
+          "code": "ID.AI-AM",
+          "name": "AI Asset Management",
+          "description": "AI systems, models, datasets, and related components that enable the organization to achieve business purposes are identified and managed consistent with their relative importance and risk.",
+          "display_order": 4,
+          "subcategories": [
+            {
+              "code": "ID.AI-AM-01",
+              "outcome": "Inventories of AI systems including their purposes, capabilities, and deployment contexts are maintained",
+              "display_order": 1
+            },
+            {
+              "code": "ID.AI-AM-02",
+              "outcome": "AI models are cataloged with metadata including version, training data sources, performance characteristics, and known limitations",
+              "display_order": 2
+            },
+            {
+              "code": "ID.AI-AM-03",
+              "outcome": "Training and inference datasets are inventoried with data lineage, quality assessments, and sensitivity classifications",
+              "display_order": 3
+            },
+            {
+              "code": "ID.AI-AM-04",
+              "outcome": "AI system dependencies including third-party models, APIs, frameworks, and infrastructure components are documented",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "ID.AI-RA",
+          "name": "AI Risk Assessment",
+          "description": "AI-specific cybersecurity risks to the organization, its assets, and individuals are identified and understood.",
+          "display_order": 5,
+          "subcategories": [
+            {
+              "code": "ID.AI-RA-01",
+              "outcome": "AI-specific threats including adversarial attacks, model theft, and data poisoning are identified and recorded",
+              "display_order": 1
+            },
+            {
+              "code": "ID.AI-RA-02",
+              "outcome": "AI vulnerability assessments covering model robustness, data integrity, and system security are conducted",
+              "display_order": 2
+            },
+            {
+              "code": "ID.AI-RA-03",
+              "outcome": "AI impact assessments evaluating potential harm from system failures, biased outputs, or malicious manipulation are performed",
+              "display_order": 3
+            },
+            {
+              "code": "ID.AI-RA-04",
+              "outcome": "AI risks are prioritized based on likelihood, impact, and alignment with organizational risk tolerance",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "ID.AI-VL",
+          "name": "AI Vulnerability Management",
+          "description": "Vulnerabilities specific to AI systems, models, and data pipelines are identified, assessed, and managed.",
+          "display_order": 6,
+          "subcategories": [
+            {
+              "code": "ID.AI-VL-01",
+              "outcome": "AI model vulnerabilities including adversarial example susceptibility, membership inference risks, and model extraction threats are identified",
+              "display_order": 1
+            },
+            {
+              "code": "ID.AI-VL-02",
+              "outcome": "Adversarial attack vectors targeting AI systems are assessed and documented with potential impact analysis",
+              "display_order": 2
+            },
+            {
+              "code": "ID.AI-VL-03",
+              "outcome": "Data poisoning risks in training pipelines and inference data streams are evaluated and monitored",
+              "display_order": 3
+            },
+            {
+              "code": "ID.AI-VL-04",
+              "outcome": "AI supply chain vulnerabilities in pre-trained models, datasets, and ML frameworks are tracked and assessed",
+              "display_order": 4
             }
           ]
         }
@@ -662,6 +830,90 @@
               "display_order": 5
             }
           ]
+        },
+        {
+          "code": "PR.AI-AA",
+          "name": "AI Access and Authentication",
+          "description": "Access to AI systems, models, and data is limited to authorized users, services, and applications and managed commensurate with AI-specific risks.",
+          "display_order": 9,
+          "subcategories": [
+            {
+              "code": "PR.AI-AA-01",
+              "outcome": "Access to AI systems and their components is controlled based on defined roles and least privilege principles",
+              "display_order": 1
+            },
+            {
+              "code": "PR.AI-AA-02",
+              "outcome": "Authentication mechanisms for AI model access ensure only authorized users and services can invoke AI capabilities",
+              "display_order": 2
+            },
+            {
+              "code": "PR.AI-AA-03",
+              "outcome": "API access to AI services is secured with rate limiting, authentication, and input validation",
+              "display_order": 3
+            },
+            {
+              "code": "PR.AI-AA-04",
+              "outcome": "Privileged operations on AI systems including model updates and configuration changes require elevated authorization",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "PR.AI-DS",
+          "name": "AI Data Security",
+          "description": "Data used by AI systems including training data, model parameters, and inference data are protected throughout their lifecycle.",
+          "display_order": 10,
+          "subcategories": [
+            {
+              "code": "PR.AI-DS-01",
+              "outcome": "Training data is protected at rest with encryption and access controls appropriate to data sensitivity",
+              "display_order": 1
+            },
+            {
+              "code": "PR.AI-DS-02",
+              "outcome": "Model weights, parameters, and configurations are secured against unauthorized access and modification",
+              "display_order": 2
+            },
+            {
+              "code": "PR.AI-DS-03",
+              "outcome": "AI data in transit including inference requests, responses, and model updates is encrypted",
+              "display_order": 3
+            },
+            {
+              "code": "PR.AI-DS-04",
+              "outcome": "AI data lifecycle including retention, archival, and secure disposal is managed according to policy",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "PR.AI-ML",
+          "name": "AI Model Security",
+          "description": "AI models are protected from extraction, tampering, and unauthorized use throughout their lifecycle.",
+          "display_order": 11,
+          "subcategories": [
+            {
+              "code": "PR.AI-ML-01",
+              "outcome": "Models are protected from extraction attacks through query rate limiting, output perturbation, and monitoring",
+              "display_order": 1
+            },
+            {
+              "code": "PR.AI-ML-02",
+              "outcome": "Model integrity is validated through checksums, signatures, and provenance verification before deployment",
+              "display_order": 2
+            },
+            {
+              "code": "PR.AI-ML-03",
+              "outcome": "Model deployment pipelines are secured with access controls, approval workflows, and audit logging",
+              "display_order": 3
+            },
+            {
+              "code": "PR.AI-ML-04",
+              "outcome": "Model versioning is controlled with rollback capabilities and change tracking for all model updates",
+              "display_order": 4
+            }
+          ]
         }
       ]
     },
@@ -771,6 +1023,90 @@
               "code": "DE.CM-09",
               "outcome": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events",
               "display_order": 9
+            }
+          ]
+        },
+        {
+          "code": "DE.AI-CM",
+          "name": "AI Continuous Monitoring",
+          "description": "AI systems are continuously monitored to detect anomalies, performance degradation, and security events.",
+          "display_order": 3,
+          "subcategories": [
+            {
+              "code": "DE.AI-CM-01",
+              "outcome": "AI system behavior including input patterns, output distributions, and decision patterns is monitored for anomalies",
+              "display_order": 1
+            },
+            {
+              "code": "DE.AI-CM-02",
+              "outcome": "Model performance metrics including accuracy, latency, and resource utilization are tracked against baselines",
+              "display_order": 2
+            },
+            {
+              "code": "DE.AI-CM-03",
+              "outcome": "Data drift in input features and concept drift in model predictions are detected and alerted",
+              "display_order": 3
+            },
+            {
+              "code": "DE.AI-CM-04",
+              "outcome": "AI audit logs capturing access, queries, responses, and configuration changes are maintained and reviewed",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "DE.AI-AE",
+          "name": "AI Anomaly and Event Analysis",
+          "description": "Anomalous AI system behaviors and security events are analyzed to characterize potential threats and incidents.",
+          "display_order": 4,
+          "subcategories": [
+            {
+              "code": "DE.AI-AE-01",
+              "outcome": "Anomalous AI outputs including unexpected predictions, biased results, and hallucinations are detected and investigated",
+              "display_order": 1
+            },
+            {
+              "code": "DE.AI-AE-02",
+              "outcome": "AI security events including unusual access patterns, suspicious queries, and potential attacks are analyzed",
+              "display_order": 2
+            },
+            {
+              "code": "DE.AI-AE-03",
+              "outcome": "Model drift patterns are analyzed to distinguish normal evolution from potential manipulation or poisoning",
+              "display_order": 3
+            },
+            {
+              "code": "DE.AI-AE-04",
+              "outcome": "AI incident correlation links events across multiple AI systems and security tools to identify coordinated attacks",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "DE.AI-AD",
+          "name": "AI Adversarial Detection",
+          "description": "Adversarial attacks and malicious activities targeting AI systems are detected and characterized.",
+          "display_order": 5,
+          "subcategories": [
+            {
+              "code": "DE.AI-AD-01",
+              "outcome": "Adversarial inputs including evasion attacks, prompt injections, and jailbreak attempts are detected",
+              "display_order": 1
+            },
+            {
+              "code": "DE.AI-AD-02",
+              "outcome": "Model manipulation attempts including model extraction, inversion, and backdoor activation are identified",
+              "display_order": 2
+            },
+            {
+              "code": "DE.AI-AD-03",
+              "outcome": "Data poisoning attempts in training pipelines and feedback loops are detected through data validation",
+              "display_order": 3
+            },
+            {
+              "code": "DE.AI-AD-04",
+              "outcome": "AI-enabled attacks including AI-generated phishing, deepfakes, and automated exploitation are recognized",
+              "display_order": 4
             }
           ]
         }
@@ -953,6 +1289,90 @@
               "display_order": 5
             }
           ]
+        },
+        {
+          "code": "RS.AI-MA",
+          "name": "AI Incident Management",
+          "description": "AI-specific incident response activities are coordinated and managed to contain and remediate AI system compromises.",
+          "display_order": 6,
+          "subcategories": [
+            {
+              "code": "RS.AI-MA-01",
+              "outcome": "AI incident response procedures addressing model compromise, data poisoning, and adversarial attacks are established and tested",
+              "display_order": 1
+            },
+            {
+              "code": "RS.AI-MA-02",
+              "outcome": "AI incident escalation paths defining when to involve AI specialists, executives, and external parties are defined",
+              "display_order": 2
+            },
+            {
+              "code": "RS.AI-MA-03",
+              "outcome": "AI system isolation capabilities allow rapid containment of compromised models without full service disruption",
+              "display_order": 3
+            },
+            {
+              "code": "RS.AI-MA-04",
+              "outcome": "AI incident documentation captures attack vectors, affected systems, response actions, and business impact",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "RS.AI-AN",
+          "name": "AI Incident Analysis",
+          "description": "AI-specific incidents are analyzed to determine root cause, impact, and required remediation actions.",
+          "display_order": 7,
+          "subcategories": [
+            {
+              "code": "RS.AI-AN-01",
+              "outcome": "AI incident root cause analysis identifies attack methods, vulnerabilities exploited, and system weaknesses",
+              "display_order": 1
+            },
+            {
+              "code": "RS.AI-AN-02",
+              "outcome": "AI model failure analysis determines whether failures result from attacks, drift, bugs, or environmental factors",
+              "display_order": 2
+            },
+            {
+              "code": "RS.AI-AN-03",
+              "outcome": "AI impact assessment evaluates effects on model integrity, data confidentiality, and business operations",
+              "display_order": 3
+            },
+            {
+              "code": "RS.AI-AN-04",
+              "outcome": "AI incident lessons learned are captured and shared to improve future prevention and response capabilities",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "RS.AI-MT",
+          "name": "AI Model Threat Response",
+          "description": "Responses to threats targeting AI models are executed to contain damage and restore secure operations.",
+          "display_order": 8,
+          "subcategories": [
+            {
+              "code": "RS.AI-MT-01",
+              "outcome": "Compromised models are contained through isolation, access revocation, and traffic redirection to backup systems",
+              "display_order": 1
+            },
+            {
+              "code": "RS.AI-MT-02",
+              "outcome": "Model rollback procedures restore previous known-good model versions when current versions are compromised",
+              "display_order": 2
+            },
+            {
+              "code": "RS.AI-MT-03",
+              "outcome": "Adversarial attack mitigation including input filtering, output sanitization, and detection enhancement is applied",
+              "display_order": 3
+            },
+            {
+              "code": "RS.AI-MT-04",
+              "outcome": "AI service continuity is maintained through failover systems, degraded operation modes, and manual overrides",
+              "display_order": 4
+            }
+          ]
         }
       ]
     },
@@ -1045,6 +1465,62 @@
               "code": "RC.RP-06",
               "outcome": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed",
               "display_order": 6
+            }
+          ]
+        },
+        {
+          "code": "RC.AI-RP",
+          "name": "AI Recovery Planning",
+          "description": "Recovery plans for AI systems are established, tested, and maintained to ensure rapid restoration of AI capabilities.",
+          "display_order": 4,
+          "subcategories": [
+            {
+              "code": "RC.AI-RP-01",
+              "outcome": "AI system recovery plans addressing model restoration, data recovery, and service continuity are established",
+              "display_order": 1
+            },
+            {
+              "code": "RC.AI-RP-02",
+              "outcome": "AI backup procedures including model snapshots, training data archives, and configuration backups are documented and executed",
+              "display_order": 2
+            },
+            {
+              "code": "RC.AI-RP-03",
+              "outcome": "AI recovery testing validates restoration procedures and recovery time objectives through regular exercises",
+              "display_order": 3
+            },
+            {
+              "code": "RC.AI-RP-04",
+              "outcome": "AI system recovery is integrated with overall business continuity and disaster recovery planning",
+              "display_order": 4
+            }
+          ]
+        },
+        {
+          "code": "RC.AI-RL",
+          "name": "AI Retraining and Learning",
+          "description": "Procedures for retraining AI models and incorporating lessons learned from incidents into improved AI systems are established.",
+          "display_order": 5,
+          "subcategories": [
+            {
+              "code": "RC.AI-RL-01",
+              "outcome": "Model retraining procedures including data preparation, training protocols, and validation criteria are defined",
+              "display_order": 1
+            },
+            {
+              "code": "RC.AI-RL-02",
+              "outcome": "Clean data restoration processes ensure training data integrity after poisoning or contamination incidents",
+              "display_order": 2
+            },
+            {
+              "code": "RC.AI-RL-03",
+              "outcome": "Model validation post-recovery confirms restored models meet performance, safety, and security requirements",
+              "display_order": 3
+            },
+            {
+              "code": "RC.AI-RL-04",
+              "outcome": "Recovery improvements from incident analysis are incorporated into updated AI recovery plans and procedures",
+              "display_order": 4
             }
           ]
         }

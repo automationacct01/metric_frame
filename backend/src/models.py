@@ -353,6 +353,52 @@ class Metric(Base):
         """Backward compatibility property - returns subcategory outcome."""
         return self.subcategory.outcome if self.subcategory else None
 
+    # =========================================================================
+    # AI RMF Properties - for NIST AI RMF 1.0 framework metrics
+    # =========================================================================
+
+    @property
+    def ai_rmf_function(self):
+        """Returns AI RMF function code if this metric belongs to AI RMF framework."""
+        if self.function and self.framework and self.framework.code == "ai_rmf":
+            return self.function.code
+        return None
+
+    @property
+    def ai_rmf_function_name(self):
+        """Returns AI RMF function name if this metric belongs to AI RMF framework."""
+        if self.function and self.framework and self.framework.code == "ai_rmf":
+            return self.function.name
+        return None
+
+    @property
+    def ai_rmf_category_code(self):
+        """Returns AI RMF category code if this metric belongs to AI RMF framework."""
+        if self.category and self.framework and self.framework.code == "ai_rmf":
+            return self.category.code
+        return None
+
+    @property
+    def ai_rmf_category_name(self):
+        """Returns AI RMF category name if this metric belongs to AI RMF framework."""
+        if self.category and self.framework and self.framework.code == "ai_rmf":
+            return self.category.name
+        return None
+
+    @property
+    def ai_rmf_subcategory_code(self):
+        """Returns AI RMF subcategory code if this metric belongs to AI RMF framework."""
+        if self.subcategory and self.framework and self.framework.code == "ai_rmf":
+            return self.subcategory.code
+        return None
+
+    @property
+    def ai_rmf_subcategory_outcome(self):
+        """Returns AI RMF subcategory outcome if this metric belongs to AI RMF framework."""
+        if self.subcategory and self.framework and self.framework.code == "ai_rmf":
+            return self.subcategory.outcome
+        return None
+
     def __repr__(self) -> str:
         return f"<Metric(id={self.id}, name='{self.name}', framework_id={self.framework_id})>"
 

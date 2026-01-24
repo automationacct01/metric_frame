@@ -215,7 +215,7 @@ export function FrameworkSelection() {
           {/* Header */}
           <Box sx={{ textAlign: 'center', mb: 6 }}>
             <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
-              Welcome to Cyber Metrics Flow
+              Welcome to MetricFrame
             </Typography>
             <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
               Select a framework to get started with your cybersecurity metrics dashboard.

@@ -73,8 +73,8 @@ const FrameworkContext = createContext<FrameworkContextState>(defaultContextValu
 
 // Local storage keys
 const STORAGE_KEYS = {
-  SELECTED_FRAMEWORK_ID: 'cyber_metrics_selected_framework_id',
-  ONBOARDING_COMPLETED: 'cyber_metrics_onboarding_completed',
+  SELECTED_FRAMEWORK_ID: 'metricframe_selected_framework_id',
+  ONBOARDING_COMPLETED: 'metricframe_onboarding_completed',
 };
 
 // Provider props

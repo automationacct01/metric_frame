@@ -5,7 +5,7 @@
 
 ---
 
-A technical overview of Cyber Metrics Flow's architecture, data flow, and component interactions.
+A technical overview of MetricFrame's architecture, data flow, and component interactions.
 
 ## System Architecture
 

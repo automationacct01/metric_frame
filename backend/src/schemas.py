@@ -10,11 +10,19 @@ from enum import Enum
 class CSFFunction(str, Enum):
     """NIST CSF 2.0 Core Functions."""
     GOVERN = "gv"
-    IDENTIFY = "id" 
+    IDENTIFY = "id"
     PROTECT = "pr"
     DETECT = "de"
     RESPOND = "rs"
     RECOVER = "rc"
+
+
+class AIRMFFunction(str, Enum):
+    """NIST AI RMF 1.0 Core Functions."""
+    GOVERN = "govern"
+    MAP = "map"
+    MEASURE = "measure"
+    MANAGE = "manage"
 
 
 class MetricDirection(str, Enum):
@@ -51,12 +59,20 @@ class MetricBase(BaseModel):
     description: Optional[str] = None
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
-    # Legacy CSF fields (for backward compatibility - computed from relationships)
+    # NIST CSF 2.0 fields (computed from relationships)
     csf_function: Optional[CSFFunction] = None
     csf_category_code: Optional[str] = Field(None, max_length=30)
     csf_subcategory_code: Optional[str] = Field(None, max_length=40)
     csf_category_name: Optional[str] = Field(None, max_length=200)
     csf_subcategory_outcome: Optional[str] = None
+    # NIST AI RMF 1.0 fields (computed from relationships)
+    ai_rmf_function: Optional[AIRMFFunction] = None
+    ai_rmf_function_name: Optional[str] = Field(None, max_length=50)
+    ai_rmf_category_code: Optional[str] = Field(None, max_length=30)
+    ai_rmf_category_name: Optional[str] = Field(None, max_length=200)
+    ai_rmf_subcategory_code: Optional[str] = Field(None, max_length=40)
+    ai_rmf_subcategory_outcome: Optional[str] = None
+    trustworthiness_characteristic: Optional[str] = Field(None, max_length=100)
     # Multi-framework support (new fields)
     framework_id: Optional[UUID] = None
     function_id: Optional[UUID] = None
@@ -92,11 +108,20 @@ class MetricUpdate(BaseModel):
     description: Optional[str] = None
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
+    # NIST CSF 2.0 fields
     csf_function: Optional[CSFFunction] = None
     csf_category_code: Optional[str] = Field(None, max_length=30)
     csf_subcategory_code: Optional[str] = Field(None, max_length=40)
     csf_category_name: Optional[str] = Field(None, max_length=200)
     csf_subcategory_outcome: Optional[str] = None
+    # NIST AI RMF 1.0 fields
+    ai_rmf_function: Optional[AIRMFFunction] = None
+    ai_rmf_function_name: Optional[str] = Field(None, max_length=50)
+    ai_rmf_category_code: Optional[str] = Field(None, max_length=30)
+    ai_rmf_category_name: Optional[str] = Field(None, max_length=200)
+    ai_rmf_subcategory_code: Optional[str] = Field(None, max_length=40)
+    ai_rmf_subcategory_outcome: Optional[str] = None
+    trustworthiness_characteristic: Optional[str] = Field(None, max_length=100)
     framework_id: Optional[UUID] = None
     function_id: Optional[UUID] = None
     category_id: Optional[UUID] = None

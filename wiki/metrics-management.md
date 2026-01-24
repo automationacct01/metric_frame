@@ -5,11 +5,11 @@
 
 ---
 
-Comprehensive guide to managing Key Risk Indicators (KRIs) in Cyber Metrics Flow, including the 208 pre-configured metrics, catalog system, and import/export capabilities.
+Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 208 pre-configured metrics, catalog system, and import/export capabilities.
 
 ## Metrics Overview
 
-Metrics in Cyber Metrics Flow represent measurable security KRIs that track your organization's cybersecurity posture. Each metric includes:
+Metrics in MetricFrame represent measurable security KRIs that track your organization's cybersecurity posture. Each metric includes:
 
 | Field | Description | Example |
 |-------|-------------|---------|

@@ -129,6 +129,7 @@ def load_metrics_from_json(db: Session, json_path: Path) -> List[Metric]:
             metric_number=metric_data["metric_number"],
             name=metric_data["name"],
             description=metric_data.get("description"),
+            formula=metric_data.get("formula"),
             framework_id=framework.id,
             function_id=function.id,
             category_id=category.id if category else None,
@@ -143,6 +144,8 @@ def load_metrics_from_json(db: Session, json_path: Path) -> List[Metric]:
             collection_frequency=parse_collection_frequency(metric_data.get("collection_frequency")),
             trustworthiness_characteristic=metric_data.get("trustworthiness_characteristic"),
             ai_profile_focus=metric_data.get("ai_profile_focus"),
+            notes=metric_data.get("notes"),
+            risk_definition=metric_data.get("risk_definition"),
             active=True,
         )
 

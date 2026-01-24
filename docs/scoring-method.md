@@ -2,7 +2,10 @@
 
 ## Overview
 
-The NIST CSF 2.0 Metrics Dashboard uses a **gap-to-target** scoring methodology that provides transparent, outcomes-focused risk assessment aligned with cybersecurity governance best practices.
+The NIST Cybersecurity & AI Risk Metrics Dashboard uses a **gap-to-target** scoring methodology that provides transparent, outcomes-focused risk assessment aligned with governance best practices. This methodology applies to both supported frameworks:
+
+- **NIST CSF 2.0** - Cybersecurity risk management
+- **NIST AI RMF 1.0** - AI risk management
 
 ## Core Principles
 
@@ -83,9 +86,13 @@ if direction == "lower_is_better":
 
 ## Function-Level Scoring
 
-### Step 3: Weighted Aggregation by CSF Function
+### Step 3: Weighted Aggregation by Framework Function
 
-Metrics are grouped by NIST CSF 2.0 Function and aggregated using weighted averages:
+Metrics are grouped by framework function and aggregated using weighted averages:
+
+**NIST CSF 2.0 Functions:** Govern, Identify, Protect, Detect, Respond, Recover
+
+**NIST AI RMF 1.0 Functions:** Govern, Map, Measure, Manage
 
 ```
 function_score = sum(metric_score_i * weight_i) / sum(weight_i)
@@ -187,16 +194,18 @@ Targets should be:
 
 ## Alignment with NIST Guidance
 
-This scoring approach aligns with NIST Cybersecurity Framework principles:
+This scoring approach aligns with NIST framework principles for both CSF 2.0 and AI RMF 1.0:
 
 - **Outcomes-Focused**: Measures business impact, not just technical compliance
 - **Risk-Based**: Scores reflect actual risk to organizational objectives
 - **Flexible**: Adaptable to different organizational contexts and maturity levels
 - **Transparent**: Clear methodology enables informed decision-making
 - **Continuous**: Supports ongoing improvement and risk management
+- **Trustworthiness-Aligned**: AI RMF metrics map to trustworthiness characteristics
 
 ## References
 
 - NIST Cybersecurity Framework 2.0
+- NIST AI Risk Management Framework 1.0
 - NIST SP 800-55: Performance Measurement Guide for Information Security
 - ISO/IEC 27004: Information Security Management — Monitoring, measurement, analysis and evaluation

@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
@@ -22,7 +23,7 @@ import { FrameworkSelection } from './components/onboarding';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2', // Blue
+      main: '#0ea5e9', // MetricFrame Sky Blue
       contrastText: '#ffffff',
     },
     secondary: {
@@ -88,6 +89,20 @@ const queryClient = new QueryClient({
 function AppContent() {
   const { showOnboarding, isLoadingFrameworks } = useFramework();
 
+  // Sidebar collapsed state - persisted to localStorage
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved === 'true';
+  });
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const newValue = !prev;
+      localStorage.setItem('sidebarCollapsed', String(newValue));
+      return newValue;
+    });
+  }, []);
+
   // Show onboarding if user hasn't selected a framework yet
   if (showOnboarding && !isLoadingFrameworks) {
     return <FrameworkSelection />;
@@ -95,7 +110,7 @@ function AppContent() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <Navbar />
+      <Navbar collapsed={sidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
       <Box
         component="main"
         sx={{
@@ -107,6 +122,7 @@ function AppContent() {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
+          transition: 'margin-left 0.2s ease-in-out',
         }}
       >
         <Routes>

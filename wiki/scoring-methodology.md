@@ -5,7 +5,7 @@
 
 ---
 
-A detailed explanation of how Cyber Metrics Flow calculates risk scores, from individual metrics through organizational rollups.
+A detailed explanation of how MetricFrame calculates risk scores, from individual metrics through organizational rollups.
 
 ## Gap-to-Target Philosophy
 

@@ -5,7 +5,7 @@
 
 ---
 
-Documentation of the PostgreSQL database schema, models, relationships, and migrations for Cyber Metrics Flow.
+Documentation of the PostgreSQL database schema, models, relationships, and migrations for MetricFrame.
 
 ## Entity Relationship Diagram
 

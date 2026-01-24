@@ -5,7 +5,7 @@
 
 ---
 
-Complete guide for setting up a development environment and contributing to Cyber Metrics Flow.
+Complete guide for setting up a development environment and contributing to MetricFrame.
 
 ## Development Setup
 
@@ -24,8 +24,8 @@ Complete guide for setting up a development environment and contributing to Cybe
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/cyber_metrics_flow.git
-cd cyber_metrics_flow
+git clone https://github.com/your-org/metricframe.git
+cd metricframe
 
 # Copy environment file
 cp backend/.env.example backend/.env
@@ -78,10 +78,10 @@ npm run dev
 ```bash
 # Start PostgreSQL (Docker)
 docker run -d \
-  --name cyber_metrics_db \
+  --name metricframe_db \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=cyber_metrics \
+  -e POSTGRES_DB=metricframe \
   -p 5432:5432 \
   postgres:15
 
@@ -92,7 +92,7 @@ docker run -d \
 ## Project Structure
 
 ```
-cyber_metrics_flow/
+metricframe/
 ├── backend/
 │   ├── src/
 │   │   ├── main.py           # FastAPI application entry
@@ -616,7 +616,7 @@ debugger;
 
 ```bash
 # Connect to PostgreSQL
-docker exec -it cyber_metrics_db psql -U postgres -d cyber_metrics
+docker exec -it metricframe_db psql -U postgres -d metricframe
 
 # Useful queries
 SELECT * FROM metrics LIMIT 10;
