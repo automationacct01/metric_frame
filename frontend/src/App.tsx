@@ -19,6 +19,9 @@ import CatalogManager from './components/CatalogManager';
 import Documentation from './components/Documentation';
 import { FrameworkSelection } from './components/onboarding';
 
+// Landing Page
+import LandingPage from './pages/LandingPage';
+
 // Create MUI theme
 const theme = createTheme({
   palette: {
@@ -147,9 +150,19 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Router>
-          <FrameworkProvider>
-            <AppContent />
-          </FrameworkProvider>
+          <Routes>
+            {/* Landing page at root - marketing entry point */}
+            <Route path="/" element={<LandingPage />} />
+            {/* Main app with framework context at /app/* */}
+            <Route
+              path="/app/*"
+              element={
+                <FrameworkProvider>
+                  <AppContent />
+                </FrameworkProvider>
+              }
+            />
+          </Routes>
         </Router>
       </ThemeProvider>
     </QueryClientProvider>

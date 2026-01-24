@@ -94,7 +94,7 @@ export default function ScoreCard({
       onClick();
     } else {
       // Navigate to function detail page
-      navigate(`/functions/${csfFunction}`);
+      navigate(`/app/functions/${csfFunction}`);
     }
   };
 

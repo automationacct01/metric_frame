@@ -124,7 +124,7 @@ export default function FunctionDetail() {
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/app')}
           sx={{ mt: 2 }}
         >
           Back to Dashboard
@@ -150,7 +150,7 @@ export default function FunctionDetail() {
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app')}
             >
               Back to Dashboard
             </Button>

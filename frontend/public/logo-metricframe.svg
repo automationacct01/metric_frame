@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 40" width="180" height="40">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40" width="220" height="40">
   <!-- Compact Horizontal Lockup for Sidebar -->
 
   <!-- Frame 40x40 with consistent 3px stroke -->
@@ -11,5 +11,5 @@
   <rect x="27" y="6" width="6" height="28" rx="1" fill="#0ea5e9"/>
 
   <!-- Wordmark -->
-  <text x="48" y="26" font-family="system-ui, -apple-system, sans-serif" font-size="15" fill="#030712" font-weight="700" letter-spacing="0.3">METRICFRAME</text>
+  <text x="48" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#030712" font-weight="700" letter-spacing="0.5">METRICFRAME</text>
 </svg>
