@@ -34,37 +34,37 @@ export const drawerWidthCollapsed = 64;
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
-    path: '/dashboard',
+    path: '/app/dashboard',
     icon: DashboardIcon,
   },
   {
     label: 'Metrics Catalog',
-    path: '/metrics',
+    path: '/app/metrics',
     icon: MetricsIcon,
   },
   {
     label: 'Import Catalog',
-    path: '/catalog-wizard',
+    path: '/app/catalog-wizard',
     icon: UploadIcon,
   },
   {
     label: 'Manage Catalogs',
-    path: '/catalog-manager',
+    path: '/app/catalog-manager',
     icon: StorageIcon,
   },
   {
     label: 'AI Assistant',
-    path: '/ai-assistant',
+    path: '/app/ai-assistant',
     icon: AIIcon,
   },
   {
     label: 'Documentation',
-    path: '/docs',
+    path: '/app/docs',
     icon: DocsIcon,
   },
   {
     label: 'Settings',
-    path: '/settings',
+    path: '/app/settings',
     icon: SettingsIcon,
   },
 ];
