@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 from .db import engine, get_db
 from .models import Base
 from .schemas import HealthResponse
-from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers
+from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers, demo
+from .middleware import DemoModeMiddleware
 
 
 load_dotenv()
@@ -62,6 +63,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add demo mode middleware (enforces restrictions for demo users)
+app.add_middleware(DemoModeMiddleware)
+
 # Include routers
 api_prefix = os.getenv("API_PREFIX", "/api/v1")
 app.include_router(frameworks.router, prefix=api_prefix)  # Frameworks router includes its own /frameworks prefix
@@ -71,6 +75,7 @@ app.include_router(ai.router, prefix=f"{api_prefix}/ai", tags=["ai"])
 app.include_router(csf.router, prefix=f"{api_prefix}")  # CSF router includes its own /csf prefix
 app.include_router(catalogs.router, prefix=f"{api_prefix}")  # Catalogs router includes its own /catalogs prefix
 app.include_router(ai_providers.router, prefix=api_prefix)  # AI providers router includes its own /ai-providers prefix
+app.include_router(demo.router, prefix=api_prefix)  # Demo router includes its own /demo prefix
 
 
 @app.get("/", response_model=dict)

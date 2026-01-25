@@ -24,6 +24,7 @@ import {
   Divider,
   Tabs,
   Tab,
+  IconButton,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -389,68 +390,44 @@ export default function Dashboard() {
   return (
     <ContentFrame>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
         <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Cybersecurity Risk Dashboard
+          <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
+            Risk Dashboard
           </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            {selectedFramework?.name || 'NIST Cybersecurity Framework 2.0'} Risk Assessment
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <FrameworkSelector size="small" />
+            <Tooltip title={`${activeCatalog?.items_count || 0} metrics from ${activeCatalog?.owner || 'system'}`}>
+              <Chip
+                size="small"
+                label={activeCatalog?.name || 'Loading...'}
+                variant="outlined"
+                sx={{ fontWeight: 400 }}
+              />
+            </Tooltip>
+          </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          {/* Framework Selector */}
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
-              Framework
-            </Typography>
-            <FrameworkSelector size="small" />
-          </Box>
-
-          {/* Active Catalog Info */}
-          <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 220 }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
-                Metrics Catalog
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {activeCatalog?.name || 'Loading...'}
-                </Typography>
-                {activeCatalog && (
-                  <Chip
-                    size="small"
-                    label="Active"
-                    color="success"
-                    icon={<CheckCircleIcon />}
-                  />
-                )}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                {activeCatalog ? `${activeCatalog.items_count} metrics • ${activeCatalog.owner}` : 'Loading catalog information...'}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Typography variant="caption" color="text.secondary">
-            Last updated: {(() => {
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+            {(() => {
               const timestamp = frameworkScores?.last_updated || dashboard?.last_updated;
-              if (!timestamp) return new Date().toLocaleString();
-              // Ensure UTC timestamp is properly parsed (append Z if not present)
+              if (!timestamp) return '';
               const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-              return new Date(utcTimestamp).toLocaleString();
+              const date = new Date(utcTimestamp);
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             })()}
           </Typography>
-          <Button
-            variant="outlined"
-            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={refreshing}
-            size="small"
-          >
-            Refresh Scores
-          </Button>
+          <Tooltip title="Refresh scores">
+            <IconButton
+              onClick={handleRefresh}
+              disabled={refreshing}
+              size="small"
+              color="primary"
+            >
+              {refreshing ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 

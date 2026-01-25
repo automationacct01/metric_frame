@@ -44,6 +44,7 @@ import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { FrameworkSelector } from './FrameworkSelector';
 import { useFramework } from '../contexts/FrameworkContext';
+import { useDemo } from '../contexts/DemoContext';
 import {
   Metric,
   MetricFilters,
@@ -190,6 +191,10 @@ export default function MetricsGrid() {
   // Get the selected framework from context
   const { selectedFramework, isLoadingFrameworks } = useFramework();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
+
+  // Get demo mode state
+  const { isDemo, isDemoStarted, sessionId, canCreateCsfMetric, canCreateAiRmfMetric, incrementQuota } = useDemo();
+  const isDemoMode = isDemo && isDemoStarted;
 
   const [state, setState] = useState<MetricsGridState>({
     metrics: [],
@@ -425,21 +430,48 @@ export default function MetricsGrid() {
 
     try {
       setState(prev => ({ ...prev, loading: true }));
-      
+
       if (state.selectedMetric.id) {
+        // Updating existing metric - blocked in demo mode
+        if (isDemoMode) {
+          showSnackbar('Editing existing metrics is not available in demo mode', 'warning');
+          setState(prev => ({ ...prev, loading: false }));
+          return;
+        }
         await apiClient.updateMetric(state.selectedMetric.id, state.selectedMetric);
         showSnackbar('Metric updated successfully', 'success');
       } else {
-        await apiClient.createMetric(state.selectedMetric);
-        showSnackbar('Metric created successfully', 'success');
+        // Creating new metric
+        if (isDemoMode && sessionId) {
+          // Check quota
+          const canCreate = frameworkCode === 'ai_rmf' ? canCreateAiRmfMetric : canCreateCsfMetric;
+          if (!canCreate) {
+            showSnackbar(`Demo limit reached: You can create 2 AI metrics per framework`, 'warning');
+            setState(prev => ({ ...prev, loading: false }));
+            return;
+          }
+          // Use demo endpoint with full metric data
+          await apiClient.demoCreateMetric(
+            sessionId,
+            state.selectedMetric.name,
+            frameworkCode,
+            state.selectedMetric as Record<string, unknown>
+          );
+          incrementQuota(frameworkCode as 'csf_2_0' | 'ai_rmf');
+          showSnackbar('Metric created successfully in demo mode', 'success');
+        } else {
+          await apiClient.createMetric(state.selectedMetric);
+          showSnackbar('Metric created successfully', 'success');
+        }
       }
 
       await loadMetrics();
       await loadSummaryStats(); // Refresh summary stats after changes
       setState(prev => ({ ...prev, editDialogOpen: false, selectedMetric: null }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save metric:', error);
-      showSnackbar('Failed to save metric', 'error');
+      const errorMsg = error.response?.data?.detail || 'Failed to save metric';
+      showSnackbar(errorMsg, 'error');
       setState(prev => ({ ...prev, loading: false }));
     }
   };
@@ -1626,41 +1658,47 @@ export default function MetricsGrid() {
                 </Tooltip>
               </>
             ) : (
-              <Tooltip title={metric.locked ? 'Unlock for editing' : 'Lock metric'}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleToggleLock(metric)}
-                  color={metric.locked ? 'default' : 'primary'}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <CircularProgress size={16} />
-                  ) : metric.locked ? (
-                    <LockIcon fontSize="small" />
-                  ) : (
-                    <LockOpenIcon fontSize="small" />
-                  )}
-                </IconButton>
+              <Tooltip title={isDemoMode ? 'Editing disabled in demo mode' : (metric.locked ? 'Unlock for editing' : 'Lock metric')}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleToggleLock(metric)}
+                    color={metric.locked ? 'default' : 'primary'}
+                    disabled={saving || isDemoMode}
+                  >
+                    {saving ? (
+                      <CircularProgress size={16} />
+                    ) : metric.locked ? (
+                      <LockIcon fontSize="small" />
+                    ) : (
+                      <LockOpenIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
             )}
-            <Tooltip title="Edit in dialog">
-              <IconButton
-                size="small"
-                onClick={() => handleEditMetric(params.row)}
-                disabled={editing}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={isDemoMode ? 'Editing disabled in demo mode' : 'Edit in dialog'}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => handleEditMetric(params.row)}
+                  disabled={editing || isDemoMode}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete metric">
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteMetric(params.row)}
-                color="error"
-                disabled={editing}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={isDemoMode ? 'Deleting disabled in demo mode' : 'Delete metric'}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => handleDeleteMetric(params.row)}
+                  color="error"
+                  disabled={editing || isDemoMode}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         );
@@ -1670,33 +1708,27 @@ export default function MetricsGrid() {
 
   return (
     <ContentFrame maxWidth={false}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
         <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
+          <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
             Metrics Catalog
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {selectedFramework && (
-              <Chip
-                label={selectedFramework.name}
-                color="info"
-                size="small"
-              />
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <FrameworkSelector size="small" />
             {state.activeCatalog && (
-              <Chip
-                label={`Active: ${state.activeCatalog.name}`}
-                color="primary"
-                size="small"
-              />
+              <Tooltip title={`${state.activeCatalog.items_count || state.summaryStats.totalMetrics} metrics`}>
+                <Chip
+                  size="small"
+                  label={state.activeCatalog.name}
+                  variant="outlined"
+                  sx={{ fontWeight: 400 }}
+                />
+              </Tooltip>
+            )}
+            {state.catalogLoading && (
+              <CircularProgress size={18} />
             )}
           </Box>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <FrameworkSelector size="small" />
-          {state.catalogLoading && (
-            <CircularProgress size={24} />
-          )}
         </Box>
       </Box>
 
@@ -1836,7 +1868,7 @@ export default function MetricsGrid() {
           )}
           <Grid item xs={12} md={frameworkCode === 'csf_2_0' ? 3 : 4.5}>
             <Box display="flex" gap={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
-              <Tooltip title="Add a new metric - AI will auto-fill details from the name">
+              <Tooltip title={isDemoMode ? 'AI Add available in demo (2 per framework)' : 'Add a new metric - AI will auto-fill details from the name'}>
                 <Button
                   variant="contained"
                   size="small"
@@ -1846,24 +1878,32 @@ export default function MetricsGrid() {
                   AI Add
                 </Button>
               </Tooltip>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LockIcon />}
-                onClick={handleLockAll}
-                disabled={state.loading || state.metrics.filter(m => !m.locked).length === 0}
-              >
-                Lock All
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LockOpenIcon />}
-                onClick={handleUnlockAll}
-                disabled={state.loading || state.metrics.filter(m => m.locked).length === 0}
-              >
-                Unlock All
-              </Button>
+              <Tooltip title={isDemoMode ? 'Editing disabled in demo mode' : ''}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<LockIcon />}
+                    onClick={handleLockAll}
+                    disabled={state.loading || state.metrics.filter(m => !m.locked).length === 0 || isDemoMode}
+                  >
+                    Lock All
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={isDemoMode ? 'Editing disabled in demo mode' : ''}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<LockOpenIcon />}
+                    onClick={handleUnlockAll}
+                    disabled={state.loading || state.metrics.filter(m => m.locked).length === 0 || isDemoMode}
+                  >
+                    Unlock All
+                  </Button>
+                </span>
+              </Tooltip>
               <Tooltip title="Refresh">
                 <IconButton onClick={loadMetrics} size="small">
                   <RefreshIcon />

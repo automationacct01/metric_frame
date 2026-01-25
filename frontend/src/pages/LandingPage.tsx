@@ -14,6 +14,7 @@ import ProblemSection from '../components/landing/ProblemSection';
 import SolutionSection from '../components/landing/SolutionSection';
 import WhyNowSection from '../components/landing/WhyNowSection';
 import FeatureShowcase from '../components/landing/FeatureShowcase';
+import BYOMSection from '../components/landing/BYOMSection';
 import HowItWorks from '../components/landing/HowItWorks';
 import UseCasesSection from '../components/landing/UseCasesSection';
 import PricingSection from '../components/landing/PricingSection';
@@ -31,6 +32,7 @@ export default function LandingPage() {
       <SolutionSection />
       <WhyNowSection />
       <FeatureShowcase />
+      <BYOMSection />
       <HowItWorks />
       <UseCasesSection />
       <PricingSection />

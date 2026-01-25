@@ -64,7 +64,7 @@ export default function CTASection() {
               },
             }}
           >
-            Start Free Trial
+            Try Demo
           </Button>
 
           {/* Trust Note */}

@@ -35,6 +35,12 @@ import {
   AIConfigurationUpdate,
   AIValidationResult,
   AIProviderStatus,
+  DemoSession,
+  DemoQuotas,
+  DemoMetricResponse,
+  DemoGuidedChatRequest,
+  DemoGuidedChatResponse,
+  DemoAIChatStatus,
 } from '../types';
 
 class APIClient {
@@ -791,6 +797,136 @@ class APIClient {
    */
   async getAIProviderStatus(): Promise<AIProviderStatus> {
     const response = await this.client.get<AIProviderStatus>('/ai/status');
+    return response.data;
+  }
+
+  // =============================================================================
+  // DEMO MODE ENDPOINTS
+  // =============================================================================
+
+  /**
+   * Create a demo session with email capture
+   */
+  async createDemoSession(email: string): Promise<DemoSession> {
+    const response = await this.client.post<DemoSession>('/demo/session', { email });
+    return response.data;
+  }
+
+  /**
+   * Start the demo session (after video/onboarding)
+   */
+  async startDemoSession(sessionId: string, videoSkipped = false): Promise<DemoSession> {
+    const response = await this.client.post<DemoSession>(
+      `/demo/session/${sessionId}/start`,
+      { video_skipped: videoSkipped }
+    );
+    return response.data;
+  }
+
+  /**
+   * Get demo session status and quotas
+   */
+  async getDemoSession(sessionId: string): Promise<DemoSession> {
+    const response = await this.client.get<DemoSession>(`/demo/session/${sessionId}`);
+    return response.data;
+  }
+
+  /**
+   * Get demo metrics for a framework (limited set)
+   */
+  async getDemoMetrics(sessionId: string, framework: string): Promise<MetricListResponse> {
+    const response = await this.client.get<MetricListResponse>('/demo/metrics', {
+      params: { framework },
+      headers: { 'X-Demo-Session': sessionId },
+    });
+    return response.data;
+  }
+
+  /**
+   * Create a metric via AI in demo mode (quota limited)
+   * If metricData is provided, it will be used directly instead of regenerating via AI
+   */
+  async demoCreateMetric(
+    sessionId: string,
+    metricName: string,
+    framework: string,
+    metricData?: Record<string, unknown>
+  ): Promise<DemoMetricResponse> {
+    const response = await this.client.post<DemoMetricResponse>(
+      '/demo/ai/create-metric',
+      {
+        metric_name: metricName,
+        framework,
+        metric_data: metricData
+      },
+      { headers: { 'X-Demo-Session': sessionId } }
+    );
+    return response.data;
+  }
+
+  /**
+   * Get demo AI quota status
+   */
+  async getDemoQuota(sessionId: string): Promise<DemoQuotas> {
+    const response = await this.client.get<DemoQuotas>('/demo/ai/quota', {
+      headers: { 'X-Demo-Session': sessionId },
+    });
+    return response.data;
+  }
+
+  /**
+   * Set the demo session ID to include in all subsequent requests
+   */
+  setDemoSession(sessionId: string | null): void {
+    if (sessionId) {
+      this.client.defaults.headers.common['X-Demo-Session'] = sessionId;
+    } else {
+      delete this.client.defaults.headers.common['X-Demo-Session'];
+    }
+  }
+
+  // =============================================================================
+  // DEMO GUIDED CHAT ENDPOINTS (Security Hardened)
+  // =============================================================================
+
+  /**
+   * Get demo AI chat status including available starters and limits
+   */
+  async getDemoAIChatStatus(sessionId: string, framework = 'csf_2_0'): Promise<DemoAIChatStatus> {
+    const response = await this.client.get<DemoAIChatStatus>('/demo/ai/chat-status', {
+      params: { framework },
+      headers: { 'X-Demo-Session': sessionId },
+    });
+    return response.data;
+  }
+
+  /**
+   * Generate a metric using guided chat (preview only, does not create)
+   */
+  async demoGuidedChat(
+    sessionId: string,
+    request: DemoGuidedChatRequest
+  ): Promise<DemoGuidedChatResponse> {
+    const response = await this.client.post<DemoGuidedChatResponse>(
+      '/demo/ai/guided-chat',
+      request,
+      { headers: { 'X-Demo-Session': sessionId } }
+    );
+    return response.data;
+  }
+
+  /**
+   * Create a metric from guided chat (final step, uses quota)
+   */
+  async demoGuidedChatCreateMetric(
+    sessionId: string,
+    request: DemoGuidedChatRequest
+  ): Promise<DemoMetricResponse> {
+    const response = await this.client.post<DemoMetricResponse>(
+      '/demo/ai/guided-chat/create-metric',
+      request,
+      { headers: { 'X-Demo-Session': sessionId } }
+    );
     return response.data;
   }
 }

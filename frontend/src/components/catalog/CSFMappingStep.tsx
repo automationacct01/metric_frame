@@ -510,17 +510,17 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
 
       {/* Edit Mapping Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit CSF Mapping</DialogTitle>
+        <DialogTitle>Edit {frameworkCode === 'ai_rmf' ? 'AI RMF' : 'CSF'} Mapping</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Manually adjust the CSF mapping for: <strong>{editingMapping?.metric_name}</strong>
+            Manually adjust the {frameworkCode === 'ai_rmf' ? 'AI RMF' : 'CSF'} mapping for: <strong>{editingMapping?.metric_name}</strong>
           </Typography>
 
           <FormControl fullWidth margin="normal">
-            <InputLabel>CSF Function</InputLabel>
+            <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
             <Select
               value={editingMapping?.csf_function || ''}
-              label="CSF Function"
+              label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
               onChange={(e) => setEditingMapping((prev: any) => ({ ...prev, csf_function: e.target.value }))}
             >
               {csfFunctions.map((func) => (

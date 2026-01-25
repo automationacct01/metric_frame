@@ -549,3 +549,78 @@ export interface AIProviderStatus {
   supported_modes: string[];
   supported_frameworks: string[];
 }
+
+// =============================================================================
+// DEMO MODE TYPES
+// =============================================================================
+
+export interface DemoQuotas {
+  csf_metrics_created: number;
+  csf_metrics_max: number;
+  ai_rmf_metrics_created: number;
+  ai_rmf_metrics_max: number;
+}
+
+export interface DemoSession {
+  id: string;
+  session_id: string;
+  email: string;
+  video_skipped: boolean;
+  demo_started_at: string | null;
+  demo_expires_at: string | null;
+  expired: boolean;
+  quotas: DemoQuotas;
+  created_at: string;
+}
+
+export interface DemoMetricResponse {
+  id: string;
+  framework: string;
+  metric_data: Record<string, unknown>;
+  created_at: string;
+}
+
+// ==============================================================================
+// DEMO GUIDED CHAT TYPES
+// ==============================================================================
+
+export interface DemoStarterOption {
+  id: string;
+  label: string;
+  description: string;
+  icon?: string;
+  category: string;
+}
+
+export interface DemoRefinementOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface DemoGuidedChatRequest {
+  starter_id: string;
+  framework: string;
+  refinement_id?: string;
+  refinement_value?: string;
+}
+
+export interface DemoGuidedChatResponse {
+  success: boolean;
+  metric?: Record<string, unknown>;
+  error?: string;
+  interactions_used: number;
+  interactions_remaining: number;
+  chat_locked: boolean;
+  upgrade_cta: boolean;
+}
+
+export interface DemoAIChatStatus {
+  can_use_chat: boolean;
+  interactions_used: number;
+  interactions_remaining: number;
+  chat_locked: boolean;
+  lock_reason?: string;
+  starters: DemoStarterOption[];
+  refinements: DemoRefinementOption[];
+}
