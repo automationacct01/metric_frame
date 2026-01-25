@@ -1,9 +1,13 @@
-"""Metric recommendations service using Claude AI.
+"""Metric recommendations service using multi-provider AI.
 
 Analyzes framework coverage and suggests new metrics to improve
 security posture visibility and close coverage gaps.
+
+Supports multiple AI providers through the provider abstraction layer.
 """
 
+import json
+import os
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -14,12 +18,118 @@ from ..models import (
     FrameworkFunction,
     FrameworkCategory,
     CSFFunction,
+    UserAIConfiguration,
+    AIProvider as AIProviderModel,
 )
-from .claude_client import claude_client
+from .ai import (
+    BaseAIProvider,
+    ProviderType,
+    ProviderCredentials,
+    AIProviderError,
+)
+from .ai.provider_factory import create_initialized_provider
+from .ai.providers.anthropic_provider import FRAMEWORK_PROMPTS
+from .ai.utils.encryption import CredentialEncryption
 from .scoring import (
     get_framework_coverage,
     compute_framework_overall_score,
 )
+
+
+async def _get_provider(db: Session) -> BaseAIProvider:
+    """Get an active AI provider.
+
+    Priority:
+    1. Dev mode (AI_DEV_MODE=true)
+    2. Legacy ANTHROPIC_API_KEY env var
+    3. Raises exception if no provider available
+
+    Args:
+        db: Database session
+
+    Returns:
+        Initialized BaseAIProvider
+
+    Raises:
+        RuntimeError: If no provider is configured
+    """
+    # Check dev mode
+    if os.getenv("AI_DEV_MODE", "").lower() == "true":
+        dev_provider = os.getenv("AI_DEV_PROVIDER", "anthropic").lower()
+        credentials = ProviderCredentials()
+
+        if dev_provider == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if api_key:
+                credentials.api_key = api_key
+                provider = await create_initialized_provider(ProviderType.ANTHROPIC, credentials)
+                if provider:
+                    return provider
+
+        elif dev_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                credentials.api_key = api_key
+                provider = await create_initialized_provider(ProviderType.OPENAI, credentials)
+                if provider:
+                    return provider
+
+    # Check legacy env var
+    legacy_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if legacy_api_key and legacy_api_key != "your-anthropic-api-key-here":
+        credentials = ProviderCredentials(api_key=legacy_api_key)
+        provider = await create_initialized_provider(ProviderType.ANTHROPIC, credentials)
+        if provider:
+            return provider
+
+    raise RuntimeError("No AI provider configured. Set ANTHROPIC_API_KEY or configure a provider.")
+
+
+def _get_default_model(provider: BaseAIProvider) -> str:
+    """Get the default model for a provider."""
+    if provider.provider_type == ProviderType.ANTHROPIC:
+        return "claude-sonnet-4-5-20250929"
+    elif provider.provider_type == ProviderType.OPENAI:
+        return "gpt-4o"
+    elif provider.provider_type == ProviderType.TOGETHER:
+        return "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+    return "default"
+
+
+def _get_recommendations_system_prompt(framework: str = "csf_2_0") -> str:
+    """Get system prompt for recommendations mode."""
+    fw = FRAMEWORK_PROMPTS.get(framework, FRAMEWORK_PROMPTS["csf_2_0"])
+    framework_context = f"{fw['name']}\n{fw['functions']}\n{fw['categories']}"
+
+    return f"""You are a cybersecurity metrics strategist. Based on the current metric coverage and scores, recommend new metrics to improve security posture visibility.
+
+{framework_context}
+
+Analyze gaps in framework coverage and recommend metrics that would:
+1. Fill coverage gaps in underrepresented functions/categories
+2. Address areas with low scores or missing data
+3. Align with industry best practices
+4. Support executive decision-making
+
+Respond with JSON:
+{{
+  "recommendations": [
+    {{
+      "metric_name": "Recommended metric name",
+      "description": "What it measures",
+      "function_code": "target_function",
+      "category_code": "target_category",
+      "priority": 1|2|3,
+      "rationale": "Why this metric is recommended",
+      "expected_impact": "How this improves security visibility"
+    }}
+  ],
+  "gap_analysis": {{
+    "underrepresented_functions": ["list of functions with few metrics"],
+    "coverage_percentage": 75.0,
+    "overall_assessment": "Summary of current coverage state"
+  }}
+}}"""
 
 
 async def generate_metric_recommendations(
@@ -53,17 +163,51 @@ async def generate_metric_recommendations(
     # Get existing metrics summary for context
     existing_metrics = _get_existing_metrics_summary(db, framework_code)
 
-    # Use Claude to generate recommendations
+    # Use AI provider to generate recommendations
     try:
-        result = await claude_client.generate_metric_recommendations(
-            framework=framework_code,
-            current_metrics=existing_metrics,
-            current_scores={
+        provider = await _get_provider(db)
+        model = _get_default_model(provider)
+        system_prompt = _get_recommendations_system_prompt(framework_code)
+
+        # Build the context message
+        context_data = {
+            "framework": framework_code,
+            "current_metrics": existing_metrics,
+            "current_scores": {
                 "overall_score_pct": scores.get("overall_score_pct", 0),
                 "function_scores": scores.get("function_scores", []),
                 "coverage": coverage
             }
+        }
+
+        user_message = f"""Based on the current metrics coverage and performance data, recommend up to {max_recommendations} new metrics to improve security posture visibility.
+
+Current coverage context:
+{json.dumps(context_data, indent=2)}
+
+Please analyze the gaps and provide actionable metric recommendations."""
+
+        messages = [{"role": "user", "content": user_message}]
+
+        response = await provider.generate_response(
+            messages=messages,
+            model=model,
+            system_prompt=system_prompt,
+            max_tokens=4096,
+            temperature=0.7,
         )
+
+        # Parse the response
+        try:
+            result = json.loads(response.content)
+        except json.JSONDecodeError:
+            # If not valid JSON, try to extract from markdown code blocks
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            result = json.loads(content.strip())
 
         # Limit recommendations
         recommendations = result.get("recommendations", [])[:max_recommendations]
@@ -77,6 +221,22 @@ async def generate_metric_recommendations(
             "current_overall_score": scores.get("overall_score_pct", 0),
         }
 
+    except RuntimeError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "recommendations": [],
+            "gap_analysis": {},
+            "current_coverage": coverage,
+        }
+    except AIProviderError as e:
+        return {
+            "success": False,
+            "error": f"AI provider error: {str(e)}",
+            "recommendations": [],
+            "gap_analysis": {},
+            "current_coverage": coverage,
+        }
     except Exception as e:
         return {
             "success": False,
@@ -219,7 +379,7 @@ async def suggest_metrics_for_gap(
     Returns:
         Dictionary with metric suggestions
     """
-    # Build context for Claude
+    # Build context
     context = {
         "framework_code": framework_code,
         "target_function": function_code,
@@ -251,7 +411,7 @@ async def suggest_metrics_for_gap(
                 context["target_category_name"] = cat.name
                 context["target_category_description"] = cat.description
 
-    # Build prompt for Claude
+    # Build focus message
     focus_msg = ""
     if function_code and category_code:
         focus_msg = f"Focus specifically on the {context.get('target_function_name', function_code)} function, {context.get('target_category_name', category_code)} category."
@@ -275,12 +435,36 @@ For each metric suggestion, provide:
 5. Recommended data source"""
 
     try:
-        result = await claude_client.generate_response(
-            message=message,
-            mode="recommendations",
-            framework=framework_code,
-            context=context
+        provider = await _get_provider(db)
+        model = _get_default_model(provider)
+        system_prompt = _get_recommendations_system_prompt(framework_code)
+
+        user_message = f"{message}\n\nContext:\n{json.dumps(context, indent=2)}"
+        messages = [{"role": "user", "content": user_message}]
+
+        response = await provider.generate_response(
+            messages=messages,
+            model=model,
+            system_prompt=system_prompt,
+            max_tokens=2048,
+            temperature=0.7,
         )
+
+        # Parse the response
+        try:
+            result = json.loads(response.content)
+        except json.JSONDecodeError:
+            # If not valid JSON, try to extract from markdown code blocks
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            try:
+                result = json.loads(content.strip())
+            except json.JSONDecodeError:
+                # Return raw text as suggestion if parsing fails
+                result = {"recommendations": [{"description": response.content}]}
 
         return {
             "success": True,
@@ -290,6 +474,18 @@ For each metric suggestion, provide:
             "suggestions": result.get("recommendations", [])[:count],
         }
 
+    except RuntimeError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "suggestions": [],
+        }
+    except AIProviderError as e:
+        return {
+            "success": False,
+            "error": f"AI provider error: {str(e)}",
+            "suggestions": [],
+        }
     except Exception as e:
         return {
             "success": False,

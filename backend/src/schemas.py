@@ -569,3 +569,135 @@ class FrameworkListResponse(BaseModel):
     """List of available frameworks."""
     frameworks: List[FrameworkResponse]
     total: int
+
+
+# ==============================================================================
+# AI PROVIDER SCHEMAS
+# ==============================================================================
+
+class AuthType(str, Enum):
+    """Authentication types for AI providers."""
+    API_KEY = "api_key"
+    AZURE = "azure"
+    AWS_IAM = "aws_iam"
+    GCP = "gcp"
+
+
+class AuthFieldSchema(BaseModel):
+    """Schema for authentication field definition."""
+    name: str
+    label: str
+    type: str  # 'text', 'password', 'select', 'textarea'
+    required: bool = True
+    placeholder: Optional[str] = None
+    default: Optional[str] = None
+    options: Optional[List[str]] = None  # For select type
+
+
+class AIModelSchema(BaseModel):
+    """Schema for AI model info."""
+    model_id: str
+    display_name: str
+    description: Optional[str] = None
+    context_window: Optional[int] = None
+    max_output_tokens: Optional[int] = None
+    supports_vision: bool = False
+    supports_function_calling: bool = True
+
+
+class AIProviderSchema(BaseModel):
+    """Schema for AI provider info."""
+    code: str
+    name: str
+    description: Optional[str] = None
+    auth_type: AuthType
+    auth_fields: List[AuthFieldSchema]
+    models: List[AIModelSchema]
+    default_model: Optional[str] = None
+    available: bool = True
+    unavailable_reason: Optional[str] = None
+
+
+class AIProviderListResponse(BaseModel):
+    """Response with list of available AI providers."""
+    providers: List[AIProviderSchema]
+    total: int
+
+
+class AIConfigurationCredentials(BaseModel):
+    """Credentials for AI provider configuration (input only, never returned)."""
+    api_key: Optional[str] = None
+    # Azure-specific
+    azure_endpoint: Optional[str] = None
+    azure_deployment: Optional[str] = None
+    azure_api_version: Optional[str] = None
+    # AWS-specific
+    aws_access_key: Optional[str] = None
+    aws_secret_key: Optional[str] = None
+    aws_region: Optional[str] = None
+    # GCP-specific
+    gcp_project: Optional[str] = None
+    gcp_location: Optional[str] = None
+    gcp_credentials_json: Optional[str] = None
+
+
+class AIConfigurationCreate(BaseModel):
+    """Schema for creating a user AI configuration."""
+    provider_code: str = Field(..., min_length=1, max_length=30)
+    credentials: AIConfigurationCredentials
+    model_id: Optional[str] = None
+    max_tokens: int = Field(4096, ge=100, le=100000)
+    temperature: float = Field(0.7, ge=0.0, le=2.0)
+
+
+class AIConfigurationUpdate(BaseModel):
+    """Schema for updating a user AI configuration."""
+    credentials: Optional[AIConfigurationCredentials] = None
+    model_id: Optional[str] = None
+    max_tokens: Optional[int] = Field(None, ge=100, le=100000)
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+
+
+class AIConfigurationResponse(BaseModel):
+    """Schema for AI configuration response (credentials redacted)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: UUID
+    provider_code: str
+    provider_name: str
+    is_active: bool
+    model_id: Optional[str] = None
+    max_tokens: int
+    temperature: float
+    credentials_validated: bool
+    last_validated_at: Optional[datetime] = None
+    validation_error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AIConfigurationListResponse(BaseModel):
+    """Response with list of user AI configurations."""
+    configurations: List[AIConfigurationResponse]
+    active_configuration_id: Optional[UUID] = None
+    total: int
+
+
+class AICredentialValidationResponse(BaseModel):
+    """Response for credential validation."""
+    valid: bool
+    error: Optional[str] = None
+    validated_at: datetime
+
+
+class AIProviderStatusResponse(BaseModel):
+    """AI provider status response."""
+    provider_code: str
+    provider_name: str
+    available: bool
+    configured: bool
+    validated: bool
+    is_active: bool
+    model_id: Optional[str] = None
+    last_validated_at: Optional[datetime] = None

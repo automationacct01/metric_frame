@@ -17,6 +17,7 @@ from ..db import SessionLocal, engine
 from ..models import Base
 from .load_frameworks import load_all_frameworks, clear_all_frameworks, get_framework_stats
 from .load_metrics import load_all_metrics, clear_all_metrics, get_metrics_summary
+from .load_ai_providers import load_ai_providers, clear_ai_providers, get_ai_provider_summary
 
 
 def create_tables():
@@ -41,6 +42,7 @@ def seed_all(clear: bool = False):
             print("=" * 60)
             clear_all_metrics(db)
             clear_all_frameworks(db)
+            clear_ai_providers(db)
             db.commit()
 
         print("\n" + "=" * 60)
@@ -52,6 +54,11 @@ def seed_all(clear: bool = False):
         print("Loading metrics data...")
         print("=" * 60)
         metrics = load_all_metrics(db)
+
+        print("\n" + "=" * 60)
+        print("Loading AI provider data...")
+        print("=" * 60)
+        ai_providers = load_ai_providers(db)
 
         db.commit()
 
@@ -76,7 +83,7 @@ def print_summary(db=None):
         should_close = True
 
     try:
-        from ..models import Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, Metric
+        from ..models import Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, Metric, AIProvider, AIModel
 
         frameworks = db.query(Framework).all()
 
@@ -113,6 +120,15 @@ def print_summary(db=None):
         print(f"\n{'=' * 40}")
         print(f"Total Metrics: {total_metrics}")
         print("=" * 40)
+
+        # AI Provider summary
+        ai_providers = db.query(AIProvider).all()
+        total_models = db.query(AIModel).count()
+        print(f"\nAI Providers: {len(ai_providers)}")
+        print(f"AI Models: {total_models}")
+        for provider in ai_providers:
+            model_count = db.query(AIModel).filter(AIModel.provider_id == provider.id).count()
+            print(f"  {provider.name}: {model_count} models")
 
     finally:
         if should_close:

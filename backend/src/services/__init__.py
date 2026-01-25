@@ -1,11 +1,30 @@
 # Services Package
 
+# Legacy claude_client imports (backward compatibility)
 from .claude_client import (
     ClaudeClient,
     claude_client,
     generate_csf_mapping_suggestions,
     generate_metric_enhancement_suggestions,
     generate_ai_response,
+)
+
+# New multi-provider AI system
+from .ai import (
+    BaseAIProvider,
+    ProviderType,
+    ProviderCredentials,
+    AIResponse as ProviderAIResponse,
+    AIProviderError,
+    AuthenticationError,
+    RateLimitError,
+    ProviderTimeoutError,
+    InvalidRequestError,
+)
+from .ai.provider_factory import (
+    get_provider,
+    get_available_providers,
+    create_initialized_provider,
 )
 
 from .framework_reference import (
@@ -41,12 +60,25 @@ from .csf_reference import (
 )
 
 __all__ = [
-    # Claude client (primary AI service)
+    # Claude client (legacy, backward compatibility)
     "ClaudeClient",
     "claude_client",
     "generate_csf_mapping_suggestions",
     "generate_metric_enhancement_suggestions",
     "generate_ai_response",
+    # Multi-provider AI system
+    "BaseAIProvider",
+    "ProviderType",
+    "ProviderCredentials",
+    "ProviderAIResponse",
+    "AIProviderError",
+    "AuthenticationError",
+    "RateLimitError",
+    "ProviderTimeoutError",
+    "InvalidRequestError",
+    "get_provider",
+    "get_available_providers",
+    "create_initialized_provider",
     # Framework reference
     "FrameworkReferenceService",
     "FrameworkInfo",

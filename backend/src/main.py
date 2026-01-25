@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from .db import engine, get_db
 from .models import Base
 from .schemas import HealthResponse
-from .routers import metrics, scores, ai, csf, catalogs, frameworks
+from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers
 
 
 load_dotenv()
@@ -70,6 +70,7 @@ app.include_router(scores.router, prefix=f"{api_prefix}/scores", tags=["scores"]
 app.include_router(ai.router, prefix=f"{api_prefix}/ai", tags=["ai"])
 app.include_router(csf.router, prefix=f"{api_prefix}")  # CSF router includes its own /csf prefix
 app.include_router(catalogs.router, prefix=f"{api_prefix}")  # Catalogs router includes its own /catalogs prefix
+app.include_router(ai_providers.router, prefix=api_prefix)  # AI providers router includes its own /ai-providers prefix
 
 
 @app.get("/", response_model=dict)

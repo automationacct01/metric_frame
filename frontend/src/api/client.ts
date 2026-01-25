@@ -28,6 +28,13 @@ import {
   FrameworkCoverage,
   RecommendationsResponse,
   CoverageGaps,
+  AIProvider,
+  AIModel,
+  AIConfiguration,
+  AIConfigurationCreate,
+  AIConfigurationUpdate,
+  AIValidationResult,
+  AIProviderStatus,
 } from '../types';
 
 class APIClient {
@@ -696,6 +703,94 @@ class APIClient {
     const response = await this.client.get(`/catalogs/active/metrics/export/csv?${params.toString()}`, {
       responseType: 'blob',
     });
+    return response.data;
+  }
+
+  // ==============================================================================
+  // AI PROVIDER MANAGEMENT ENDPOINTS
+  // ==============================================================================
+
+  /**
+   * Get all available AI providers with their models
+   */
+  async getAIProviders(): Promise<AIProvider[]> {
+    const response = await this.client.get<{ providers: AIProvider[] }>('/ai-providers/');
+    return response.data.providers;
+  }
+
+  /**
+   * Get a specific AI provider by code
+   */
+  async getAIProvider(providerCode: string): Promise<AIProvider> {
+    const response = await this.client.get<AIProvider>(`/ai-providers/${providerCode}`);
+    return response.data;
+  }
+
+  /**
+   * Get models for a specific provider
+   */
+  async getAIProviderModels(providerCode: string): Promise<AIModel[]> {
+    const response = await this.client.get<AIModel[]>(`/ai-providers/${providerCode}/models`);
+    return response.data;
+  }
+
+  /**
+   * Get user's AI configurations
+   */
+  async getAIConfigurations(userId?: string): Promise<AIConfiguration[]> {
+    const params = new URLSearchParams();
+    if (userId) params.append('user_id', userId);
+    const response = await this.client.get<{ configurations: AIConfiguration[] }>(`/ai-providers/configurations?${params.toString()}`);
+    return response.data.configurations;
+  }
+
+  /**
+   * Create a new AI configuration
+   */
+  async createAIConfiguration(config: AIConfigurationCreate, userId?: string): Promise<AIConfiguration> {
+    const params = new URLSearchParams();
+    if (userId) params.append('user_id', userId);
+    const response = await this.client.post<AIConfiguration>(`/ai-providers/configurations?${params.toString()}`, config);
+    return response.data;
+  }
+
+  /**
+   * Update an existing AI configuration
+   */
+  async updateAIConfiguration(configId: string, updates: AIConfigurationUpdate): Promise<AIConfiguration> {
+    const response = await this.client.put<AIConfiguration>(`/ai-providers/configurations/${configId}`, updates);
+    return response.data;
+  }
+
+  /**
+   * Delete an AI configuration
+   */
+  async deleteAIConfiguration(configId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/ai-providers/configurations/${configId}`);
+    return response.data;
+  }
+
+  /**
+   * Validate credentials for an AI configuration
+   */
+  async validateAIConfiguration(configId: string): Promise<AIValidationResult> {
+    const response = await this.client.post<AIValidationResult>(`/ai-providers/configurations/${configId}/validate`);
+    return response.data;
+  }
+
+  /**
+   * Activate an AI configuration (set as active provider)
+   */
+  async activateAIConfiguration(configId: string): Promise<AIConfiguration> {
+    const response = await this.client.post<AIConfiguration>(`/ai-providers/configurations/${configId}/activate`);
+    return response.data;
+  }
+
+  /**
+   * Get extended AI status including provider info
+   */
+  async getAIProviderStatus(): Promise<AIProviderStatus> {
+    const response = await this.client.get<AIProviderStatus>('/ai/status');
     return response.data;
   }
 }

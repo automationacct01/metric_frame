@@ -571,6 +571,98 @@ class MetricCatalogFrameworkMapping(Base):
 
 
 # ==============================================================================
+# AI PROVIDER TABLES
+# ==============================================================================
+
+class AIProvider(Base):
+    """AI provider definitions (Anthropic, OpenAI, Together, Azure, Bedrock, Vertex)."""
+
+    __tablename__ = "ai_providers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(30), unique=True, nullable=False, index=True)  # 'anthropic', 'openai', etc.
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    auth_type = Column(String(50), nullable=False)  # 'api_key', 'azure', 'aws_iam', 'gcp'
+    auth_fields = Column(JSON)  # Required fields for this provider
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    models = relationship("AIModel", back_populates="provider", cascade="all, delete-orphan")
+    configurations = relationship("UserAIConfiguration", back_populates="provider", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<AIProvider(code='{self.code}', name='{self.name}')>"
+
+
+class AIModel(Base):
+    """Available AI models per provider."""
+
+    __tablename__ = "ai_models"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(String(100), nullable=False)  # 'claude-sonnet-4-5-20250929', 'gpt-4o'
+    display_name = Column(String(200), nullable=False)
+    description = Column(Text)
+    context_window = Column(Integer)
+    max_output_tokens = Column(Integer)
+    supports_vision = Column(Boolean, default=False)
+    supports_function_calling = Column(Boolean, default=True)
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('provider_id', 'model_id', name='uq_ai_models_provider_model'),
+    )
+
+    # Relationships
+    provider = relationship("AIProvider", back_populates="models")
+
+    def __repr__(self) -> str:
+        return f"<AIModel(model_id='{self.model_id}', provider_id={self.provider_id})>"
+
+
+class UserAIConfiguration(Base):
+    """User's AI provider configurations with encrypted credentials."""
+
+    __tablename__ = "user_ai_configurations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False)
+    is_active = Column(Boolean, default=False)
+    model_id = Column(String(100))  # Preferred model for this provider
+
+    # Encrypted credentials (Fernet symmetric encryption)
+    encrypted_credentials = Column(Text)  # JSON blob, encrypted
+
+    # Settings
+    max_tokens = Column(Integer, default=4096)
+    temperature = Column(Numeric(3, 2), default=0.70)
+
+    # Validation state
+    credentials_validated = Column(Boolean, default=False)
+    last_validated_at = Column(DateTime(timezone=True))
+    validation_error = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'provider_id', name='uq_user_ai_config_user_provider'),
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="ai_configurations", foreign_keys=[user_id])
+    provider = relationship("AIProvider", back_populates="configurations")
+
+    def __repr__(self) -> str:
+        return f"<UserAIConfiguration(user_id={self.user_id}, provider_id={self.provider_id}, is_active={self.is_active})>"
+
+
+# ==============================================================================
 # USER TABLE
 # ==============================================================================
 
@@ -589,11 +681,16 @@ class User(Base):
     selected_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=True)
     onboarding_completed = Column(Boolean, default=False)
 
+    # AI provider preferences
+    active_ai_config_id = Column(UUID(as_uuid=True), ForeignKey("user_ai_configurations.id", ondelete="SET NULL", use_alter=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     selected_framework = relationship("Framework")
+    ai_configurations = relationship("UserAIConfiguration", back_populates="user", foreign_keys=[UserAIConfiguration.user_id])
+    active_ai_config = relationship("UserAIConfiguration", foreign_keys=[active_ai_config_id], post_update=True)
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}')>"
@@ -687,6 +784,14 @@ Index("idx_catalog_mappings_function", MetricCatalogFrameworkMapping.catalog_id,
 # Score indices
 Index("idx_framework_score_latest", FrameworkScore.framework_id, FrameworkScore.calculated_at.desc())
 Index("idx_function_score_latest", FunctionScore.function_id, FunctionScore.calculated_at.desc())
+
+# AI Provider indices
+Index("idx_ai_providers_code", AIProvider.code)
+Index("idx_ai_providers_active", AIProvider.active)
+Index("idx_ai_models_provider", AIModel.provider_id)
+Index("idx_ai_models_active", AIModel.active)
+Index("idx_user_ai_config_user", UserAIConfiguration.user_id)
+Index("idx_user_ai_config_active", UserAIConfiguration.user_id, UserAIConfiguration.is_active)
 
 # Alias for backward compatibility
 MetricCatalogCSFMapping = MetricCatalogFrameworkMapping
