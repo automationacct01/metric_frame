@@ -23,6 +23,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
+import { useDemo } from '../../contexts/DemoContext';
 
 const navItems = [
   { label: 'Features', href: '#features' },
@@ -36,6 +37,7 @@ export default function LandingNavbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { clearDemo } = useDemo();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -49,8 +51,14 @@ export default function LandingNavbar() {
     setMobileOpen(false);
   };
 
-  const handleTryDemo = () => {
+  const handleLogin = () => {
+    // Clear any active demo session before going to full app
+    clearDemo();
     navigate('/app');
+  };
+
+  const handleTryDemo = () => {
+    navigate('/demo');
   };
 
   const drawer = (
@@ -72,7 +80,7 @@ export default function LandingNavbar() {
           <Button
             variant="outlined"
             fullWidth
-            onClick={handleTryDemo}
+            onClick={handleLogin}
             sx={{
               borderColor: '#0ea5e9',
               color: '#0ea5e9',
@@ -153,7 +161,7 @@ export default function LandingNavbar() {
                 ))}
                 <Button
                   variant="outlined"
-                  onClick={handleTryDemo}
+                  onClick={handleLogin}
                   sx={{
                     ml: 2,
                     borderColor: '#0ea5e9',

@@ -5,12 +5,10 @@ import {
   Box,
   LinearProgress,
   Chip,
-  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp,
   TrendingDown,
-  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -122,24 +120,18 @@ export default function ScoreCard({
             </Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {showTrend && trend !== undefined && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                {trend > 0 ? (
-                  <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} />
-                ) : trend < 0 ? (
-                  <TrendingDown sx={{ fontSize: 16, color: 'error.main' }} />
-                ) : null}
-                <Typography variant="caption" color={trend > 0 ? 'success.main' : trend < 0 ? 'error.main' : 'text.secondary'}>
-                  {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                </Typography>
-              </Box>
-            )}
-            
-            <Tooltip title={`Risk Level: ${formatRiskRating(risk_rating)}`}>
-              <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-            </Tooltip>
-          </Box>
+          {showTrend && trend !== undefined && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {trend > 0 ? (
+                <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} />
+              ) : trend < 0 ? (
+                <TrendingDown sx={{ fontSize: 16, color: 'error.main' }} />
+              ) : null}
+              <Typography variant="caption" color={trend > 0 ? 'success.main' : trend < 0 ? 'error.main' : 'text.secondary'}>
+                {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Score Display */}
