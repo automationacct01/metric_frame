@@ -22,7 +22,7 @@ const pricingTiers = [
       'Email support',
     ],
     highlighted: false,
-    ctaText: 'Start Free Trial',
+    ctaText: 'Try Demo',
   },
   {
     name: 'Plus',
@@ -39,7 +39,7 @@ const pricingTiers = [
       'Trend analysis',
     ],
     highlighted: true,
-    ctaText: 'Start Free Trial',
+    ctaText: 'Try Demo',
   },
   {
     name: 'Professional',
@@ -56,7 +56,7 @@ const pricingTiers = [
       'On-premise deployment option',
     ],
     highlighted: false,
-    ctaText: 'Start Free Trial',
+    ctaText: 'Try Demo',
   },
 ];
 
@@ -127,7 +127,7 @@ export default function PricingSection() {
         {/* Additional Note */}
         <Box sx={{ textAlign: 'center', mt: 6 }}>
           <Typography variant="body2" color="text.secondary">
-            All plans include a 14-day free trial. No credit card required.
+            Try the demo to explore all features. No credit card required.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Need support for additional frameworks? Contact us to discuss custom framework expansion.

@@ -743,6 +743,102 @@ class FunctionScore(Base):
 
 
 # ==============================================================================
+# DEMO MODE TABLES
+# ==============================================================================
+
+class DemoUser(Base):
+    """Demo user session tracking with email capture and AI quotas.
+
+    Tracks prospective users exploring the demo environment with:
+    - Required email capture for lead generation
+    - 24-hour demo window
+    - AI metric creation quotas (2 per framework)
+    """
+
+    __tablename__ = "demo_users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    video_skipped = Column(Boolean, default=False)
+    demo_started_at = Column(DateTime(timezone=True), nullable=True)
+    demo_expires_at = Column(DateTime(timezone=True), nullable=True)
+    expired = Column(Boolean, default=False)
+    ai_metrics_created_csf = Column(Integer, default=0)
+    ai_metrics_created_ai_rmf = Column(Integer, default=0)
+    # AI Chat guided wizard tracking
+    ai_chat_interactions = Column(Integer, default=0)  # Total guided chat interactions
+    ai_chat_locked = Column(Boolean, default=False)  # Lock after abuse detection
+    invalid_request_count = Column(Integer, default=0)  # Track invalid/suspicious requests
+    ip_address = Column(String(45))  # IPv6 compatible
+    user_agent = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    demo_metrics = relationship("DemoMetric", back_populates="demo_user", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<DemoUser(id={self.id}, email='{self.email}', session_id='{self.session_id}')>"
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if demo has expired."""
+        if self.expired:
+            return True
+        if self.demo_expires_at:
+            return datetime.now(self.demo_expires_at.tzinfo) > self.demo_expires_at
+        return False
+
+    @property
+    def can_create_csf_metric(self) -> bool:
+        """Check if user can create more CSF 2.0 metrics."""
+        return self.ai_metrics_created_csf < 2
+
+    @property
+    def can_create_ai_rmf_metric(self) -> bool:
+        """Check if user can create more AI RMF metrics."""
+        return self.ai_metrics_created_ai_rmf < 2
+
+    @property
+    def can_use_ai_chat(self) -> bool:
+        """Check if user can still use the guided AI chat wizard."""
+        # 6 total interactions: 3 per framework (starter + optional refinement + create)
+        MAX_DEMO_CHAT_INTERACTIONS = 6
+        return (
+            not self.ai_chat_locked
+            and self.ai_chat_interactions < MAX_DEMO_CHAT_INTERACTIONS
+        )
+
+    @property
+    def ai_chat_interactions_remaining(self) -> int:
+        """Return remaining AI chat interactions."""
+        MAX_DEMO_CHAT_INTERACTIONS = 6
+        return max(0, MAX_DEMO_CHAT_INTERACTIONS - self.ai_chat_interactions)
+
+
+class DemoMetric(Base):
+    """Temporary metrics created during demo mode.
+
+    Stores metrics created by demo users via AI. These are automatically
+    deleted when the demo session expires (CASCADE on demo_user deletion).
+    """
+
+    __tablename__ = "demo_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    demo_user_id = Column(UUID(as_uuid=True), ForeignKey("demo_users.id", ondelete="CASCADE"), nullable=False)
+    metric_data = Column(JSON, nullable=False)  # Full metric object as JSONB
+    framework = Column(String(20), nullable=False)  # 'csf_2_0' or 'ai_rmf'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    demo_user = relationship("DemoUser", back_populates="demo_metrics")
+
+    def __repr__(self) -> str:
+        return f"<DemoMetric(id={self.id}, framework='{self.framework}', demo_user_id={self.demo_user_id})>"
+
+
+# ==============================================================================
 # INDICES
 # ==============================================================================
 
@@ -792,6 +888,14 @@ Index("idx_ai_models_provider", AIModel.provider_id)
 Index("idx_ai_models_active", AIModel.active)
 Index("idx_user_ai_config_user", UserAIConfiguration.user_id)
 Index("idx_user_ai_config_active", UserAIConfiguration.user_id, UserAIConfiguration.is_active)
+
+# Demo indices
+Index("idx_demo_users_session", DemoUser.session_id)
+Index("idx_demo_users_email", DemoUser.email)
+Index("idx_demo_users_expires", DemoUser.demo_expires_at)
+Index("idx_demo_users_expired", DemoUser.expired)
+Index("idx_demo_metrics_user", DemoMetric.demo_user_id)
+Index("idx_demo_metrics_framework", DemoMetric.framework)
 
 # Alias for backward compatibility
 MetricCatalogCSFMapping = MetricCatalogFrameworkMapping

@@ -8,6 +8,93 @@ import React from 'react';
 import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 
 // Mock placeholder components for each feature type
+
+// Dual Dashboard showing both CSF 2.0 and AI RMF side by side
+const DualDashboardPlaceholder = () => {
+  const csfScoreCards = [
+    { name: 'GOVERN', score: 87, color: '#22c55e' },
+    { name: 'IDENTIFY', score: 92, color: '#22c55e' },
+    { name: 'PROTECT', score: 68, color: '#f59e0b' },
+    { name: 'DETECT', score: 85, color: '#22c55e' },
+    { name: 'RESPOND', score: 45, color: '#ef4444' },
+    { name: 'RECOVER', score: 78, color: '#22c55e' },
+  ];
+
+  const aiRmfScoreCards = [
+    { name: 'GOVERN', score: 82, color: '#22c55e' },
+    { name: 'MAP', score: 71, color: '#f59e0b' },
+    { name: 'MEASURE', score: 89, color: '#22c55e' },
+    { name: 'MANAGE', score: 65, color: '#f59e0b' },
+  ];
+
+  const DashboardPanel = ({
+    title,
+    scoreCards,
+    gridCols,
+    accentColor
+  }: {
+    title: string;
+    scoreCards: { name: string; score: number; color: string }[];
+    gridCols: number;
+    accentColor: string;
+  }) => (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f8fafc', borderRadius: 1 }}>
+      {/* Panel Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+        <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: accentColor }} />
+        <Typography sx={{ fontSize: 7, color: '#334155', fontWeight: 700, letterSpacing: 0.3 }}>
+          {title}
+        </Typography>
+      </Box>
+      {/* Score Cards Grid */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: 0.5, flex: 1 }}>
+        {scoreCards.map((item) => (
+          <Box
+            key={item.name}
+            sx={{
+              backgroundColor: '#fff',
+              borderRadius: 0.75,
+              p: 0.75,
+              borderLeft: `2px solid ${item.color}`,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography sx={{ fontSize: 5, color: '#64748b', fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase' }}>
+              {item.name}
+            </Typography>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: item.color, lineHeight: 1.2 }}>
+              {item.score}%
+            </Typography>
+            <Box sx={{ mt: 0.5, height: 2, backgroundColor: '#f1f5f9', borderRadius: 1, overflow: 'hidden' }}>
+              <Box sx={{ width: `${item.score}%`, height: '100%', backgroundColor: item.color, borderRadius: 1 }} />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ width: '100%', height: '100%', p: 1, display: 'flex', gap: 1 }}>
+      <DashboardPanel
+        title="NIST CSF 2.0"
+        scoreCards={csfScoreCards}
+        gridCols={3}
+        accentColor="#0ea5e9"
+      />
+      <DashboardPanel
+        title="NIST AI RMF"
+        scoreCards={aiRmfScoreCards}
+        gridCols={2}
+        accentColor="#8b5cf6"
+      />
+    </Box>
+  );
+};
+
 const DashboardPlaceholder = () => {
   const scoreCards = [
     { name: 'GV', score: 87, color: '#22c55e' },
@@ -310,13 +397,80 @@ const InlineEditingPlaceholder = () => {
   );
 };
 
+const AIProviderPlaceholder = () => {
+  const providers = [
+    { name: 'Anthropic', color: '#D4A574', active: true, configured: true },
+    { name: 'OpenAI', color: '#10A37F', active: false, configured: true },
+    { name: 'Together', color: '#6366F1', active: false, configured: false },
+    { name: 'Azure', color: '#0078D4', active: false, configured: false },
+    { name: 'Bedrock', color: '#FF9900', active: false, configured: false },
+    { name: 'Vertex', color: '#4285F4', active: false, configured: false },
+  ];
+
+  return (
+    <Box sx={{ width: '100%', height: '100%', p: 1.5, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography sx={{ fontSize: 8, color: '#334155', fontWeight: 600 }}>AI Provider Configuration</Typography>
+        <Box sx={{ backgroundColor: '#dcfce7', borderRadius: 0.5, px: 0.5, py: 0.25, display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          <Box sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: '#22c55e' }} />
+          <Typography sx={{ fontSize: 5, color: '#166534' }}>Active: Anthropic</Typography>
+        </Box>
+      </Box>
+      {/* Provider Cards Grid */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.75, flex: 1 }}>
+        {providers.map((provider) => (
+          <Box
+            key={provider.name}
+            sx={{
+              backgroundColor: '#fff',
+              borderRadius: 1,
+              p: 0.75,
+              borderLeft: `3px solid ${provider.color}`,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              opacity: provider.configured ? 1 : 0.6,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+              <Typography sx={{ fontSize: 7, color: '#334155', fontWeight: 600 }}>{provider.name}</Typography>
+              {provider.active && (
+                <Typography sx={{ fontSize: 6, color: '#f59e0b' }}>★</Typography>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 0.25, flexWrap: 'wrap' }}>
+              {provider.configured ? (
+                <>
+                  <Box sx={{ backgroundColor: '#dcfce7', borderRadius: 0.25, px: 0.5 }}>
+                    <Typography sx={{ fontSize: 5, color: '#166534' }}>Configured</Typography>
+                  </Box>
+                  <Box sx={{ backgroundColor: '#dbeafe', borderRadius: 0.25, px: 0.5 }}>
+                    <Typography sx={{ fontSize: 5, color: '#1d4ed8' }}>Validated</Typography>
+                  </Box>
+                </>
+              ) : (
+                <Box sx={{ backgroundColor: '#f1f5f9', borderRadius: 0.25, px: 0.5 }}>
+                  <Typography sx={{ fontSize: 5, color: '#64748b' }}>Configure</Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
 const placeholderComponents: Record<string, React.FC> = {
   dashboard: DashboardPlaceholder,
+  'dual-dashboard': DualDashboardPlaceholder,
   'coverage-map': CoverageMapPlaceholder,
   'metrics-grid': MetricsGridPlaceholder,
   'ai-chat': AIChatPlaceholder,
   'catalog-wizard': CatalogWizardPlaceholder,
   'inline-editing': InlineEditingPlaceholder,
+  'ai-providers': AIProviderPlaceholder,
 };
 
 interface FeatureCardProps {

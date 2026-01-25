@@ -14,6 +14,7 @@
 - [Dashboard](dashboard)
 - [Metrics Management](metrics-management)
 - [AI Assistant](ai-assistant)
+  - [Bring Your Own Model](ai-assistant#bring-your-own-model-byom)
 
 ---
 

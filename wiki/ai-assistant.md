@@ -5,7 +5,7 @@
 
 ---
 
-MetricFrame integrates AI capabilities powered by Anthropic Claude to assist with metrics creation, analysis, recommendations, and catalog management.
+MetricFrame integrates AI capabilities through a flexible multi-provider architecture, allowing you to use your preferred AI provider for metrics creation, analysis, recommendations, and catalog management.
 
 ## AI Integration Overview
 
@@ -20,9 +20,116 @@ The AI assistant enhances the application with intelligent automation:
 | **Enhancement Suggestions** | Improve imported metrics |
 | **Recommendations** | Prioritized improvement actions |
 
-### AI Configuration
+---
 
-Configure AI in `backend/.env`:
+## Bring Your Own Model (BYOM)
+
+MetricFrame supports a "Bring Your Own Model" architecture, giving you full control over which AI provider powers your metrics intelligence. Configure your preferred provider in Settings and use your own API keys.
+
+### Supported Providers
+
+| Provider | Auth Method | Models Available |
+|----------|-------------|------------------|
+| **Anthropic Claude** | API Key | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 |
+| **OpenAI** | API Key | GPT-5.2, GPT-5.2 Codex, GPT-5.1, GPT-5, GPT-5 Mini, GPT-5 Pro |
+| **Together.ai** | API Key | DeepSeek V3.1/R1, Qwen3 Coder, Llama 4, Mistral Small 3 |
+| **Azure OpenAI** | API Key + Endpoint | GPT-5 family, DeepSeek-R1, Llama 4, Mistral Large 3 |
+| **AWS Bedrock** | IAM Credentials | Claude 4.5, Amazon Nova, Llama 4, Mistral, DeepSeek, Qwen3 |
+| **GCP Vertex AI** | Service Account | Gemini 3/2.5, Claude 4.5, Llama 4, Mistral, DeepSeek |
+
+### Configuring Your Provider
+
+1. Navigate to **Settings** > **AI Configuration**
+2. Select your preferred provider from the available cards
+3. Click **Configure** and enter your credentials:
+
+| Provider | Required Credentials |
+|----------|---------------------|
+| Anthropic | API Key |
+| OpenAI | API Key |
+| Together.ai | API Key |
+| Azure OpenAI | API Key, Endpoint, Deployment Name, API Version |
+| AWS Bedrock | Access Key, Secret Key, Region |
+| GCP Vertex | Project ID, Location, Service Account JSON |
+
+4. Select your preferred model from the dropdown
+5. Click **Save Configuration**
+6. Click **Validate** to test your credentials
+7. Click the star icon to **Activate** the provider
+
+### Provider Status
+
+The Settings page shows real-time status for each provider:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  AI PROVIDER CONFIGURATION                    [↻] [Active: Anthropic]
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  │ █ ANTHROPIC     │  │   OPENAI        │  │   TOGETHER      │
+│  │   Claude        │  │   GPT-5         │  │   Open Source   │
+│  │                 │  │                 │  │                 │
+│  │ [Configured ✓]  │  │ [Not Configured]│  │ [Configured ✓]  │
+│  │ [Validated ✓]   │  │                 │  │ [Not Validated] │
+│  │ [★ Active]      │  │ [Configure]     │  │ [Validate]      │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Model Specifications
+
+#### Anthropic Claude 4.5
+| Model | Context Window | Max Output | Best For |
+|-------|---------------|------------|----------|
+| Claude Opus 4.5 | 200K tokens | 64K tokens | Complex reasoning, premium tasks |
+| Claude Sonnet 4.5 | 200K tokens | 64K tokens | Balance of intelligence & speed |
+| Claude Haiku 4.5 | 200K tokens | 64K tokens | Fast responses, near-frontier intelligence |
+
+#### OpenAI GPT-5
+| Model | Context Window | Max Output | Best For |
+|-------|---------------|------------|----------|
+| GPT-5.2 | 400K tokens | 128K tokens | Coding and agentic tasks |
+| GPT-5.2 Codex | 400K tokens | 128K tokens | Optimized for code generation |
+| GPT-5.1 | 400K tokens | 128K tokens | Reasoning tasks |
+| GPT-5 | 400K tokens | 128K tokens | General purpose |
+| GPT-5 Mini | 400K tokens | 128K tokens | Fast, cost-effective |
+| GPT-5 Pro | 400K tokens | 128K tokens | Extended reasoning |
+
+#### Together.ai (Open Source)
+| Model | Context Window | Best For |
+|-------|---------------|----------|
+| DeepSeek-V3.1 | 128K tokens | Advanced reasoning |
+| DeepSeek-R1 | 163K tokens | Complex reasoning |
+| Qwen3-Coder 480B | 256K tokens | Coding tasks |
+| Llama 4 Maverick | 1M tokens | Large context tasks |
+| Llama 4 Scout | 1M tokens | Fast with large context |
+
+### Development Mode
+
+For local development, you can bypass user configuration using environment variables:
+
+```env
+# Enable dev mode (backend/.env)
+AI_DEV_MODE=true
+AI_DEV_PROVIDER=anthropic
+AI_DEV_MODEL=claude-sonnet-4-5-20250929
+ANTHROPIC_API_KEY=your_dev_key_here
+```
+
+When dev mode is active, admin users will see a notice in Settings and the system will use the environment-configured provider.
+
+### Security
+
+- **Encrypted Storage**: All API keys are encrypted at rest using Fernet symmetric encryption
+- **Per-User Configuration**: Each user manages their own provider credentials
+- **Credential Validation**: Test credentials before activating to prevent runtime errors
+- **No Key Exposure**: Keys are never displayed in the UI after saving
+
+---
+
+### Legacy Configuration
+
+For backward compatibility, you can still configure providers via environment variables:
 
 ```env
 # Primary AI Provider

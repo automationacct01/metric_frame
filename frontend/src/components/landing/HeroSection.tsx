@@ -73,7 +73,7 @@ export default function HeroSection() {
             <Button
               variant="contained"
               size="large"
-              onClick={() => navigate('/app')}
+              onClick={() => navigate('/demo')}
               sx={{
                 backgroundColor: '#0ea5e9',
                 px: 5,
@@ -87,7 +87,33 @@ export default function HeroSection() {
                 },
               }}
             >
-              Start Free Trial
+              Try Demo
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => {
+                const pricingSection = document.querySelector('#pricing');
+                if (pricingSection) {
+                  pricingSection.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              sx={{
+                px: 4,
+                py: 2,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                borderRadius: 2,
+                textTransform: 'none',
+                borderColor: '#0ea5e9',
+                color: '#0ea5e9',
+                '&:hover': {
+                  borderColor: '#0284c7',
+                  backgroundColor: 'rgba(14, 165, 233, 0.05)',
+                },
+              }}
+            >
+              Sign Up
             </Button>
           </Box>
 
@@ -99,162 +125,248 @@ export default function HeroSection() {
               fontSize: '0.875rem',
             }}
           >
-            No credit card required. Free 14-day trial.
+            No credit card required. 24-hour demo access.
           </Typography>
         </Box>
       </Container>
 
-      {/* Hero Image - Dashboard Preview */}
+      {/* Hero Images - Two Separate Dashboard Previews */}
       <Container maxWidth="lg" sx={{ mt: 8 }}>
-        <Box
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-            border: '1px solid #e2e8f0',
-          }}
-        >
-          {/* Browser Chrome */}
-          <Box
-            sx={{
-              backgroundColor: '#f8fafc',
-              px: 2,
-              py: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              borderBottom: '1px solid #e2e8f0',
-            }}
-          >
-            <Box sx={{ display: 'flex', gap: 0.75 }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  backgroundColor: '#fca5a5',
-                }}
-              />
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  backgroundColor: '#fcd34d',
-                }}
-              />
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  backgroundColor: '#86efac',
-                }}
-              />
-            </Box>
+        <Grid container spacing={3}>
+          {/* NIST CSF 2.0 Browser Window */}
+          <Grid item xs={12} md={6}>
             <Box
               sx={{
-                flex: 1,
-                mx: 2,
-                px: 3,
-                py: 0.75,
-                backgroundColor: '#ffffff',
-                borderRadius: 1.5,
-                fontSize: '0.8rem',
-                color: '#64748b',
+                borderRadius: 3,
+                overflow: 'hidden',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
                 border: '1px solid #e2e8f0',
               }}
             >
-              metricframe.ai/dashboard
-            </Box>
-          </Box>
-
-          {/* Dashboard Preview */}
-          <Box
-            sx={{
-              backgroundColor: '#f5f5f5',
-              p: { xs: 2, md: 4 },
-              minHeight: { xs: 300, md: 450 },
-            }}
-          >
-            {/* Dashboard Header */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Box sx={{ width: 120, height: 12, backgroundColor: '#cbd5e1', borderRadius: 1, mb: 1 }} />
-                <Box sx={{ width: 200, height: 8, backgroundColor: '#e2e8f0', borderRadius: 1 }} />
+              {/* Browser Chrome */}
+              <Box
+                sx={{
+                  backgroundColor: '#f8fafc',
+                  px: 1.5,
+                  py: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  borderBottom: '1px solid #e2e8f0',
+                }}
+              >
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fca5a5' }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fcd34d' }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#86efac' }} />
+                </Box>
+                <Box
+                  sx={{
+                    flex: 1,
+                    mx: 1,
+                    px: 2,
+                    py: 0.5,
+                    backgroundColor: '#ffffff',
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  metricframe.ai/csf
+                </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Box sx={{ width: 80, height: 32, backgroundColor: '#e2e8f0', borderRadius: 1 }} />
-                <Box sx={{ width: 80, height: 32, backgroundColor: '#0ea5e9', borderRadius: 1 }} />
-              </Box>
-            </Box>
 
-            {/* Score Cards Grid */}
-            <Grid container spacing={2}>
-              {[
-                { name: 'Govern', score: 87, color: '#22c55e' },
-                { name: 'Identify', score: 92, color: '#22c55e' },
-                { name: 'Protect', score: 68, color: '#f59e0b' },
-                { name: 'Detect', score: 85, color: '#22c55e' },
-                { name: 'Respond', score: 45, color: '#ef4444' },
-                { name: 'Recover', score: 78, color: '#22c55e' },
-              ].map((item) => (
-                <Grid item xs={6} md={4} key={item.name}>
-                  <Box
-                    sx={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: 2,
-                      p: 2.5,
-                      borderLeft: `4px solid ${item.color}`,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: '0.75rem',
-                        color: '#64748b',
-                        fontWeight: 500,
-                        mb: 0.5,
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {item.name}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '2rem',
-                        fontWeight: 700,
-                        color: item.color,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {item.score}%
-                    </Typography>
-                    <Box
-                      sx={{
-                        mt: 1.5,
-                        height: 4,
-                        backgroundColor: '#f1f5f9',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                      }}
-                    >
+              {/* CSF Dashboard Content */}
+              <Box sx={{ backgroundColor: '#f5f5f5', p: { xs: 1.5, md: 2.5 } }}>
+                <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#0ea5e9' }} />
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                    NIST CSF 2.0
+                  </Typography>
+                </Box>
+                <Grid container spacing={1}>
+                  {[
+                    { name: 'Govern', score: 87, color: '#22c55e' },
+                    { name: 'Identify', score: 92, color: '#22c55e' },
+                    { name: 'Protect', score: 68, color: '#f59e0b' },
+                    { name: 'Detect', score: 85, color: '#22c55e' },
+                    { name: 'Respond', score: 45, color: '#ef4444' },
+                    { name: 'Recover', score: 78, color: '#22c55e' },
+                  ].map((item) => (
+                    <Grid item xs={4} key={item.name}>
                       <Box
                         sx={{
-                          width: `${item.score}%`,
-                          height: '100%',
-                          backgroundColor: item.color,
-                          borderRadius: 2,
+                          backgroundColor: '#ffffff',
+                          borderRadius: 1.5,
+                          p: { xs: 1, md: 1.5 },
+                          borderLeft: `3px solid ${item.color}`,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                         }}
-                      />
-                    </Box>
-                  </Box>
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: '0.55rem',
+                            color: '#64748b',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          {item.name}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: { xs: '1.25rem', md: '1.5rem' },
+                            fontWeight: 700,
+                            color: item.color,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {item.score}%
+                        </Typography>
+                        <Box
+                          sx={{
+                            mt: 0.75,
+                            height: 3,
+                            backgroundColor: '#f1f5f9',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${item.score}%`,
+                              height: '100%',
+                              backgroundColor: item.color,
+                              borderRadius: 2,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
-          </Box>
-        </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* NIST AI RMF Browser Window */}
+          <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                borderRadius: 3,
+                overflow: 'hidden',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              {/* Browser Chrome */}
+              <Box
+                sx={{
+                  backgroundColor: '#f8fafc',
+                  px: 1.5,
+                  py: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  borderBottom: '1px solid #e2e8f0',
+                }}
+              >
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fca5a5' }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fcd34d' }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#86efac' }} />
+                </Box>
+                <Box
+                  sx={{
+                    flex: 1,
+                    mx: 1,
+                    px: 2,
+                    py: 0.5,
+                    backgroundColor: '#ffffff',
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  metricframe.ai/ai-rmf
+                </Box>
+              </Box>
+
+              {/* AI RMF Dashboard Content */}
+              <Box sx={{ backgroundColor: '#f5f5f5', p: { xs: 1.5, md: 2.5 } }}>
+                <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                    NIST AI RMF
+                  </Typography>
+                </Box>
+                <Grid container spacing={1}>
+                  {[
+                    { name: 'Govern', score: 82, color: '#22c55e' },
+                    { name: 'Map', score: 71, color: '#f59e0b' },
+                    { name: 'Measure', score: 89, color: '#22c55e' },
+                    { name: 'Manage', score: 65, color: '#f59e0b' },
+                  ].map((item) => (
+                    <Grid item xs={6} key={item.name}>
+                      <Box
+                        sx={{
+                          backgroundColor: '#ffffff',
+                          borderRadius: 1.5,
+                          p: { xs: 1, md: 1.5 },
+                          borderLeft: `3px solid ${item.color}`,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: '0.55rem',
+                            color: '#64748b',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          {item.name}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: { xs: '1.25rem', md: '1.5rem' },
+                            fontWeight: 700,
+                            color: item.color,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {item.score}%
+                        </Typography>
+                        <Box
+                          sx={{
+                            mt: 0.75,
+                            height: 3,
+                            backgroundColor: '#f1f5f9',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${item.score}%`,
+                              height: '100%',
+                              backgroundColor: item.color,
+                              borderRadius: 2,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
       </Container>
     </Box>
   );

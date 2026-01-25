@@ -49,7 +49,7 @@ export default function LandingNavbar() {
     setMobileOpen(false);
   };
 
-  const handleStartTrial = () => {
+  const handleTryDemo = () => {
     navigate('/app');
   };
 
@@ -72,7 +72,7 @@ export default function LandingNavbar() {
           <Button
             variant="outlined"
             fullWidth
-            onClick={handleStartTrial}
+            onClick={handleTryDemo}
             sx={{
               borderColor: '#0ea5e9',
               color: '#0ea5e9',
@@ -86,7 +86,7 @@ export default function LandingNavbar() {
           <Button
             variant="contained"
             fullWidth
-            onClick={handleStartTrial}
+            onClick={handleTryDemo}
             sx={{
               backgroundColor: '#0ea5e9',
               py: 1.5,
@@ -95,7 +95,7 @@ export default function LandingNavbar() {
               },
             }}
           >
-            Start Free Trial
+            Try Demo
           </Button>
         </ListItem>
       </List>
@@ -153,7 +153,7 @@ export default function LandingNavbar() {
                 ))}
                 <Button
                   variant="outlined"
-                  onClick={handleStartTrial}
+                  onClick={handleTryDemo}
                   sx={{
                     ml: 2,
                     borderColor: '#0ea5e9',
@@ -168,7 +168,7 @@ export default function LandingNavbar() {
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={handleStartTrial}
+                  onClick={handleTryDemo}
                   sx={{
                     ml: 1,
                     backgroundColor: '#0ea5e9',
@@ -177,7 +177,7 @@ export default function LandingNavbar() {
                     },
                   }}
                 >
-                  Start Free Trial
+                  Try Demo
                 </Button>
               </Box>
             )}

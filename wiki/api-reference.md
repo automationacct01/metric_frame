@@ -460,6 +460,237 @@ GET /ai/changelog
 
 ---
 
+## AI Providers Router
+
+Base path: `/api/v1/ai-providers`
+
+Manages "Bring Your Own Model" (BYOM) configuration for AI providers.
+
+### List Available Providers
+
+```http
+GET /ai-providers/
+```
+
+**Response:**
+```json
+{
+  "providers": [
+    {
+      "code": "anthropic",
+      "name": "Anthropic Claude",
+      "description": "Claude AI models from Anthropic",
+      "auth_type": "api_key",
+      "auth_fields": [
+        {
+          "name": "api_key",
+          "label": "API Key",
+          "type": "password",
+          "required": true,
+          "placeholder": "sk-ant-api03-..."
+        }
+      ],
+      "models": [
+        {
+          "model_id": "claude-opus-4-5-20251101",
+          "display_name": "Claude Opus 4.5",
+          "context_window": 200000,
+          "max_output_tokens": 64000,
+          "supports_vision": true
+        }
+      ],
+      "default_model": "claude-sonnet-4-5-20250929",
+      "available": true
+    }
+  ]
+}
+```
+
+### Get Provider Details
+
+```http
+GET /ai-providers/{provider_code}
+```
+
+**Response:** Single provider object with full model list
+
+### Get Provider Models
+
+```http
+GET /ai-providers/{provider_code}/models
+```
+
+**Response:**
+```json
+{
+  "models": [
+    {
+      "model_id": "claude-sonnet-4-5-20250929",
+      "display_name": "Claude Sonnet 4.5",
+      "description": "Best balance of intelligence and speed",
+      "context_window": 200000,
+      "max_output_tokens": 64000,
+      "supports_vision": true,
+      "supports_function_calling": true
+    }
+  ]
+}
+```
+
+### List User Configurations
+
+```http
+GET /ai-providers/configurations
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `user_id` | string | User ID (defaults to current user) |
+
+**Response:**
+```json
+{
+  "configurations": [
+    {
+      "id": "uuid",
+      "provider_code": "anthropic",
+      "is_active": true,
+      "model_id": "claude-sonnet-4-5-20250929",
+      "credentials_validated": true,
+      "last_validated_at": "2026-01-15T10:30:00Z",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Create Configuration
+
+```http
+POST /ai-providers/configurations
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "provider_code": "anthropic",
+  "credentials": {
+    "api_key": "sk-ant-api03-..."
+  },
+  "model_id": "claude-sonnet-4-5-20250929"
+}
+```
+
+**Response:** Created configuration (201 Created)
+
+### Update Configuration
+
+```http
+PUT /ai-providers/configurations/{config_id}
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "model_id": "claude-opus-4-5-20251101",
+  "credentials": {
+    "api_key": "sk-ant-new-key..."
+  }
+}
+```
+
+### Delete Configuration
+
+```http
+DELETE /ai-providers/configurations/{config_id}
+```
+
+**Response:** 204 No Content
+
+### Validate Configuration
+
+```http
+POST /ai-providers/configurations/{config_id}/validate
+```
+
+Tests the stored credentials against the provider's API.
+
+**Response:**
+```json
+{
+  "valid": true,
+  "message": "Credentials validated successfully",
+  "validated_at": "2026-01-15T10:30:00Z"
+}
+```
+
+### Activate Configuration
+
+```http
+POST /ai-providers/configurations/{config_id}/activate
+```
+
+Sets this configuration as the active AI provider for the user.
+
+**Response:**
+```json
+{
+  "message": "Configuration activated",
+  "config_id": "uuid",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-5-20250929"
+}
+```
+
+### Deactivate Configuration
+
+```http
+POST /ai-providers/configurations/{config_id}/deactivate
+```
+
+**Response:**
+```json
+{
+  "message": "Configuration deactivated",
+  "config_id": "uuid"
+}
+```
+
+### Get Provider Status
+
+```http
+GET /ai-providers/status
+```
+
+Returns the current AI provider status for the user.
+
+**Response:**
+```json
+{
+  "available": true,
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-5-20250929",
+  "dev_mode": false
+}
+```
+
+### Supported Providers
+
+| Provider Code | Auth Type | Description |
+|--------------|-----------|-------------|
+| `anthropic` | API Key | Claude Opus/Sonnet/Haiku 4.5 |
+| `openai` | API Key | GPT-5 family |
+| `together` | API Key | DeepSeek, Qwen, Llama 4, Mistral |
+| `azure` | API Key + Config | Azure OpenAI Service |
+| `bedrock` | IAM Credentials | AWS Bedrock models |
+| `vertex` | Service Account | GCP Vertex AI models |
+
+---
+
 ## Catalogs Router
 
 Base path: `/api/v1/catalogs`

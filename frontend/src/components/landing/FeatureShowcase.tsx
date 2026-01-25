@@ -12,10 +12,10 @@ const features = [
   {
     title: 'Executive Dashboard',
     description:
-      'See your entire AI and cybersecurity posture at a glance. Risk scores across all 6 NIST CSF 2.0 functions give you instant visibility into what needs attention.',
+      'See your entire AI and cybersecurity posture at a glance. Risk scores across NIST CSF 2.0 and AI RMF frameworks give you instant visibility into what needs attention.',
     badge: 'Visual',
     badgeColor: '#0ea5e9',
-    placeholderType: 'dashboard',
+    placeholderType: 'dual-dashboard',
   },
   {
     title: 'Coverage Map',

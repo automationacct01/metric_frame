@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
+import { useDemo } from '../../contexts/DemoContext';
 
 interface ContentFrameProps {
   children: React.ReactNode;
@@ -17,6 +18,11 @@ export const ContentFrame: React.FC<ContentFrameProps> = ({
   const theme = useTheme();
   const mdUp = useMediaQuery(theme.breakpoints.up('md'));
 
+  // Add extra top padding when demo banner is visible
+  const { isDemo, isDemoStarted } = useDemo();
+  const showDemoBanner = isDemo && isDemoStarted;
+  const demoTopPadding = showDemoBanner ? 6 : 0; // 48px extra when demo banner visible
+
   return (
     <Box
       sx={{
@@ -24,7 +30,8 @@ export const ContentFrame: React.FC<ContentFrameProps> = ({
         maxWidth: maxWidth === false ? 'none' : maxWidth,
         mx: 'auto',
         px: mdUp ? 3 : 2,
-        py: 2,
+        pt: 2 + demoTopPadding,
+        pb: 2,
       }}
     >
       {title && (

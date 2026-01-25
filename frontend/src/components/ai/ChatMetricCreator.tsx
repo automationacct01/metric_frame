@@ -526,18 +526,29 @@ const ChatMetricCreator: React.FC = () => {
               </Grid>
               <Grid item xs={6}>
                 <FormControl fullWidth>
-                  <InputLabel>CSF Function</InputLabel>
+                  <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
                   <Select
                     value={editingMetric.csf_function}
-                    label="CSF Function"
+                    label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
                     onChange={(e) => setEditingMetric(prev => prev ? { ...prev, csf_function: e.target.value } : null)}
                   >
-                    <MenuItem value="gv">Govern (GV)</MenuItem>
-                    <MenuItem value="id">Identify (ID)</MenuItem>
-                    <MenuItem value="pr">Protect (PR)</MenuItem>
-                    <MenuItem value="de">Detect (DE)</MenuItem>
-                    <MenuItem value="rs">Respond (RS)</MenuItem>
-                    <MenuItem value="rc">Recover (RC)</MenuItem>
+                    {frameworkCode === 'ai_rmf' ? (
+                      <>
+                        <MenuItem value="govern">Govern</MenuItem>
+                        <MenuItem value="map">Map</MenuItem>
+                        <MenuItem value="measure">Measure</MenuItem>
+                        <MenuItem value="manage">Manage</MenuItem>
+                      </>
+                    ) : (
+                      <>
+                        <MenuItem value="gv">Govern (GV)</MenuItem>
+                        <MenuItem value="id">Identify (ID)</MenuItem>
+                        <MenuItem value="pr">Protect (PR)</MenuItem>
+                        <MenuItem value="de">Detect (DE)</MenuItem>
+                        <MenuItem value="rs">Respond (RS)</MenuItem>
+                        <MenuItem value="rc">Recover (RC)</MenuItem>
+                      </>
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
