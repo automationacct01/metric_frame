@@ -53,7 +53,7 @@ A technical overview of MetricFrame's architecture, data flow, and component int
 ┌─────────────────────┐                          ┌─────────────────────────┐
 │    PostgreSQL DB    │                          │    AI Services          │
 │  ┌───────────────┐  │                          │  ┌───────────────────┐  │
-│  │ 208 Metrics   │  │                          │  │ Anthropic Claude  │  │
+│  │ 356 Metrics   │  │                          │  │ Anthropic Claude  │  │
 │  │ Catalogs      │  │                          │  │ (Primary)         │  │
 │  │ Scores        │  │                          │  ├───────────────────┤  │
 │  │ Frameworks    │  │                          │  │ OpenAI GPT        │  │
@@ -105,7 +105,7 @@ Backend ScoringService calculates:
 Response: Function scores + category breakdowns
         │
         ▼
-Frontend renders ScoreCards with RAG colors
+Frontend renders ScoreCards with Red/Amber/Green colors
 ```
 
 ### 2. Metric Creation Flow

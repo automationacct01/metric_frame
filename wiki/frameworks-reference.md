@@ -11,8 +11,8 @@ MetricFrame supports multiple security and AI governance frameworks. This refere
 
 | Framework | Version | Focus | Functions | Metrics |
 |-----------|---------|-------|-----------|---------|
-| **NIST CSF** | 2.0 | Cybersecurity risk management | 6 | 208 |
-| **NIST AI RMF** | 1.0 | AI system risk management | 4 | 18 |
+| **NIST CSF** | 2.0 | Cybersecurity risk management | 6 | 276 |
+| **NIST AI RMF** | 1.0 | AI system risk management | 4 | 80 |
 | **Cyber AI Profile** | 1.0 | AI-enhanced cybersecurity | 6 (extended) | TBD |
 
 ### Framework Comparison
@@ -22,7 +22,7 @@ MetricFrame supports multiple security and AI governance frameworks. This refere
 | **Primary Use** | General cybersecurity | AI systems | AI in security |
 | **Scope** | Organization-wide | AI lifecycle | Security AI systems |
 | **Structure** | Functions/Categories/Subcategories | Functions/Categories/Trustworthiness | Extended CSF |
-| **Metrics in App** | 208 | 18 | TBD |
+| **Metrics in App** | 276 | 80 | TBD |
 | **Maturity** | Established (since 2014) | Newer (2023) | Emerging |
 | **Mandatory For** | US Federal agencies | Voluntary | Voluntary |
 
@@ -52,7 +52,7 @@ Framework
 └── Functions (6)
     └── Categories (23)
         └── Subcategories (108)
-            └── Metrics (208 in app)
+            └── Metrics (276 in app)
 ```
 
 ### 6 Core Functions
@@ -447,7 +447,7 @@ Metric: AI Model Version Control
 │                                                              │
 │  ○ NIST CSF 2.0                                             │
 │    Standard cybersecurity framework                          │
-│    208 metrics | 6 functions                                 │
+│    276 metrics | 6 functions                                 │
 │                                                              │
 │  ○ NIST AI RMF 1.0                                          │
 │    AI risk management framework                              │
