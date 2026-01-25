@@ -453,3 +453,99 @@ export interface CSFSuggestionResponse {
   category_name: string;
   confidence_score: number;
 }
+
+// ==============================================================================
+// AI PROVIDER TYPES
+// ==============================================================================
+
+export type AIAuthType = 'api_key' | 'azure' | 'aws_iam' | 'gcp';
+
+export interface AuthField {
+  name: string;
+  label: string;
+  type: 'text' | 'password' | 'select' | 'textarea';
+  required: boolean;
+  placeholder?: string;
+  help_text?: string;
+  default?: string;
+  options?: string[];
+}
+
+export interface AIModel {
+  id: string;
+  provider_id: string;
+  model_id: string;
+  display_name: string;
+  context_window?: number;
+  max_output_tokens?: number;
+  supports_vision: boolean;
+  cost_per_1k_input?: number;
+  cost_per_1k_output?: number;
+  active: boolean;
+}
+
+export interface AIProvider {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  auth_type: AIAuthType;
+  auth_fields: AuthField[];
+  active?: boolean;
+  created_at?: string;
+  models?: AIModel[];
+  default_model?: string;
+  available?: boolean;
+  unavailable_reason?: string;
+}
+
+export interface AIConfiguration {
+  id: string;
+  user_id: string;
+  provider_id: string;
+  provider_code?: string;
+  provider_name?: string;
+  is_active: boolean;
+  model_id?: string;
+  max_tokens: number;
+  temperature: number;
+  credentials_validated: boolean;
+  last_validated_at?: string;
+  validation_error?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIConfigurationCreate {
+  provider_code: string;
+  credentials: Record<string, string>;
+  model_id?: string;
+  max_tokens?: number;
+  temperature?: number;
+}
+
+export interface AIConfigurationUpdate {
+  credentials?: Record<string, string>;
+  model_id?: string;
+  max_tokens?: number;
+  temperature?: number;
+}
+
+export interface AIValidationResult {
+  valid: boolean;
+  provider_code: string;
+  message?: string;
+  validated_at?: string;
+}
+
+export interface AIProviderStatus {
+  available: boolean;
+  model?: string;
+  provider?: string;
+  dev_mode: boolean;
+  dev_provider?: string;
+  legacy_api_key_present: boolean;
+  supported_providers: string[];
+  supported_modes: string[];
+  supported_frameworks: string[];
+}

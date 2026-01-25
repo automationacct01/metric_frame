@@ -20,16 +20,21 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Save as SaveIcon,
   Refresh as RefreshIcon,
   RestoreFromTrash as ResetIcon,
   Info as InfoIcon,
+  SmartToy as AIIcon,
+  Tune as TuneIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { RISK_RATING_COLORS, RiskRating } from '../types';
+import AIProviderSettings from './settings/AIProviderSettings';
 
 interface RiskThresholds {
   very_low: number;
@@ -77,7 +82,30 @@ const DEFAULT_SETTINGS: AppSettings = {
   timezone: 'UTC',
 };
 
+// Tab panel component
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`settings-tabpanel-${index}`}
+      aria-labelledby={`settings-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
 export default function Settings() {
+  const [activeTab, setActiveTab] = useState(0);
   const [state, setState] = useState<SettingsState>({
     settings: DEFAULT_SETTINGS,
     originalSettings: DEFAULT_SETTINGS,
@@ -241,20 +269,34 @@ export default function Settings() {
     return RiskRating.VERY_HIGH;
   };
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <ContentFrame>
       <Typography variant="h4" component="h1" gutterBottom>
         Settings
       </Typography>
 
-      {state.error && (
-        <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
-          {state.error}
-        </Alert>
-      )}
+      {/* Settings Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
+          <Tab icon={<TuneIcon />} iconPosition="start" label="General" />
+          <Tab icon={<AIIcon />} iconPosition="start" label="AI Configuration" />
+        </Tabs>
+      </Box>
 
-      <Grid container spacing={3}>
-        {/* Risk Thresholds */}
+      {/* General Settings Tab */}
+      <TabPanel value={activeTab} index={0}>
+        {state.error && (
+          <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
+            {state.error}
+          </Alert>
+        )}
+
+        <Grid container spacing={3}>
+          {/* Risk Thresholds */}
         <Grid item xs={12}>
           <Card>
             <CardHeader 
@@ -655,40 +697,46 @@ export default function Settings() {
         </Grid>
       </Grid>
 
-      {/* Action Buttons */}
-      <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-        <Button
-          variant="outlined"
-          onClick={loadSettings}
-          startIcon={<RefreshIcon />}
-          disabled={state.loading}
-        >
-          Refresh
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={resetToDefaults}
-          startIcon={<ResetIcon />}
-          disabled={state.loading}
-        >
-          Reset to Defaults
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={resetSettings}
-          disabled={state.loading || !state.hasChanges}
-        >
-          Cancel Changes
-        </Button>
-        <Button
-          variant="contained"
-          onClick={saveSettings}
-          startIcon={<SaveIcon />}
-          disabled={state.loading || state.saving || !state.hasChanges}
-        >
-          {state.saving ? 'Saving...' : 'Save Settings'}
-        </Button>
-      </Box>
+        {/* Action Buttons */}
+        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+          <Button
+            variant="outlined"
+            onClick={loadSettings}
+            startIcon={<RefreshIcon />}
+            disabled={state.loading}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={resetToDefaults}
+            startIcon={<ResetIcon />}
+            disabled={state.loading}
+          >
+            Reset to Defaults
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={resetSettings}
+            disabled={state.loading || !state.hasChanges}
+          >
+            Cancel Changes
+          </Button>
+          <Button
+            variant="contained"
+            onClick={saveSettings}
+            startIcon={<SaveIcon />}
+            disabled={state.loading || state.saving || !state.hasChanges}
+          >
+            {state.saving ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </Box>
+      </TabPanel>
+
+      {/* AI Configuration Tab */}
+      <TabPanel value={activeTab} index={1}>
+        <AIProviderSettings userId="admin" />
+      </TabPanel>
 
       {/* Snackbar for notifications */}
       <Snackbar

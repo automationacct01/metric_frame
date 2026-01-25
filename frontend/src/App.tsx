@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -162,6 +162,15 @@ function App() {
                 </FrameworkProvider>
               }
             />
+            {/* Backward compatibility redirects for old URLs */}
+            <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+            <Route path="/metrics" element={<Navigate to="/app/metrics" replace />} />
+            <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
+            <Route path="/ai-assistant" element={<Navigate to="/app/ai-assistant" replace />} />
+            <Route path="/catalog-wizard" element={<Navigate to="/app/catalog-wizard" replace />} />
+            <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
+            <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
+            <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
           </Routes>
         </Router>
       </ThemeProvider>

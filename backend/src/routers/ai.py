@@ -1,13 +1,22 @@
-"""AI assistant API endpoints using Claude Sonnet 4.5.
+"""AI assistant API endpoints with multi-provider support.
 
 This router provides AI-powered features:
 - Chat-based metrics management
 - Framework-aware explanations and reports
 - AI metric recommendations
 - Metric enhancement suggestions
+
+Supports multiple AI providers:
+- Anthropic Claude (default)
+- OpenAI GPT-4
+- Together.ai
+- Azure OpenAI
+- AWS Bedrock
+- GCP Vertex AI
 """
 
 import json
+import os
 import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -16,16 +25,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Metric, AIChangeLog
+from ..models import Metric, AIChangeLog, UserAIConfiguration, AIProvider as AIProviderModel
 from ..schemas import (
     AIChatRequest,
-    AIResponse,
+    AIResponse as AIResponseSchema,
     AIApplyRequest,
     AIChangeLogResponse,
     MetricCreate,
     MetricUpdate,
 )
-from ..services.claude_client import claude_client
+from ..services.ai import (
+    BaseAIProvider,
+    ProviderType,
+    ProviderCredentials,
+    AIResponse as ProviderAIResponse,
+    AIProviderError,
+    AuthenticationError,
+    RateLimitError,
+)
+from ..services.ai.provider_factory import get_provider, create_initialized_provider
+from ..services.ai.providers.anthropic_provider import AnthropicProvider, FRAMEWORK_PROMPTS
+from ..services.ai.utils.encryption import CredentialEncryption
 from ..services.scoring import compute_function_scores, get_metrics_needing_attention
 from ..services.metric_recommendations import (
     generate_metric_recommendations,
@@ -37,7 +57,268 @@ from ..services.metric_recommendations import (
 router = APIRouter()
 
 
-@router.post("/chat", response_model=AIResponse)
+# =============================================================================
+# PROVIDER HELPER FUNCTIONS
+# =============================================================================
+
+async def get_active_provider(db: Session, user_id: Optional[UUID] = None) -> BaseAIProvider:
+    """Get the active AI provider for the current context.
+
+    Priority:
+    1. Dev mode: Use system env vars if AI_DEV_MODE=true
+    2. User config: Use user's active AI configuration
+    3. Raise error if no provider configured
+
+    Args:
+        db: Database session
+        user_id: Optional user ID for user-specific config
+
+    Returns:
+        Initialized BaseAIProvider instance
+
+    Raises:
+        HTTPException: If no provider is configured or available
+    """
+    # Check dev mode first (env var override for local development)
+    if os.getenv("AI_DEV_MODE", "").lower() == "true":
+        dev_provider = os.getenv("AI_DEV_PROVIDER", "anthropic").lower()
+        dev_model = os.getenv("AI_DEV_MODEL")
+
+        # Get appropriate credentials based on provider
+        credentials = ProviderCredentials()
+
+        if dev_provider == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but ANTHROPIC_API_KEY not set"
+                )
+            credentials.api_key = api_key
+            provider_type = ProviderType.ANTHROPIC
+
+        elif dev_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but OPENAI_API_KEY not set"
+                )
+            credentials.api_key = api_key
+            provider_type = ProviderType.OPENAI
+
+        elif dev_provider == "together":
+            api_key = os.getenv("TOGETHER_API_KEY")
+            if not api_key:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but TOGETHER_API_KEY not set"
+                )
+            credentials.api_key = api_key
+            provider_type = ProviderType.TOGETHER
+
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Unsupported AI_DEV_PROVIDER: {dev_provider}"
+            )
+
+        provider = await create_initialized_provider(provider_type, credentials)
+        if not provider:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Failed to initialize {dev_provider} provider in dev mode"
+            )
+        return provider
+
+    # Check for legacy env var (backwards compatibility)
+    legacy_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if legacy_api_key and legacy_api_key != "your-anthropic-api-key-here":
+        credentials = ProviderCredentials(api_key=legacy_api_key)
+        provider = await create_initialized_provider(ProviderType.ANTHROPIC, credentials)
+        if provider:
+            return provider
+
+    # If user_id provided, check for user's active configuration
+    if user_id:
+        user_config = (
+            db.query(UserAIConfiguration)
+            .filter(
+                UserAIConfiguration.user_id == user_id,
+                UserAIConfiguration.is_active == True,
+                UserAIConfiguration.credentials_validated == True,
+            )
+            .first()
+        )
+
+        if user_config:
+            # Get provider type from database
+            ai_provider = db.query(AIProviderModel).filter(
+                AIProviderModel.id == user_config.provider_id
+            ).first()
+
+            if ai_provider:
+                provider_type = ProviderType(ai_provider.code)
+
+                # Decrypt credentials
+                encryption = CredentialEncryption()
+                decrypted = encryption.decrypt_credentials(user_config.encrypted_credentials)
+                credentials = ProviderCredentials(**decrypted)
+
+                provider = await create_initialized_provider(provider_type, credentials)
+                if provider:
+                    return provider
+
+    raise HTTPException(
+        status_code=403,
+        detail="Please configure an AI provider in Settings > AI Configuration"
+    )
+
+
+def get_system_prompt_for_mode(mode: str, framework: str = "csf_2_0") -> str:
+    """Generate system prompt based on mode and framework.
+
+    Args:
+        mode: Operation mode (metrics, explain, report, recommendations)
+        framework: Framework code (csf_2_0, ai_rmf, cyber_ai_profile)
+
+    Returns:
+        System prompt string
+    """
+    fw = FRAMEWORK_PROMPTS.get(framework, FRAMEWORK_PROMPTS["csf_2_0"])
+    framework_context = f"{fw['name']}\n{fw['functions']}\n{fw['categories']}"
+    fw_name = fw['name']
+
+    if mode == "metrics":
+        return f"""You are a cybersecurity metrics assistant specializing in {fw_name}.
+
+{framework_context}
+
+When asked to add or modify metrics, respond ONLY with valid JSON matching this schema:
+
+{{
+  "assistant_message": "Brief explanation of what you're creating/modifying",
+  "actions": [
+    {{
+      "action": "add_metric",
+      "metric": {{
+        "name": "Clear, specific metric name",
+        "description": "Plain-language definition of what this measures",
+        "formula": "Human-readable calculation method",
+        "framework": "{framework}",
+        "function_code": "function_code (e.g., gv, id, pr, de, rs, rc for CSF)",
+        "category_code": "category_code (e.g., GV.OC, ID.AM)",
+        "priority_rank": 1|2|3,
+        "direction": "higher_is_better|lower_is_better|target_range|binary",
+        "target_value": 95.0,
+        "target_units": "%|count|days|hours|boolean",
+        "owner_function": "GRC|SecOps|IAM|IT Ops|IR|BCP|CISO",
+        "collection_frequency": "daily|weekly|monthly|quarterly|ad_hoc",
+        "data_source": "Tool or process providing data"
+      }}
+    }}
+  ],
+  "needs_confirmation": true
+}}
+
+Focus on outcome-based metrics that help communicate risk to executives. Set realistic enterprise targets."""
+
+    elif mode == "explain":
+        return f"""You are a cybersecurity metrics expert specializing in {fw_name}.
+
+{framework_context}
+
+Explain metrics, scoring, and risk concepts in clear business language. Focus on:
+- What the metric measures and why it matters
+- How scores are calculated (gap-to-target methodology)
+- Business impact of current performance
+- Recommendations for improvement
+
+Use non-technical language suitable for executives and board members."""
+
+    elif mode == "report":
+        return f"""Generate executive-ready cybersecurity risk narrative based on {fw_name} function scores.
+
+{framework_context}
+
+Focus on:
+- Material gaps to target performance
+- Business risk implications
+- Key trends (if data available)
+- Prioritized improvement areas
+
+Use clear, non-technical language appropriate for CISO briefings to executives and board members.
+Keep narrative concise (1-2 paragraphs per function with significant gaps)."""
+
+    elif mode == "recommendations":
+        return f"""You are a cybersecurity metrics strategist. Based on the current metric coverage and scores, recommend new metrics to improve security posture visibility.
+
+{framework_context}
+
+Analyze gaps in framework coverage and recommend metrics that would:
+1. Fill coverage gaps in underrepresented functions/categories
+2. Address areas with low scores or missing data
+3. Align with industry best practices
+4. Support executive decision-making
+
+Respond with JSON:
+{{
+  "recommendations": [
+    {{
+      "metric_name": "Recommended metric name",
+      "description": "What it measures",
+      "function_code": "target_function",
+      "category_code": "target_category",
+      "priority": 1|2|3,
+      "rationale": "Why this metric is recommended",
+      "expected_impact": "How this improves security visibility"
+    }}
+  ],
+  "gap_analysis": {{
+    "underrepresented_functions": ["list of functions with few metrics"],
+    "coverage_percentage": 75.0,
+    "overall_assessment": "Summary of current coverage state"
+  }}
+}}"""
+
+    else:
+        # Default to explain mode
+        return f"""You are a cybersecurity assistant specializing in {fw_name}.
+
+{framework_context}
+
+Provide helpful, accurate information about cybersecurity metrics, frameworks, and best practices."""
+
+
+def get_default_model_for_provider(provider: BaseAIProvider) -> str:
+    """Get the default model ID for a provider.
+
+    Args:
+        provider: The AI provider instance
+
+    Returns:
+        Default model ID string
+    """
+    if isinstance(provider, AnthropicProvider):
+        return "claude-sonnet-4-5-20250929"
+
+    # Check provider type for other providers
+    if hasattr(provider, 'provider_type'):
+        if provider.provider_type == ProviderType.OPENAI:
+            return "gpt-4o"
+        elif provider.provider_type == ProviderType.TOGETHER:
+            return "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+        elif provider.provider_type == ProviderType.AZURE:
+            return "gpt-4o"  # Azure deployments vary
+        elif provider.provider_type == ProviderType.BEDROCK:
+            return "anthropic.claude-3-5-sonnet-20241022-v2:0"
+        elif provider.provider_type == ProviderType.VERTEX:
+            return "gemini-1.5-pro"
+
+    return "default"
+
+
+@router.post("/chat", response_model=AIResponseSchema)
 async def ai_chat(
     request: AIChatRequest,
     framework: str = Query("csf_2_0", description="Framework code (csf_2_0, ai_rmf, cyber_ai_profile)"),
@@ -57,13 +338,6 @@ async def ai_chat(
     - ai_rmf: NIST AI Risk Management Framework 1.0
     - cyber_ai_profile: NIST Cyber AI Profile (extends CSF 2.0)
     """
-
-    if not claude_client.is_available():
-        raise HTTPException(
-            status_code=503,
-            detail="Claude AI service is not available. Please check ANTHROPIC_API_KEY configuration."
-        )
-
     # Validate framework
     valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
     if framework not in valid_frameworks:
@@ -73,24 +347,28 @@ async def ai_chat(
         )
 
     try:
+        # Get active AI provider
+        provider = await get_active_provider(db)
+        model = get_default_model_for_provider(provider)
+
         # Prepare context based on mode
-        context = None
+        context_str = ""
 
         if request.mode == "report":
             # Get current scores for report generation
             function_scores = compute_function_scores(db)
             attention_metrics = get_metrics_needing_attention(db, limit=5)
-            context = {
+            context_str = json.dumps({
                 "framework": framework,
                 "function_scores": [fs.model_dump() for fs in function_scores],
-                "metrics_needing_attention": attention_metrics[:3],  # Top 3 for context
-            }
+                "metrics_needing_attention": attention_metrics[:3],
+            })
 
         elif request.mode == "metrics" and request.context_opts:
             # Get existing metrics context if requested
             if request.context_opts.get("include_existing_metrics"):
                 existing_metrics = db.query(Metric).filter(Metric.active == True).limit(20).all()
-                context = {
+                context_str = json.dumps({
                     "framework": framework,
                     "existing_metrics": [
                         {
@@ -100,15 +378,44 @@ async def ai_chat(
                         }
                         for m in existing_metrics
                     ]
-                }
+                })
 
-        # Generate AI response using Claude
-        ai_response = await claude_client.generate_response(
-            message=request.message,
-            mode=request.mode,
-            framework=framework,
-            context=context
+        # Build messages for provider
+        system_prompt = get_system_prompt_for_mode(request.mode, framework)
+        user_message = request.message
+        if context_str:
+            user_message = f"Context:\n{context_str}\n\nRequest:\n{request.message}"
+
+        messages = [{"role": "user", "content": user_message}]
+
+        # Generate AI response using provider
+        response = await provider.generate_response(
+            messages=messages,
+            model=model,
+            system_prompt=system_prompt,
+            max_tokens=4096,
+            temperature=0.7,
         )
+
+        # Parse response based on mode
+        if request.mode == "metrics":
+            # Try to parse JSON response for metrics mode
+            try:
+                parsed = json.loads(response.content)
+                ai_response = parsed
+            except json.JSONDecodeError:
+                # If not valid JSON, wrap in standard format
+                ai_response = {
+                    "assistant_message": response.content,
+                    "actions": [],
+                    "needs_confirmation": False,
+                }
+        else:
+            ai_response = {
+                "assistant_message": response.content,
+                "actions": [],
+                "needs_confirmation": False,
+            }
 
         # Log the interaction
         change_log = AIChangeLog(
@@ -119,8 +426,12 @@ async def ai_chat(
         db.add(change_log)
         db.commit()
 
-        return AIResponse(**ai_response)
+        return AIResponseSchema(**ai_response)
 
+    except HTTPException:
+        raise
+    except AIProviderError as e:
+        raise HTTPException(status_code=503, detail=f"AI provider error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI chat error: {str(e)}")
 
@@ -291,14 +602,11 @@ async def suggest_improvements(
     db: Session = Depends(get_db),
 ):
     """Get AI suggestions for improving metrics or scores."""
-
-    if not claude_client.is_available():
-        raise HTTPException(
-            status_code=503,
-            detail="Claude AI service is not available"
-        )
-
     try:
+        # Get active AI provider
+        provider = await get_active_provider(db)
+        model = get_default_model_for_provider(provider)
+
         # Get current performance data
         function_scores = compute_function_scores(db)
         attention_metrics = get_metrics_needing_attention(db, limit=10)
@@ -309,23 +617,28 @@ async def suggest_improvements(
             attention_metrics = [m for m in attention_metrics if m["csf_function"] == function_code]
 
         # Generate improvement suggestions
-        context = {
+        context_str = json.dumps({
             "framework": framework,
             "function_scores": [fs.model_dump() for fs in function_scores],
             "metrics_needing_attention": attention_metrics,
-        }
+        })
 
         message = f"Based on the current metrics performance, what are the top 3 improvement recommendations for {'function ' + function_code if function_code else 'overall cybersecurity posture'}?"
+        user_message = f"Context:\n{context_str}\n\nRequest:\n{message}"
 
-        ai_response = await claude_client.generate_response(
-            message=message,
-            mode="explain",
-            framework=framework,
-            context=context
+        system_prompt = get_system_prompt_for_mode("explain", framework)
+        messages = [{"role": "user", "content": user_message}]
+
+        response = await provider.generate_response(
+            messages=messages,
+            model=model,
+            system_prompt=system_prompt,
+            max_tokens=2048,
+            temperature=0.7,
         )
 
         return {
-            "recommendations": ai_response["assistant_message"],
+            "recommendations": response.content,
             "based_on": {
                 "framework": framework,
                 "function_count": len(function_scores),
@@ -334,18 +647,48 @@ async def suggest_improvements(
             }
         }
 
+    except HTTPException:
+        raise
+    except AIProviderError as e:
+        raise HTTPException(status_code=503, detail=f"AI provider error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating suggestions: {str(e)}")
 
 
 @router.get("/status")
-async def get_ai_status():
+async def get_ai_status(db: Session = Depends(get_db)):
     """Get AI service status and configuration."""
+    # Check what provider is available
+    available = False
+    provider_name = None
+    model = None
+
+    try:
+        # Try to get active provider
+        provider = await get_active_provider(db)
+        available = True
+        provider_name = provider.provider_type.value
+        model = get_default_model_for_provider(provider)
+    except HTTPException:
+        # No provider configured
+        pass
+
+    # Check dev mode status
+    dev_mode = os.getenv("AI_DEV_MODE", "").lower() == "true"
+    dev_provider = os.getenv("AI_DEV_PROVIDER", "anthropic") if dev_mode else None
+
+    # Check legacy API key
+    legacy_key = os.getenv("ANTHROPIC_API_KEY")
+    legacy_available = bool(legacy_key and legacy_key != "your-anthropic-api-key-here")
 
     return {
-        "available": claude_client.is_available(),
-        "model": claude_client.model,
-        "provider": "anthropic",
+        "available": available,
+        "model": model,
+        "provider": provider_name,
+        "dev_mode": dev_mode,
+        "dev_provider": dev_provider,
+        "legacy_api_key_present": legacy_available,
+        "supported_providers": ["anthropic", "openai", "together", "azure", "bedrock", "vertex"],
         "supported_modes": ["metrics", "explain", "report", "recommendations"],
         "supported_frameworks": ["csf_2_0", "ai_rmf", "cyber_ai_profile"],
     }
@@ -369,10 +712,13 @@ async def get_ai_recommendations(
     - Addressing areas with low scores or missing data
     - Aligning with industry best practices
     """
-    if not claude_client.is_available():
+    try:
+        # Verify we have an active provider
+        await get_active_provider(db)
+    except HTTPException:
         raise HTTPException(
             status_code=503,
-            detail="Claude AI service is not available"
+            detail="AI service is not available. Please configure an AI provider."
         )
 
     result = await generate_metric_recommendations(db, framework, max_recommendations)
@@ -417,10 +763,13 @@ async def suggest_metrics_for_coverage_gap(
 
     Optionally focus on a specific function or category to get targeted suggestions.
     """
-    if not claude_client.is_available():
+    try:
+        # Verify we have an active provider
+        await get_active_provider(db)
+    except HTTPException:
         raise HTTPException(
             status_code=503,
-            detail="Claude AI service is not available"
+            detail="AI service is not available. Please configure an AI provider."
         )
 
     result = await suggest_metrics_for_gap(
@@ -474,12 +823,6 @@ async def generate_metric_from_name(
 
     Returns a preview of the metric for user confirmation before saving.
     """
-    if not claude_client.is_available():
-        raise HTTPException(
-            status_code=503,
-            detail="Claude AI service is not available. Please check ANTHROPIC_API_KEY configuration."
-        )
-
     # Get framework functions and categories for context
     from ..models import Framework, FrameworkFunction, FrameworkCategory
 
@@ -504,10 +847,11 @@ async def generate_metric_from_name(
             for subcat in subcategories:
                 subcategory_info.append(f"{subcat.code}: {subcat.outcome[:60]}...")
 
+    response_text = ""
     try:
-        # Use Claude directly for simpler, more controlled response
-        from anthropic import Anthropic
-        client = Anthropic(api_key=claude_client.api_key)
+        # Get active AI provider
+        provider = await get_active_provider(db)
+        model = get_default_model_for_provider(provider)
 
         system_prompt = f"""You are a cybersecurity metrics expert. Generate metric definitions for {fw.name}.
 
@@ -537,15 +881,18 @@ Rules:
 - formula: REQUIRED - provide a clear calculation formula as a ratio (e.g., "Patched Systems / Total Systems"). Do NOT include "× 100" conversion - the system handles percentage display automatically
 - risk_definition: REQUIRED - explain why an organization needs to track this metric and what business risk it addresses (1-2 sentences)"""
 
-        response = client.messages.create(
-            model=claude_client.model,
+        messages = [{"role": "user", "content": user_prompt}]
+
+        response = await provider.generate_response(
+            messages=messages,
+            model=model,
+            system_prompt=system_prompt,
             max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}]
+            temperature=0.7,
         )
 
         # Extract text response
-        response_text = response.content[0].text.strip()
+        response_text = response.content.strip()
 
         # Clean up response - remove markdown code blocks if present
         if response_text.startswith("```"):
@@ -629,12 +976,16 @@ Rules:
             "message": "Metric generated successfully. Please review and confirm."
         }
 
+    except HTTPException:
+        raise
+    except AIProviderError as e:
+        raise HTTPException(status_code=503, detail=f"AI provider error: {str(e)}")
     except json.JSONDecodeError as e:
         # Return partial data if JSON parsing fails
         return {
             "success": False,
             "error": f"Failed to parse AI response: {str(e)}",
-            "raw_response": response_text if 'response_text' in dir() else "",
+            "raw_response": response_text,
             "metric": {
                 "name": metric_name,
                 "description": "",
