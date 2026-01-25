@@ -103,7 +103,7 @@ GET /metrics
         "updated_at": "2026-01-15T10:30:00Z"
       }
     ],
-    "total": 208,
+    "total": 356,
     "page": 1,
     "page_size": 25
   }
@@ -250,7 +250,7 @@ GET /scores/overview
     "catalog": {
       "id": "uuid",
       "name": "Default Catalog",
-      "metric_count": 208
+      "metric_count": 356
     }
   }
 }
@@ -1024,6 +1024,115 @@ GET /frameworks/{framework_id}/functions/{function_code}/categories
 | `AI_ERROR` | 502 | AI service error |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
+## Demo Router
+
+Base path: `/api/v1/demo`
+
+The demo router provides endpoints for demo session management and limited feature access. Demo mode allows users to try the application without full authentication.
+
+### Create Demo Session
+
+```http
+POST /demo/session
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "session_id": "secure_token",
+  "email": "user@example.com",
+  "video_skipped": false,
+  "demo_started_at": null,
+  "demo_expires_at": null,
+  "expired": false,
+  "quotas": {
+    "csf_metrics_created": 0,
+    "csf_metrics_max": 2,
+    "ai_rmf_metrics_created": 0,
+    "ai_rmf_metrics_max": 2
+  }
+}
+```
+
+### Start Demo Session
+
+```http
+POST /demo/session/{session_id}/start
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "video_skipped": false
+}
+```
+
+Starts the 24-hour demo window and enables full demo access.
+
+### Get Demo Metrics
+
+```http
+GET /demo/metrics?framework=csf_2_0
+X-Demo-Session: {session_id}
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `framework` | string | `csf_2_0` or `ai_rmf` |
+
+Returns a limited set of metrics (1 per category) for the specified framework.
+
+### Demo AI Chat Status
+
+```http
+GET /demo/ai/chat-status?framework=csf_2_0
+X-Demo-Session: {session_id}
+```
+
+Returns available AI chat starters, refinement options, and quota status.
+
+### Demo Guided Chat
+
+```http
+POST /demo/ai/guided-chat
+X-Demo-Session: {session_id}
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "starter_id": "csf-mfa",
+  "framework": "csf_2_0",
+  "refinement_id": "adjust-target-higher"
+}
+```
+
+Security-hardened endpoint that only accepts pre-defined starter IDs (no free-form prompts).
+
+### Demo AI Quota
+
+```http
+GET /demo/ai/quota
+X-Demo-Session: {session_id}
+```
+
+Returns current AI metric creation quota (2 per framework).
+
+---
+
 ## Rate Limiting
 
 | Endpoint Type | Limit |
@@ -1031,6 +1140,7 @@ GET /frameworks/{framework_id}/functions/{function_code}/categories
 | Standard endpoints | 100 req/min |
 | AI endpoints | 20 req/min |
 | Export endpoints | 10 req/min |
+| Demo endpoints | 30 req/min |
 
 Rate limit headers included in responses:
 ```http

@@ -13,14 +13,14 @@ MetricFrame is a comprehensive web application for managing and visualizing cybe
 
 | Feature | Description |
 |---------|-------------|
-| **226 Pre-Configured Metrics** | 208 CSF 2.0 + 18 AI RMF metrics |
+| **356 Pre-Configured Metrics** | 276 CSF 2.0 + 80 AI RMF metrics |
 | **Multi-Framework Support** | NIST CSF 2.0 and AI RMF 1.0 with unified dashboard |
 | **10 Framework Functions** | 6 CSF + 4 AI RMF functions |
 | **7 AI Trustworthiness Types** | Track AI system trustworthiness characteristics |
 | **AI Integration** | Claude-powered metrics creation and analysis |
 | **Bring Your Own Catalog** | Import and manage custom metric catalogs |
 | **Gap-to-Target Scoring** | Transparent weighted risk calculations |
-| **Executive Dashboard** | RAG-colored risk visualization |
+| **Executive Dashboard** | Red/Amber/Green risk visualization |
 | **Column Tooltips** | Hover over any column header for field explanations |
 
 ## How It Works
@@ -29,7 +29,7 @@ MetricFrame is a comprehensive web application for managing and visualizing cybe
 +-------------------+     +-------------------+     +-------------------+
 |                   |     |                   |     |                   |
 |   React Frontend  |<--->|  FastAPI Backend  |<--->|   PostgreSQL DB   |
-|   Material-UI     |     |  SQLAlchemy ORM   |     |   208 Metrics     |
+|   Material-UI     |     |  SQLAlchemy ORM   |     |   356 Metrics     |
 |                   |     |                   |     |                   |
 +-------------------+     +-------------------+     +-------------------+
          |                        |
@@ -54,8 +54,8 @@ MetricFrame is a comprehensive web application for managing and visualizing cybe
 
 | Framework | Functions | Metrics | Focus |
 |-----------|-----------|---------|-------|
-| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 208 | Cybersecurity risk |
-| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 18 | AI trustworthiness |
+| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 276 | Cybersecurity risk |
+| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 80 | AI trustworthiness |
 
 See [Frameworks Reference](frameworks-reference.md) for detailed information about each framework.
 
@@ -63,7 +63,7 @@ See [Frameworks Reference](frameworks-reference.md) for detailed information abo
 
 The application is under active development with the following features implemented:
 
-- Executive risk dashboard with RAG scoring
+- Executive risk dashboard with color-coded risk scoring
 - Complete metrics CRUD operations
 - Multi-framework support (CSF 2.0 and AI RMF 1.0)
 - Multi-catalog support (BYOC)
@@ -77,17 +77,19 @@ The application is under active development with the following features implemen
 
 | Section | Purpose |
 |---------|---------|
-| **Score Cards** | Function-level risk scores with RAG coloring |
+| **Score Cards** | Function-level risk scores with Red/Amber/Green coloring |
 | **CSF Coverage** | Visual coverage map across framework categories |
 | **Metrics Grid** | Filterable table of all KRIs |
 | **AI Chat** | Natural language metrics assistant |
 | **Catalog Manager** | Custom catalog administration |
+| **Demo Mode** | Try features with simulated data (access via `/demo`) |
 
 ## Quick Links
 
 | Documentation | Description |
 |---------------|-------------|
 | [Getting Started](getting-started.md) | Quick setup guide (5 minutes) |
+| [Demo Mode](demo-mode.md) | Try features without configuration |
 | [How It Works](how-it-works.md) | System architecture overview |
 | [Dashboard Guide](dashboard.md) | Executive dashboard features |
 | [Metrics Management](metrics-management.md) | Working with KRIs |
