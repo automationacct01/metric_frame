@@ -5,7 +5,7 @@
 
 ---
 
-Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 208 pre-configured metrics, catalog system, and import/export capabilities.
+Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 356 pre-configured metrics (276 CSF + 80 AI RMF), catalog system, and import/export capabilities.
 
 ## Metrics Overview
 
@@ -23,9 +23,9 @@ Metrics in MetricFrame represent measurable security KRIs that track your organi
 | **CSF Category** | Specific category | PR.AA |
 | **Priority** | Importance weighting | High |
 
-## 208 Pre-Configured Metrics
+## 356 Pre-Configured Metrics
 
-The application includes a comprehensive library of security metrics:
+The application includes a comprehensive library of security metrics (276 CSF 2.0 + 80 AI RMF):
 
 ### Distribution by Function
 
@@ -108,7 +108,7 @@ The MetricsGrid component provides a comprehensive interface for metric manageme
 │  └────────┴──────────────────┴─────────┴────────┴───────┴────────┴───────┘ │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  PAGINATION                                                                  │
-│  Showing 1-25 of 208 metrics  [◀ Prev] [1] [2] [3] ... [9] [Next ▶]         │
+│  Showing 1-25 of 356 metrics  [◀ Prev] [1] [2] [3] ... [15] [Next ▶]        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 

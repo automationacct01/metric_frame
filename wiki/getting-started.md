@@ -61,7 +61,7 @@ This script will:
 1. Build Docker containers
 2. Start PostgreSQL database
 3. Run database migrations
-4. Seed 208 pre-configured metrics
+4. Seed 356 pre-configured metrics
 5. Launch frontend and backend services
 
 ### Step 4: Verify Installation
@@ -83,22 +83,32 @@ docker compose ps
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Frontend** | http://localhost:5173 | Main dashboard |
+| **Landing Page** | http://localhost:5173 | Marketing & entry point |
+| **Main App** | http://localhost:5173/app | Dashboard & full features |
+| **Demo Mode** | http://localhost:5173/demo | Try features without setup |
 | **API Docs** | http://localhost:8000/docs | Swagger UI |
 | **Database** | localhost:5432 | PostgreSQL (user: postgres) |
 
 ## First Steps After Setup
 
-### 1. Explore the Dashboard
+### 1. Try Demo Mode (Quick Preview)
 
-Navigate to http://localhost:5173 to see the executive dashboard:
+Visit http://localhost:5173/demo to experience the application without configuration:
+- Enter any email to start a demo session
+- Explore the dashboard with simulated data
+- Test AI features with limited quota
+- No API keys required
+
+### 2. Explore the Full Dashboard
+
+Navigate to http://localhost:5173/app to see the executive dashboard:
 - View risk score cards for each CSF function
-- Explore the pre-loaded 208 metrics
+- Explore the pre-loaded 356 metrics
 - Check framework coverage visualization
 
-### 2. Review Pre-Loaded Metrics
+### 3. Review Pre-Loaded Metrics
 
-The application seeds 208 metrics distributed across NIST CSF 2.0 functions:
+The application seeds 276 CSF 2.0 metrics distributed across functions:
 
 | Function | Metrics | Examples |
 |----------|---------|----------|
@@ -109,14 +119,14 @@ The application seeds 208 metrics distributed across NIST CSF 2.0 functions:
 | RESPOND | 28 | MTTR, incident containment |
 | RECOVER | 28 | RTO achievement, backup success |
 
-### 3. Try the AI Assistant
+### 4. Try the AI Assistant
 
 If you configured API keys, test the AI assistant:
 1. Click the AI Chat icon
 2. Try: "Create a metric for tracking phishing test click rates"
 3. Review the generated metric structure
 
-### 4. Import Custom Metrics
+### 5. Import Custom Metrics
 
 Use the Catalog Manager to import your own metrics:
 1. Navigate to Catalogs > Import
@@ -158,7 +168,7 @@ Customize risk rating thresholds:
 The application includes comprehensive seed data:
 
 ### Metrics Seed (`backend/src/seeds/`)
-- 208 pre-configured cybersecurity KRIs
+- 356 pre-configured KRIs (276 CSF 2.0 + 80 AI RMF)
 - Aligned to NIST CSF 2.0 categories
 - Includes targets, directions, and priorities
 - Realistic current values for demonstration

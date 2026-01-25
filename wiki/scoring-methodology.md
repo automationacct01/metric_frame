@@ -423,7 +423,7 @@ Compare scores across catalogs:
 ┌─────────────────────────────────────────────────────────┐
 │  CATALOG COMPARISON: PROTECT Function                    │
 ├─────────────────────────────────────────────────────────┤
-│  Default Catalog (208 metrics)           79.2%          │
+│  Default Catalog (356 metrics)           79.2%          │
 │  ████████████████░░░░                    LOW            │
 │                                                          │
 │  Q4 Security Catalog (45 metrics)        72.8%          │
