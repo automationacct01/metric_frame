@@ -129,6 +129,9 @@ export default function PricingSection() {
           <Typography variant="body2" color="text.secondary">
             All plans include a 14-day free trial. No credit card required.
           </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Need support for additional frameworks? Contact us to discuss custom framework expansion.
+          </Typography>
         </Box>
       </Container>
     </Box>

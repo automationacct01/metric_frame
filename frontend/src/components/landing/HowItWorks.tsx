@@ -91,109 +91,85 @@ export default function HowItWorks() {
         </Box>
 
         {/* Steps */}
-        <Grid container spacing={4}>
-          {steps.map((step, index) => (
-            <Grid item xs={12} sm={6} md={3} key={step.number}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 4,
-                  height: '100%',
-                  textAlign: 'center',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 3,
-                  position: 'relative',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 10px 40px -15px rgba(14, 165, 233, 0.3)',
-                    borderColor: '#0ea5e9',
-                  },
-                }}
-              >
-                {/* Step Number */}
-                <Typography
-                  variant="h6"
+        <Box sx={{ position: 'relative' }}>
+          <Grid container spacing={4}>
+            {steps.map((step) => (
+              <Grid item xs={12} sm={6} md={3} key={step.number}>
+                <Paper
+                  elevation={0}
                   sx={{
-                    color: '#0ea5e9',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    letterSpacing: 2,
-                    mb: 2,
+                    p: 4,
+                    height: '100%',
+                    textAlign: 'center',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 3,
+                    position: 'relative',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 10px 40px -15px rgba(14, 165, 233, 0.3)',
+                      borderColor: '#0ea5e9',
+                    },
                   }}
                 >
-                  STEP {step.number}
-                </Typography>
+                  {/* Step Number */}
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: '#0ea5e9',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      letterSpacing: 2,
+                      mb: 2,
+                    }}
+                  >
+                    STEP {step.number}
+                  </Typography>
 
-                {/* Icon */}
-                <Box
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    backgroundColor: '#0ea5e915',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 3,
-                    color: '#0ea5e9',
-                  }}
-                >
-                  {step.icon}
-                </Box>
-
-                {/* Title */}
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 2,
-                  }}
-                >
-                  {step.title}
-                </Typography>
-
-                {/* Description */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: 'text.secondary',
-                    lineHeight: 1.7,
-                  }}
-                >
-                  {step.description}
-                </Typography>
-
-                {/* Connector Line (not on last item) */}
-                {index < steps.length - 1 && (
+                  {/* Icon */}
                   <Box
                     sx={{
-                      display: { xs: 'none', md: 'block' },
-                      position: 'absolute',
-                      top: '50%',
-                      right: -32,
-                      width: 64,
-                      height: 2,
-                      backgroundColor: '#e5e7eb',
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        right: 0,
-                        top: -4,
-                        width: 0,
-                        height: 0,
-                        borderTop: '5px solid transparent',
-                        borderBottom: '5px solid transparent',
-                        borderLeft: '8px solid #e5e7eb',
-                      },
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      backgroundColor: '#0ea5e915',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mx: 'auto',
+                      mb: 3,
+                      color: '#0ea5e9',
                     }}
-                  />
-                )}
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+                  >
+                    {step.icon}
+                  </Box>
+
+                  {/* Title */}
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 2,
+                    }}
+                  >
+                    {step.title}
+                  </Typography>
+
+                  {/* Description */}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.secondary',
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    {step.description}
+                  </Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
       </Container>
     </Box>
   );

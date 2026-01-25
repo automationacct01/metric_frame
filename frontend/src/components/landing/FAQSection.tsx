@@ -29,7 +29,7 @@ const faqs = [
   {
     question: 'Does MetricFrame support custom frameworks?',
     answer:
-      'Currently, MetricFrame supports NIST CSF 2.0 and NIST AI RMF 1.0 frameworks. However, our Bring Your Own Catalog feature allows you to import any metrics you want, regardless of their original framework. Our AI will help map them to NIST subcategories while preserving your original categorization.',
+      'Currently, MetricFrame supports NIST CSF 2.0 and NIST AI RMF 1.0 frameworks. However, our Bring Your Own Catalog feature allows you to import any metrics you want, regardless of their original framework. Our AI will help map them to NIST subcategories while preserving your original categorization. The platform can also expand to support additional frameworks upon request—contact us to discuss your specific framework needs.',
   },
   {
     question: 'Is my data secure?',

@@ -13,17 +13,17 @@ const features = [
     title: 'Executive Dashboard',
     description:
       'See your entire AI and cybersecurity posture at a glance. Risk scores across all 6 NIST CSF 2.0 functions give you instant visibility into what needs attention.',
-    badge: 'Core',
+    badge: 'Visual',
     badgeColor: '#0ea5e9',
-    image: '', // Placeholder - will be /landing/screenshots/dashboard-hero.png
+    placeholderType: 'dashboard',
   },
   {
-    title: 'Risk Scores',
+    title: 'Coverage Map',
     description:
-      'Color-coded risk indicators (Red/Amber/Green) make it easy to identify problem areas and communicate status to leadership without technical jargon.',
-    badge: 'Visual',
+      'Visualize your metric coverage across all NIST CSF categories. Quickly identify gaps in your measurement strategy and prioritize where to focus next.',
+    badge: 'Coverage',
     badgeColor: '#059669',
-    image: '', // Placeholder - will be /landing/screenshots/dashboard-rag.png
+    placeholderType: 'coverage-map',
   },
   {
     title: 'Metrics Grid',
@@ -31,23 +31,23 @@ const features = [
       'View, filter, and manage all 250+ metrics in one place. Sort by function, priority, or score to focus on what matters most.',
     badge: 'Data',
     badgeColor: '#7c3aed',
-    image: '', // Placeholder - will be /landing/screenshots/metrics-grid.png
+    placeholderType: 'metrics-grid',
   },
   {
     title: 'AI-Powered Metrics',
     description:
       'Create metrics using natural language. Describe what you want to measure, and our AI generates the metric, formula, and framework mapping automatically.',
-    badge: 'AI',
-    badgeColor: '#dc2626',
-    image: '', // Placeholder - will be /landing/screenshots/ai-chat.png
+    badge: 'AI Chat',
+    badgeColor: '#8b5cf6',
+    placeholderType: 'ai-chat',
   },
   {
     title: 'Catalog Wizard',
     description:
       'Import your existing metrics via CSV with our guided wizard. AI automatically maps them to NIST subcategories while preserving your original categorization.',
     badge: 'Import',
-    badgeColor: '#d97706',
-    image: '', // Placeholder - will be /landing/screenshots/catalog-wizard.png
+    badgeColor: '#ec4899',
+    placeholderType: 'catalog-wizard',
   },
   {
     title: 'Inline Editing',
@@ -55,7 +55,7 @@ const features = [
       'Update metric values directly in the grid—whether entering baseline data manually or updating as automated feeds come online. Lock/unlock controls ensure data integrity while keeping updates quick and easy.',
     badge: 'Edit',
     badgeColor: '#0891b2',
-    image: '', // Placeholder - will be /landing/gifs/inline-editing.gif
+    placeholderType: 'inline-editing',
   },
 ];
 
@@ -90,7 +90,7 @@ export default function FeatureShowcase() {
               mb: 2,
             }}
           >
-            Everything You Need to Manage AI and Security Metrics
+            Everything You Need to Manage AI and Cybersecurity Metrics
           </Typography>
           <Typography
             variant="body1"
@@ -112,9 +112,9 @@ export default function FeatureShowcase() {
               <FeatureCard
                 title={feature.title}
                 description={feature.description}
-                image={feature.image || undefined}
                 badge={feature.badge}
                 badgeColor={feature.badgeColor}
+                placeholderType={feature.placeholderType}
               />
             </Grid>
           ))}
