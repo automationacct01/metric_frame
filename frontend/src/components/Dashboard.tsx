@@ -380,9 +380,37 @@ export default function Dashboard() {
   const overallRating = frameworkScores?.overall_risk_rating ?? dashboard?.overall_risk_rating ?? 'medium';
   const totalMetrics = frameworkScores?.total_metrics ?? dashboard?.total_metrics ?? 0;
   const metricsWithData = frameworkScores?.metrics_with_data ?? dashboard?.total_metrics ?? 0;
-  const metricsAtTargetPct = dashboard?.metrics_at_target_pct ?? (metricsWithData > 0 ? Math.round((metricsWithData / totalMetrics) * 100) : 0);
-  const metricsBelowTarget = dashboard?.metrics_below_target ?? (totalMetrics - metricsWithData);
-  const riskDistribution = dashboard?.risk_distribution ?? {};
+
+  // Calculate metrics at target from function scores if dashboard data not available
+  const calculateMetricsAtTarget = () => {
+    if (dashboard?.metrics_at_target_pct !== undefined) return dashboard.metrics_at_target_pct;
+    if (!frameworkScores?.function_scores?.length) return 0;
+    // Estimate: metrics at target based on weighted average of function scores
+    const totalMetricsFromFunctions = frameworkScores.function_scores.reduce((sum, f) => sum + f.metrics_count, 0);
+    const weightedAtTarget = frameworkScores.function_scores.reduce((sum, f) => {
+      // Approximate metrics at target as (score% / 100) * metrics_count
+      return sum + (f.score_pct / 100) * f.metrics_count;
+    }, 0);
+    return totalMetricsFromFunctions > 0 ? Math.round((weightedAtTarget / totalMetricsFromFunctions) * 100) : 0;
+  };
+
+  const metricsAtTargetPct = calculateMetricsAtTarget();
+
+  // Calculate below target metrics
+  const metricsBelowTarget = dashboard?.metrics_below_target ?? Math.round(totalMetrics * (1 - metricsAtTargetPct / 100));
+
+  // Calculate high risk functions from function_scores if riskDistribution not available
+  const calculateHighRiskFunctions = () => {
+    if (dashboard?.risk_distribution) {
+      return (dashboard.risk_distribution.high || 0) + (dashboard.risk_distribution.very_high || 0);
+    }
+    if (!frameworkScores?.function_scores?.length) return 0;
+    return frameworkScores.function_scores.filter(f =>
+      ['high', 'elevated', 'very_high', 'critical'].includes(f.risk_rating.toLowerCase())
+    ).length;
+  };
+
+  const highRiskFunctions = calculateHighRiskFunctions();
   const metricsNeedingAttention = frameworkAttentionMetrics ?? dashboard?.metrics_needing_attention ?? [];
 
   const overallRiskColor = RISK_RATING_COLORS[overallRating as keyof typeof RISK_RATING_COLORS] || '#ff9800';
@@ -390,44 +418,56 @@ export default function Dashboard() {
   return (
     <ContentFrame>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
-            Risk Dashboard
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Tooltip
+          title="Your organization's cybersecurity posture at a glance. Aggregates all tracked metrics into function-level scores, helping leadership identify where security investments are paying off and where gaps need attention."
+          placement="bottom-start"
+          arrow
+        >
+          <Typography variant="h4" component="h1" sx={{ cursor: 'help' }}>
+            Security Overview
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <FrameworkSelector size="small" />
-            <Tooltip title={`${activeCatalog?.items_count || 0} metrics from ${activeCatalog?.owner || 'system'}`}>
-              <Chip
+        </Tooltip>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FrameworkSelector size="small" />
+          <Tooltip
+            title={`Active metric catalog: ${activeCatalog?.name || 'Loading'}. Contains ${activeCatalog?.items_count || 0} metrics that drive all dashboard scores. Switch catalogs in Settings to compare different metric sets.`}
+            arrow
+          >
+            <Chip
+              size="small"
+              label={activeCatalog?.name || 'Loading...'}
+              variant="outlined"
+              sx={{ fontWeight: 400, cursor: 'help' }}
+            />
+          </Tooltip>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderLeft: '1px solid', borderColor: 'divider', pl: 2 }}>
+            <Tooltip
+              title="Last score calculation time. Scores auto-refresh every 30 seconds to reflect the latest metric values."
+              arrow
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', cursor: 'help' }}>
+                {(() => {
+                  const timestamp = frameworkScores?.last_updated || dashboard?.last_updated;
+                  if (!timestamp) return '';
+                  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+                  const date = new Date(utcTimestamp);
+                  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                })()}
+              </Typography>
+            </Tooltip>
+            <Tooltip title="Recalculate all scores now" arrow>
+              <IconButton
+                onClick={handleRefresh}
+                disabled={refreshing}
                 size="small"
-                label={activeCatalog?.name || 'Loading...'}
-                variant="outlined"
-                sx={{ fontWeight: 400 }}
-              />
+                color="primary"
+              >
+                {refreshing ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+              </IconButton>
             </Tooltip>
           </Box>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-            {(() => {
-              const timestamp = frameworkScores?.last_updated || dashboard?.last_updated;
-              if (!timestamp) return '';
-              const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-              const date = new Date(utcTimestamp);
-              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            })()}
-          </Typography>
-          <Tooltip title="Refresh scores">
-            <IconButton
-              onClick={handleRefresh}
-              disabled={refreshing}
-              size="small"
-              color="primary"
-            >
-              {refreshing ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
         </Box>
       </Box>
 
@@ -442,14 +482,30 @@ export default function Dashboard() {
         >
           <Tab
             value="risk"
-            label="Risk Dashboard"
+            label={
+              <Tooltip
+                title="Weighted risk scores by function. Shows where your organization stands against targets and highlights metrics requiring immediate attention."
+                arrow
+                placement="bottom"
+              >
+                <span>Risk Dashboard</span>
+              </Tooltip>
+            }
             icon={<DashboardIcon />}
             iconPosition="start"
             sx={{ minHeight: 56 }}
           />
           <Tab
             value="coverage"
-            label="Framework Coverage"
+            label={
+              <Tooltip
+                title="Visual map of your metric coverage across all framework categories and subcategories. Quickly spot gaps where you have no metrics tracking compliance."
+                arrow
+                placement="bottom"
+              >
+                <span>Framework Coverage</span>
+              </Tooltip>
+            }
             icon={<CoverageIcon />}
             iconPosition="start"
             sx={{ minHeight: 56 }}
@@ -525,7 +581,7 @@ export default function Dashboard() {
                 <Grid item xs={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: 'error.main', mb: 1 }}>
-                      {(riskDistribution.high || 0) + (riskDistribution.very_high || 0)}
+                      {highRiskFunctions}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                       High Risk Functions

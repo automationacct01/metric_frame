@@ -755,8 +755,8 @@ def compute_framework_overall_score(
         "framework_code": framework_code,
         "overall_score_pct": round(overall_score_pct, 1),
         "overall_risk_rating": overall_risk_rating.value,
-        "total_metrics_count": total_metrics,
-        "total_metrics_with_data_count": total_with_data,
+        "total_metrics": total_metrics,
+        "metrics_with_data": total_with_data,
         "function_scores": function_scores,
     }
 
