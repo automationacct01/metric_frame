@@ -11,7 +11,6 @@ import {
   Edit as ManualIcon,
   Analytics as BaselineIcon,
   AutoMode as AutomateIcon,
-  ArrowForward as ArrowIcon,
 } from '@mui/icons-material';
 
 const maturitySteps = [
@@ -90,10 +89,10 @@ export default function WhyNowSection() {
         </Box>
 
         {/* Maturity Path */}
-        <Grid container spacing={4} alignItems="stretch">
-          {maturitySteps.map((step, index) => (
-            <Grid item xs={12} md={4} key={step.phase} sx={{ display: 'flex' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <Box sx={{ position: 'relative' }}>
+          <Grid container spacing={4} alignItems="stretch">
+            {maturitySteps.map((step) => (
+              <Grid item xs={12} md={4} key={step.phase} sx={{ display: 'flex' }}>
                 <Paper
                   elevation={0}
                   sx={{
@@ -163,24 +162,10 @@ export default function WhyNowSection() {
                     {step.description}
                   </Typography>
                 </Paper>
-
-                {/* Arrow between cards (desktop only) */}
-                {index < maturitySteps.length - 1 && (
-                  <Box
-                    sx={{
-                      display: { xs: 'none', md: 'flex' },
-                      alignItems: 'center',
-                      px: 2,
-                      color: '#cbd5e1',
-                    }}
-                  >
-                    <ArrowIcon sx={{ fontSize: 28 }} />
-                  </Box>
-                )}
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
 
         {/* Bottom Quote */}
         <Box

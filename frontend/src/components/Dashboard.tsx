@@ -434,7 +434,13 @@ export default function Dashboard() {
           </Box>
 
           <Typography variant="caption" color="text.secondary">
-            Last updated: {new Date(frameworkScores?.last_updated || dashboard?.last_updated || new Date()).toLocaleString()}
+            Last updated: {(() => {
+              const timestamp = frameworkScores?.last_updated || dashboard?.last_updated;
+              if (!timestamp) return new Date().toLocaleString();
+              // Ensure UTC timestamp is properly parsed (append Z if not present)
+              const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+              return new Date(utcTimestamp).toLocaleString();
+            })()}
           </Typography>
           <Button
             variant="outlined"

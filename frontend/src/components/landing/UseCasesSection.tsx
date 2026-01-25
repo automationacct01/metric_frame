@@ -31,7 +31,7 @@ const useCases = [
     description:
       'Track 250+ AI and cybersecurity metrics across NIST frameworks with drill-down detail. Identify gaps and prioritize remediation efforts.',
     benefits: [
-      'Real-time metric tracking',
+      'Centralized metric tracking',
       'AI and cyber risk identification',
       'Prioritized action items',
     ],
