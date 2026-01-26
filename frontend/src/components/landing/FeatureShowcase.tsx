@@ -28,7 +28,7 @@ const features = [
   {
     title: 'Metrics Grid',
     description:
-      'View, filter, and manage all 250+ metrics in one place. Sort by function, priority, or score to focus on what matters most.',
+      'View, filter, and manage all 350+ metrics in one place. Sort by function, priority, or score to focus on what matters most.',
     badge: 'Data',
     badgeColor: '#7c3aed',
     placeholderType: 'metrics-grid',

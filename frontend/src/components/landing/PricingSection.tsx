@@ -10,52 +10,34 @@ import PricingCard from './PricingCard';
 
 const pricingTiers = [
   {
-    name: 'Basic',
-    price: '$99',
+    name: 'Standard',
+    price: '$30',
     period: '/month',
-    description: 'Essential metrics management for small AI and cybersecurity teams.',
+    description: 'Full platform access with all AI and framework features.',
     features: [
-      'Up to 100 metrics',
-      'Single framework (CSF or AI RMF)',
+      'Unlimited metrics',
+      'Both frameworks (CSF 2.0 + AI RMF)',
       'Executive dashboard',
+      'AI metric generation (BYO API key)',
+      'AI-powered CSF mapping (BYO API key)',
       'CSV import/export',
-      'Email support',
-    ],
-    highlighted: false,
-    ctaText: 'Try Demo',
-  },
-  {
-    name: 'Plus',
-    price: '$249',
-    period: '/month',
-    description: 'Advanced features for growing AI and cybersecurity programs.',
-    features: [
-      'Up to 300 metrics',
-      'Both frameworks included',
-      'AI metric generation',
       'Custom catalog import',
-      'Priority support',
-      'API access',
-      'Trend analysis',
     ],
     highlighted: true,
     ctaText: 'Try Demo',
   },
   {
     name: 'Professional',
-    price: '$499',
+    price: '$200',
     period: '/month',
-    description: 'Full platform access for enterprise AI and cybersecurity teams.',
+    description: 'Everything in Standard, with custom changes tailored to your organization.',
     features: [
-      'Unlimited metrics',
-      'Everything in Plus',
-      'SSO/SAML authentication',
-      'Custom integrations',
-      'Dedicated success manager',
-      'Advanced reporting & analytics',
-      'On-premise deployment option',
+      'Everything in Standard',
+      'Custom integrations & API access',
+      'Custom platform changes',
     ],
     highlighted: false,
+    comingSoon: true,
     ctaText: 'Try Demo',
   },
 ];
@@ -118,6 +100,7 @@ export default function PricingSection() {
                 description={tier.description}
                 features={tier.features}
                 highlighted={tier.highlighted}
+                comingSoon={tier.comingSoon}
                 ctaText={tier.ctaText}
               />
             </Grid>

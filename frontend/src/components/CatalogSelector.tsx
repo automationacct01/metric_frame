@@ -62,10 +62,10 @@ const CatalogSelector: React.FC<CatalogSelectorProps> = ({
       // Add mock default catalog
       const defaultCatalog: Catalog = {
         id: 'default',
-        name: 'Default NIST CSF 2.0 Metrics',
+        name: 'Default System Metrics',
         active: catalogsData.length === 0 || !catalogsData.some(c => c.active),
         is_default: true,
-        items_count: 208,
+        items_count: 356,
         owner: 'system',
       };
 

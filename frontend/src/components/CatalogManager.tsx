@@ -71,12 +71,12 @@ const CatalogManager: React.FC = () => {
       // Add mock default catalog for demonstration
       const defaultCatalog: Catalog = {
         id: 'default',
-        name: 'Default NIST CSF 2.0 Metrics',
-        description: 'Pre-configured metrics aligned to NIST Cybersecurity Framework 2.0',
+        name: 'Default System Metrics',
+        description: 'Pre-configured metrics for both NIST Cybersecurity Framework 2.0 and NIST AI Risk Management Framework',
         owner: 'system',
         active: catalogsData.length === 0 || !catalogsData.some(c => c.active),
         is_default: true,
-        items_count: 208,
+        items_count: 356,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
       };
@@ -218,11 +218,31 @@ const CatalogManager: React.FC = () => {
                       <ListItemIcon sx={{ minWidth: 36 }}>
                         <AssessmentIcon color="primary" fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText 
+                      <ListItemText
                         primary="Metrics"
-                        secondary={`${catalog.items_count} metrics`}
+                        secondary={
+                          catalog.is_default
+                            ? `${catalog.items_count} total metrics`
+                            : `${catalog.items_count} metrics`
+                        }
                       />
                     </ListItem>
+                    {catalog.is_default && (
+                      <>
+                        <ListItem disablePadding sx={{ pl: 4.5 }}>
+                          <ListItemText
+                            secondary="276 NIST CSF 2.0"
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                        </ListItem>
+                        <ListItem disablePadding sx={{ pl: 4.5 }}>
+                          <ListItemText
+                            secondary="80 NIST AI RMF"
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                        </ListItem>
+                      </>
+                    )}
                     
                     {catalog.file_format && (
                       <ListItem disablePadding>
