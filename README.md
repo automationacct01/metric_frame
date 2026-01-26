@@ -7,9 +7,9 @@ A comprehensive web application for managing and visualizing cybersecurity Key R
 This application provides:
 
 - **Multi-Framework Support**: Unified dashboard for NIST CSF 2.0 (cybersecurity) and AI RMF 1.0 (AI risk)
-- **Executive Dashboard**: RAG-rated risk scores across all framework functions
-- **Metrics Catalog**: 200+ cybersecurity metrics + 18 AI risk metrics with transparent gap-to-target scoring
-- **AI Assistant**: OpenAI/Claude integration for intelligent metrics management and explanation
+- **Executive Dashboard**: Color-coded risk scores across all framework functions
+- **Metrics Catalog**: 276 CSF metrics + 80 AI RMF metrics with transparent gap-to-target scoring
+- **AI Assistant**: Multi-provider support (6 options) for intelligent metrics management and explanation
 - **Interactive UI**: Spreadsheet-like editing with real-time score calculations and column tooltips
 - **Local-First**: Runs entirely on Docker for secure, offline-capable deployment
 
@@ -17,8 +17,8 @@ This application provides:
 
 | Framework | Functions | Metrics |
 |-----------|-----------|---------|
-| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 200+ |
-| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 18 |
+| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | 276 |
+| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | 80 |
 
 ## 🏗️ Architecture
 
@@ -102,13 +102,12 @@ The application will automatically:
 **Backend (.env)**
 ```env
 DATABASE_URL=postgresql://nist:nist@db:5432/nistmetrics
-OPENAI_API_KEY=your_openai_key_here
-ANTHROPIC_API_KEY=your_anthropic_key_here
-AI_MODEL=gpt-4o-mini  # or claude-3-5-sonnet-20241022
 RISK_THRESHOLD_LOW=85.0
 RISK_THRESHOLD_MODERATE=65.0
 RISK_THRESHOLD_ELEVATED=40.0
 ```
+
+**AI Configuration**: Configure your AI provider through Settings → AI Configuration in the app. Bring your own API key with 6 provider options available.
 
 ### Risk Rating Thresholds
 - **Low Risk**: ≥85% achievement

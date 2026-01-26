@@ -80,8 +80,8 @@ export default function Dashboard() {
       try {
         const catalogs = await apiClient.getCatalogs('admin', true); // Get active catalogs only
         return catalogs.find(catalog => catalog.active) || {
-          name: 'Default NIST CSF 2.0 Metrics',
-          items_count: 208,
+          name: 'Default System Metrics',
+          items_count: 356,
           owner: 'system',
           active: true,
           is_default: true
@@ -89,8 +89,8 @@ export default function Dashboard() {
       } catch (error) {
         // Fallback to default if no catalogs found
         return {
-          name: 'Default NIST CSF 2.0 Metrics',
-          items_count: 208,
+          name: 'Default System Metrics',
+          items_count: 356,
           owner: 'system',
           active: true,
           is_default: true

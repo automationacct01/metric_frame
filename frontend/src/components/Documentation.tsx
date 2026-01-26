@@ -204,14 +204,14 @@ function HomeContent() {
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>226 Pre-Configured Metrics</strong></td><td>208 CSF 2.0 + 18 AI RMF metrics</td></tr>
+            <tr><td><strong>356 Pre-Configured Metrics</strong></td><td>276 CSF 2.0 + 80 AI RMF metrics</td></tr>
             <tr><td><strong>Multi-Framework Support</strong></td><td>NIST CSF 2.0 and AI RMF 1.0 with unified dashboard</td></tr>
             <tr><td><strong>10 Framework Functions</strong></td><td>6 CSF (Govern-Recover) + 4 AI RMF (Govern-Manage)</td></tr>
             <tr><td><strong>7 AI Trustworthiness Types</strong></td><td>Track AI system trustworthiness characteristics</td></tr>
             <tr><td><strong>AI Integration</strong></td><td>Claude-powered metrics creation and analysis</td></tr>
             <tr><td><strong>Bring Your Own Catalog</strong></td><td>Import and manage custom metric catalogs</td></tr>
             <tr><td><strong>Gap-to-Target Scoring</strong></td><td>Transparent weighted risk calculations</td></tr>
-            <tr><td><strong>Executive Dashboard</strong></td><td>RAG-colored risk visualization</td></tr>
+            <tr><td><strong>Executive Dashboard</strong></td><td>Red/Amber/Green risk visualization</td></tr>
             <tr><td><strong>Column Tooltips</strong></td><td>Hover over any column header for field explanations</td></tr>
           </tbody>
         </Box>
@@ -222,7 +222,7 @@ function HomeContent() {
 {`┌───────────────────┐     ┌───────────────────┐     ┌───────────────────┐
 │                   │     │                   │     │                   │
 │   React Frontend  │<--->│  FastAPI Backend  │<--->│   PostgreSQL DB   │
-│   Material-UI     │     │  SQLAlchemy ORM   │     │   226 Metrics     │
+│   Material-UI     │     │  SQLAlchemy ORM   │     │   356 Metrics     │
 │                   │     │                   │     │                   │
 └───────────────────┘     └───────────────────┘     └───────────────────┘
          │                        │
@@ -243,7 +243,7 @@ function HomeContent() {
       <Section title="Current Status">
         <Typography variant="body1" paragraph>The application is under active development with the following features implemented:</Typography>
         <Box component="ul" sx={{ pl: 3, '& li': { mb: 0.5 } }}>
-          <li>Executive risk dashboard with RAG scoring</li>
+          <li>Executive risk dashboard with color-coded risk scoring</li>
           <li>Complete metrics CRUD operations</li>
           <li>Multi-framework support (NIST CSF 2.0 and AI RMF 1.0)</li>
           <li>Multi-catalog support (BYOC)</li>
@@ -264,7 +264,7 @@ function HomeContent() {
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>Score Cards</strong></td><td>Function-level risk scores with RAG coloring</td></tr>
+            <tr><td><strong>Score Cards</strong></td><td>Function-level risk scores with Red/Amber/Green coloring</td></tr>
             <tr><td><strong>CSF Coverage</strong></td><td>Visual coverage map across framework categories</td></tr>
             <tr><td><strong>Metrics Grid</strong></td><td>Filterable table of all KRIs</td></tr>
             <tr><td><strong>AI Chat</strong></td><td>Natural language metrics assistant</td></tr>
@@ -318,7 +318,7 @@ function GettingStartedContent() {
           </tbody>
         </Box>
         <Typography variant="body2" sx={{ mt: 2 }}>
-          <strong>Optional (for AI features):</strong> Anthropic API key (Claude integration), OpenAI API key (GPT fallback)
+          <strong>Optional (for AI features):</strong> Bring your own API key with 6 provider options available in AI configuration settings
         </Typography>
       </Section>
 
@@ -340,14 +340,13 @@ cd metricframe`}
 {`# Database (default works with Docker)
 DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
 
-# AI Integration (optional but recommended)
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-OPENAI_API_KEY=sk-your-key-here
-
 # Application Settings
 DEBUG=true
 LOG_LEVEL=INFO`}
           </Box>
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            <strong>Note:</strong> AI provider configuration is done through Settings → AI Configuration in the app, where you can bring your own API key and choose from 6 provider options.
+          </Typography>
         </SubSection>
 
         <SubSection title="Step 3: Start the Application">
@@ -357,7 +356,7 @@ LOG_LEVEL=INFO`}
             <li>Build Docker containers</li>
             <li>Start PostgreSQL database</li>
             <li>Run database migrations</li>
-            <li>Seed 208 pre-configured metrics</li>
+            <li>Seed 356 pre-configured metrics</li>
             <li>Launch frontend and backend services</li>
           </Box>
         </SubSection>
@@ -398,13 +397,13 @@ docker compose ps
           <Typography variant="body2">Navigate to http://localhost:5173 to see the executive dashboard:</Typography>
           <Box component="ul" sx={{ pl: 3 }}>
             <li>View risk score cards for each CSF function</li>
-            <li>Explore the pre-loaded 208 metrics</li>
+            <li>Explore the pre-loaded 356 metrics</li>
             <li>Check framework coverage visualization</li>
           </Box>
         </SubSection>
 
         <SubSection title="2. Review Pre-Loaded Metrics">
-          <Typography variant="body2">The application seeds 208 metrics distributed across NIST CSF 2.0 functions:</Typography>
+          <Typography variant="body2">The application seeds 276 CSF 2.0 metrics distributed across functions:</Typography>
           <Box component="table" sx={{ ...tableStyles, mt: 2 }}>
             <thead>
               <tr>
@@ -445,8 +444,7 @@ docker compose ps
               </tr>
             </thead>
             <tbody>
-              <tr><td>ANTHROPIC_API_KEY</td><td>Claude AI integration</td><td>None</td></tr>
-              <tr><td>OPENAI_API_KEY</td><td>GPT fallback</td><td>None</td></tr>
+              <tr><td>AI_API_KEY</td><td>API key for AI provider (configured in settings)</td><td>None</td></tr>
               <tr><td>DEBUG</td><td>Enable debug mode</td><td>false</td></tr>
               <tr><td>LOG_LEVEL</td><td>Logging verbosity</td><td>INFO</td></tr>
               <tr><td>CORS_ORIGINS</td><td>Allowed frontend origins</td><td>http://localhost:5173</td></tr>
@@ -539,7 +537,7 @@ function HowItWorksContent() {
 ┌─────────────────────┐                          ┌─────────────────────────┐
 │    PostgreSQL DB    │                          │    AI Services          │
 │  ┌───────────────┐  │                          │  ┌───────────────────┐  │
-│  │ 208 Metrics   │  │                          │  │ Anthropic Claude  │  │
+│  │ 356 Metrics   │  │                          │  │ Anthropic Claude  │  │
 │  │ Catalogs      │  │                          │  │ (Primary)         │  │
 │  │ Scores        │  │                          │  ├───────────────────┤  │
 │  │ Frameworks    │  │                          │  │ OpenAI GPT        │  │
@@ -596,7 +594,7 @@ Backend ScoringService calculates:
 Response: Function scores + category breakdowns
         │
         ▼
-Frontend renders ScoreCards with RAG colors`}
+Frontend renders ScoreCards with Red/Amber/Green colors`}
           </Box>
         </SubSection>
 
@@ -743,7 +741,7 @@ function DashboardContent() {
         </Box>
       </Section>
 
-      <Section title="RAG Color Coding">
+      <Section title="Risk Color Coding">
         <Box component="table" sx={tableStyles}>
           <thead>
             <tr>
@@ -779,7 +777,7 @@ function DashboardContent() {
           <li><strong>Progress Bar:</strong> Visual representation of category score</li>
           <li><strong>Percentage:</strong> Average score for metrics in category</li>
           <li><strong>Metric Count:</strong> Number of metrics vs total possible</li>
-          <li><strong>Color:</strong> RAG status matching score thresholds</li>
+          <li><strong>Color:</strong> Risk status color matching score thresholds</li>
         </Box>
       </Section>
 
@@ -793,7 +791,7 @@ function DashboardContent() {
             </tr>
           </thead>
           <tbody>
-            <tr><td>Default Catalog</td><td>"Default (208 metrics)"</td></tr>
+            <tr><td>Default Catalog</td><td>"Default (356 metrics)"</td></tr>
             <tr><td>Custom Active</td><td>Catalog name with metric count</td></tr>
             <tr><td>No Catalog</td><td>"No active catalog - using defaults"</td></tr>
           </tbody>
@@ -850,8 +848,8 @@ function MetricsManagementContent() {
     <Box>
       <Typography variant="h4" gutterBottom fontWeight={600}>Metrics Management</Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 208
-        pre-configured metrics, catalog system, and import/export capabilities.
+        Comprehensive guide to managing Key Risk Indicators (KRIs) in MetricFrame, including the 356
+        pre-configured metrics (276 CSF + 80 AI RMF), catalog system, and import/export capabilities.
       </Typography>
 
       <Section title="Metrics Overview">
@@ -878,7 +876,7 @@ function MetricsManagementContent() {
         </Box>
       </Section>
 
-      <Section title="208 Pre-Configured Metrics">
+      <Section title="356 Pre-Configured Metrics">
         <Box component="table" sx={tableStyles}>
           <thead>
             <tr>
@@ -1093,15 +1091,13 @@ function AIAssistantContent() {
         </Box>
 
         <SubSection title="AI Configuration">
-          <Typography variant="body2" paragraph>Configure AI in <code>backend/.env</code>:</Typography>
+          <Typography variant="body2" paragraph>
+            Configure your AI provider through <strong>Settings → AI Configuration</strong> in the app.
+            Bring your own API key and choose from 6 provider options including Anthropic Claude, OpenAI, Together.ai, Azure OpenAI, AWS Bedrock, and GCP Vertex AI.
+          </Typography>
+          <Typography variant="body2" paragraph>Optional environment settings:</Typography>
           <Box component="pre" sx={codeBlockStyles}>
-{`# Primary AI Provider
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# Fallback Provider (optional)
-OPENAI_API_KEY=sk-your-key-here
-
-# AI Settings
+{`# AI Settings (optional)
 AI_TIMEOUT=30
 AI_MAX_RETRIES=3`}
           </Box>
@@ -1525,7 +1521,7 @@ SCORE_ELEVATED_THRESHOLD=50`}
 {`┌─────────────────────────────────────────────────────────┐
 │  CATALOG COMPARISON: PROTECT Function                    │
 ├─────────────────────────────────────────────────────────┤
-│  Default Catalog (208 metrics)           79.2%          │
+│  Default Catalog (356 metrics)           79.2%          │
 │  ████████████████░░░░                    LOW            │
 │                                                          │
 │  Q4 Security Catalog (45 metrics)        72.8%          │
@@ -1613,8 +1609,8 @@ function FrameworksReferenceContent() {
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>NIST CSF</strong></td><td>2.0</td><td>Cybersecurity risk management</td><td>6</td><td>208</td></tr>
-            <tr><td><strong>NIST AI RMF</strong></td><td>1.0</td><td>AI system risk management</td><td>4</td><td>18</td></tr>
+            <tr><td><strong>NIST CSF</strong></td><td>2.0</td><td>Cybersecurity risk management</td><td>6</td><td>276</td></tr>
+            <tr><td><strong>NIST AI RMF</strong></td><td>1.0</td><td>AI system risk management</td><td>4</td><td>80</td></tr>
             <tr><td><strong>Cyber AI Profile</strong></td><td>1.0</td><td>AI-enhanced cybersecurity</td><td>6 (extended)</td><td>TBD</td></tr>
           </tbody>
         </Box>
@@ -1632,7 +1628,7 @@ function FrameworksReferenceContent() {
               <tr><td><strong>Primary Use</strong></td><td>General cybersecurity</td><td>AI systems</td></tr>
               <tr><td><strong>Scope</strong></td><td>Organization-wide IT systems</td><td>AI lifecycle management</td></tr>
               <tr><td><strong>Structure</strong></td><td>Functions → Categories → Subcategories</td><td>Functions → Categories → Trustworthiness</td></tr>
-              <tr><td><strong>Metrics in App</strong></td><td>208</td><td>18</td></tr>
+              <tr><td><strong>Metrics in App</strong></td><td>276</td><td>80</td></tr>
               <tr><td><strong>Maturity</strong></td><td>Established (since 2014)</td><td>Newer (2023)</td></tr>
               <tr><td><strong>Mandatory For</strong></td><td>US Federal agencies</td><td>Voluntary</td></tr>
             </tbody>
@@ -1668,7 +1664,7 @@ function FrameworksReferenceContent() {
 └── Functions (6)
     └── Categories (23)
         └── Subcategories (108)
-            └── Metrics (208 in app)`}
+            └── Metrics (276 in app)`}
           </Box>
         </SubSection>
 
@@ -2221,7 +2217,7 @@ Response:
     "catalog": {
       "id": "uuid",
       "name": "Default Catalog",
-      "metric_count": 208
+      "metric_count": 356
     }
   }
 }`}
@@ -2816,20 +2812,12 @@ docker exec -it metricframe_db psql -U postgres -d metricframe -c "SELECT 1"`}
       <Section title="AI Integration Issues">
         <SubSection title="AI Assistant Not Responding">
           <Typography variant="body2" paragraph><strong>Symptoms:</strong> AI chat returns errors, Timeout messages, Empty responses</Typography>
-          <Box component="pre" sx={codeBlockStyles}>
-{`# Verify API key in backend/.env
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Test API key
-curl -X POST https://api.anthropic.com/v1/messages \\
-  -H "x-api-key: $ANTHROPIC_API_KEY" \\
-  -H "content-type: application/json" \\
-  -d '{"model":"claude-sonnet-4-20250514","max_tokens":100,"messages":[{"role":"user","content":"Hi"}]}'
-
-# Check rate limits - wait if rate limited, check Anthropic dashboard
-
-# Increase timeout in backend/.env
-AI_TIMEOUT=60`}
+          <Typography variant="body2" paragraph><strong>Solutions:</strong></Typography>
+          <Box component="ol" sx={{ pl: 3 }}>
+            <li><strong>Verify AI configuration:</strong> Go to Settings → AI Configuration, ensure a provider is configured and activated, click "Validate" to test credentials</li>
+            <li><strong>Check provider status:</strong> Look for green "Validated" badge, ensure provider shows as "Active"</li>
+            <li><strong>Check rate limits:</strong> Wait if rate limited, check your provider's dashboard for usage</li>
+            <li><strong>Increase timeout:</strong> Set <code>AI_TIMEOUT=60</code> in backend/.env</li>
           </Box>
         </SubSection>
 

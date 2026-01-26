@@ -22,6 +22,62 @@ from ..schemas import FunctionScore, RiskRating
 from .csf_reference import CSFReferenceService
 
 
+# Runtime threshold cache - loaded from DB, falls back to env vars
+_runtime_thresholds: Dict[str, float] = {
+    "very_low": float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0")),
+    "low": float(os.getenv("RISK_THRESHOLD_LOW", "75.0")),
+    "medium": float(os.getenv("RISK_THRESHOLD_MEDIUM", "50.0")),
+    "high": float(os.getenv("RISK_THRESHOLD_HIGH", "30.0")),
+}
+_thresholds_loaded = False
+
+
+def load_thresholds_from_db(db: Session) -> Dict[str, float]:
+    """Load thresholds from database, updating the runtime cache."""
+    global _thresholds_loaded
+    from ..models import AppSettings
+    row = db.query(AppSettings).filter(AppSettings.id == 1).first()
+    if row:
+        _runtime_thresholds["very_low"] = float(row.risk_threshold_very_low)
+        _runtime_thresholds["low"] = float(row.risk_threshold_low)
+        _runtime_thresholds["medium"] = float(row.risk_threshold_medium)
+        _runtime_thresholds["high"] = float(row.risk_threshold_high)
+    _thresholds_loaded = True
+    return dict(_runtime_thresholds)
+
+
+def save_thresholds_to_db(db: Session, thresholds: Dict[str, float]) -> Dict[str, float]:
+    """Save thresholds to database and update runtime cache."""
+    from ..models import AppSettings
+    row = db.query(AppSettings).filter(AppSettings.id == 1).first()
+    if not row:
+        row = AppSettings(id=1)
+        db.add(row)
+    if "very_low" in thresholds:
+        row.risk_threshold_very_low = thresholds["very_low"]
+    if "low" in thresholds:
+        row.risk_threshold_low = thresholds["low"]
+    if "medium" in thresholds:
+        row.risk_threshold_medium = thresholds["medium"]
+    if "high" in thresholds:
+        row.risk_threshold_high = thresholds["high"]
+    db.commit()
+    db.refresh(row)
+    _runtime_thresholds["very_low"] = float(row.risk_threshold_very_low)
+    _runtime_thresholds["low"] = float(row.risk_threshold_low)
+    _runtime_thresholds["medium"] = float(row.risk_threshold_medium)
+    _runtime_thresholds["high"] = float(row.risk_threshold_high)
+    return dict(_runtime_thresholds)
+
+
+def get_runtime_thresholds(db: Optional[Session] = None) -> Dict[str, float]:
+    """Get current thresholds, loading from DB on first call if a session is provided."""
+    global _thresholds_loaded
+    if not _thresholds_loaded and db:
+        return load_thresholds_from_db(db)
+    return dict(_runtime_thresholds)
+
+
 def compute_metric_score(metric: Metric) -> Optional[float]:
     """
     Compute performance score for a single metric based on gap-to-target methodology.
@@ -109,19 +165,15 @@ def get_risk_rating(score_pct: float) -> RiskRating:
     """
     Map function score percentage to risk rating using configurable 5-level thresholds.
     """
-    # Get thresholds from environment or use new 5-level defaults
-    threshold_very_low = float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0"))
-    threshold_low = float(os.getenv("RISK_THRESHOLD_LOW", "75.0"))
-    threshold_medium = float(os.getenv("RISK_THRESHOLD_MEDIUM", "50.0"))
-    threshold_high = float(os.getenv("RISK_THRESHOLD_HIGH", "30.0"))
-    
-    if score_pct >= threshold_very_low:
+    t = _runtime_thresholds
+
+    if score_pct >= t["very_low"]:
         return RiskRating.VERY_LOW
-    elif score_pct >= threshold_low:
+    elif score_pct >= t["low"]:
         return RiskRating.LOW
-    elif score_pct >= threshold_medium:
+    elif score_pct >= t["medium"]:
         return RiskRating.MEDIUM
-    elif score_pct >= threshold_high:
+    elif score_pct >= t["high"]:
         return RiskRating.HIGH
     else:
         return RiskRating.VERY_HIGH

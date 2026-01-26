@@ -532,7 +532,6 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                             <Typography variant="body2">{model.display_name}</Typography>
                             <Typography variant="caption" color="text.secondary">
                               Context: {model.context_window?.toLocaleString() || 'N/A'} tokens
-                              {model.supports_vision && ' | Vision'}
                             </Typography>
                           </Box>
                         </MenuItem>

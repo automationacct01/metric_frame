@@ -29,7 +29,7 @@ const useCases = [
     icon: <RiskIcon sx={{ fontSize: 32 }} />,
     title: 'Risk and GRC Teams',
     description:
-      'Track 250+ AI and cybersecurity metrics across NIST frameworks with drill-down detail. Identify gaps and prioritize remediation efforts.',
+      'Track 350+ AI and cybersecurity metrics across NIST frameworks with drill-down detail. Identify gaps and prioritize remediation efforts.',
     benefits: [
       'Centralized metric tracking',
       'AI and cyber risk identification',

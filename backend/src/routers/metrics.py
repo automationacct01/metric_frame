@@ -7,6 +7,7 @@ from typing import List, Optional
 from uuid import UUID
 import csv
 import io
+import json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -499,28 +500,33 @@ async def export_metrics_csv(
     # Create CSV content
     output = io.StringIO()
     fieldnames = [
-        'metric_number', 'name', 'description', 'formula', 'csf_function', 'csf_category_code', 
-        'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
+        'id', 'metric_number', 'name', 'description', 'formula', 'calc_expr_json',
+        'framework_id', 'function_id', 'category_id', 'subcategory_id',
+        'trustworthiness_characteristic', 'ai_profile_focus',
         'priority_rank', 'weight', 'direction', 'target_value', 'target_units',
-        'tolerance_low', 'tolerance_high', 'owner_function', 'data_source', 
-        'collection_frequency', 'current_value', 'current_label', 
-        'last_collected_at', 'notes', 'active', 'created_at', 'updated_at'
+        'tolerance_low', 'tolerance_high', 'owner_function', 'data_source',
+        'collection_frequency', 'last_collected_at', 'current_value', 'current_label',
+        'notes', 'risk_definition', 'active', 'locked', 'locked_by', 'locked_at',
+        'created_at', 'updated_at'
     ]
-    
+
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
-    
+
     for metric in metrics:
         writer.writerow({
+            'id': str(metric.id) if metric.id else '',
             'metric_number': metric.metric_number or '',
             'name': metric.name or '',
             'description': metric.description or '',
             'formula': metric.formula or '',
-            'csf_function': metric.csf_function.value if metric.csf_function else '',
-            'csf_category_code': metric.csf_category_code or '',
-            'csf_subcategory_code': metric.csf_subcategory_code or '',
-            'csf_category_name': metric.csf_category_name or '',
-            'csf_subcategory_outcome': metric.csf_subcategory_outcome or '',
+            'calc_expr_json': json.dumps(metric.calc_expr_json) if metric.calc_expr_json else '',
+            'framework_id': str(metric.framework_id) if metric.framework_id else '',
+            'function_id': str(metric.function_id) if metric.function_id else '',
+            'category_id': str(metric.category_id) if metric.category_id else '',
+            'subcategory_id': str(metric.subcategory_id) if metric.subcategory_id else '',
+            'trustworthiness_characteristic': metric.trustworthiness_characteristic or '',
+            'ai_profile_focus': metric.ai_profile_focus or '',
             'priority_rank': metric.priority_rank or '',
             'weight': float(metric.weight) if metric.weight is not None else '',
             'direction': metric.direction.value if metric.direction else '',
@@ -535,7 +541,11 @@ async def export_metrics_csv(
             'current_label': metric.current_label or '',
             'last_collected_at': metric.last_collected_at.isoformat() if metric.last_collected_at else '',
             'notes': metric.notes or '',
+            'risk_definition': metric.risk_definition or '',
             'active': metric.active,
+            'locked': metric.locked,
+            'locked_by': metric.locked_by or '',
+            'locked_at': metric.locked_at.isoformat() if metric.locked_at else '',
             'created_at': metric.created_at.isoformat() if metric.created_at else '',
             'updated_at': metric.updated_at.isoformat() if metric.updated_at else '',
         })

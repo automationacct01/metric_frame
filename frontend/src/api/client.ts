@@ -466,6 +466,11 @@ class APIClient {
     return response.data;
   }
 
+  async updateRiskThresholds(thresholds: { very_low: number; low: number; medium: number; high: number }): Promise<any> {
+    const response = await this.client.put('/scores/thresholds', { thresholds });
+    return response.data;
+  }
+
   // ==============================================================================
   // AI ASSISTANT ENDPOINTS
   // ==============================================================================

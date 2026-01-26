@@ -127,21 +127,17 @@ When dev mode is active, admin users will see a notice in Settings and the syste
 
 ---
 
-### Legacy Configuration
+### AI Settings
 
-For backward compatibility, you can still configure providers via environment variables:
+Optional environment variables for AI behavior:
 
 ```env
-# Primary AI Provider
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# Fallback Provider (optional)
-OPENAI_API_KEY=sk-your-key-here
-
 # AI Settings
 AI_TIMEOUT=30
 AI_MAX_RETRIES=3
 ```
+
+**Note:** API keys and provider selection are configured through the Settings → AI Configuration page in the app, not through environment variables.
 
 ## Chat Interface
 
