@@ -8,7 +8,7 @@ import React from 'react';
 import { Box, Container, Typography, Grid } from '@mui/material';
 
 const stats = [
-  { value: '250+', label: 'Pre-configured Metrics' },
+  { value: '350+', label: 'Pre-configured Metrics' },
   { value: '10', label: 'NIST AI and Cyber Risk Functions' },
   { value: '100%', label: 'Audit-Ready' },
 ];

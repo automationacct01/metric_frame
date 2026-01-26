@@ -27,6 +27,7 @@ interface PricingCardProps {
   description: string;
   features: string[];
   highlighted?: boolean;
+  comingSoon?: boolean;
   ctaText?: string;
   ctaAction?: () => void;
 }
@@ -38,6 +39,7 @@ export default function PricingCard({
   description,
   features,
   highlighted = false,
+  comingSoon = false,
   ctaText = 'Get Started',
   ctaAction,
 }: PricingCardProps) {
@@ -53,15 +55,16 @@ export default function PricingCard({
 
   return (
     <Card
-      elevation={highlighted ? 8 : 0}
+      elevation={comingSoon ? 0 : highlighted ? 8 : 0}
       sx={{
         height: '100%',
-        border: highlighted ? '2px solid #0ea5e9' : '1px solid #e5e7eb',
+        border: comingSoon ? '1px solid #e5e7eb' : highlighted ? '2px solid #0ea5e9' : '1px solid #e5e7eb',
         borderRadius: 3,
         position: 'relative',
         overflow: 'visible',
         transition: 'all 0.3s ease',
-        '&:hover': {
+        opacity: comingSoon ? 0.5 : 1,
+        '&:hover': comingSoon ? {} : {
           transform: 'translateY(-4px)',
           boxShadow: highlighted
             ? '0 25px 50px -12px rgba(14, 165, 233, 0.25)'
@@ -69,8 +72,24 @@ export default function PricingCard({
         },
       }}
     >
+      {/* Coming Soon Badge */}
+      {comingSoon && (
+        <Chip
+          label="Coming Soon"
+          sx={{
+            position: 'absolute',
+            top: -12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#9ca3af',
+            color: '#ffffff',
+            fontWeight: 600,
+          }}
+        />
+      )}
+
       {/* Popular Badge */}
-      {highlighted && (
+      {highlighted && !comingSoon && (
         <Chip
           label="Most Popular"
           sx={{
@@ -140,11 +159,12 @@ export default function PricingCard({
           variant={highlighted ? 'contained' : 'outlined'}
           fullWidth
           size="large"
+          disabled={comingSoon}
           onClick={handleClick}
           sx={{
             mb: 3,
             py: 1.5,
-            ...(highlighted && {
+            ...(highlighted && !comingSoon && {
               backgroundColor: '#0ea5e9',
               '&:hover': {
                 backgroundColor: '#0284c7',
@@ -152,7 +172,7 @@ export default function PricingCard({
             }),
           }}
         >
-          {ctaText}
+          {comingSoon ? 'Coming Soon' : ctaText}
         </Button>
 
         {/* Features */}

@@ -16,8 +16,7 @@ Get MetricFrame running locally in 5 minutes.
 | Git | 2.30+ | Repository cloning |
 
 Optional (for AI features):
-- Anthropic API key (Claude integration)
-- OpenAI API key (GPT fallback)
+- Bring your own API key with 6 provider options available in AI configuration settings
 
 ## Quick Start
 
@@ -42,14 +41,12 @@ Edit `backend/.env` with your configuration:
 # Database (default works with Docker)
 DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
 
-# AI Integration (optional but recommended)
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-OPENAI_API_KEY=sk-your-key-here
-
 # Application Settings
 DEBUG=true
 LOG_LEVEL=INFO
 ```
+
+**Note:** AI provider configuration is done through the app's Settings → AI Configuration page, where you can bring your own API key and choose from 6 provider options.
 
 ### Step 3: Start the Application
 
@@ -146,8 +143,7 @@ Use the Catalog Manager to import your own metrics:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Claude AI integration | None |
-| `OPENAI_API_KEY` | GPT fallback | None |
+| `AI_API_KEY` | API key for AI provider (configured in settings) | None |
 | `DEBUG` | Enable debug mode | false |
 | `LOG_LEVEL` | Logging verbosity | INFO |
 | `CORS_ORIGINS` | Allowed frontend origins | http://localhost:5173 |

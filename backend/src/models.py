@@ -897,5 +897,21 @@ Index("idx_demo_users_expired", DemoUser.expired)
 Index("idx_demo_metrics_user", DemoMetric.demo_user_id)
 Index("idx_demo_metrics_framework", DemoMetric.framework)
 
+class AppSettings(Base):
+    """Singleton application settings table."""
+
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    risk_threshold_very_low = Column(Numeric(5, 1), nullable=False, server_default="90.0")
+    risk_threshold_low = Column(Numeric(5, 1), nullable=False, server_default="75.0")
+    risk_threshold_medium = Column(Numeric(5, 1), nullable=False, server_default="50.0")
+    risk_threshold_high = Column(Numeric(5, 1), nullable=False, server_default="30.0")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:
+        return f"<AppSettings(very_low={self.risk_threshold_very_low}, low={self.risk_threshold_low}, medium={self.risk_threshold_medium}, high={self.risk_threshold_high})>"
+
+
 # Alias for backward compatibility
 MetricCatalogCSFMapping = MetricCatalogFrameworkMapping

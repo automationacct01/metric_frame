@@ -107,23 +107,18 @@ Solutions to common issues and problems when using MetricFrame.
 
 **Solutions:**
 
-1. **Verify API key:**
-   ```bash
-   # Check backend/.env
-   ANTHROPIC_API_KEY=sk-ant-...
-   ```
+1. **Verify AI configuration:**
+   - Go to Settings → AI Configuration
+   - Ensure a provider is configured and activated
+   - Click "Validate" to test your credentials
 
-2. **Test API key:**
-   ```bash
-   curl -X POST https://api.anthropic.com/v1/messages \
-     -H "x-api-key: $ANTHROPIC_API_KEY" \
-     -H "content-type: application/json" \
-     -d '{"model":"claude-sonnet-4-20250514","max_tokens":100,"messages":[{"role":"user","content":"Hi"}]}'
-   ```
+2. **Check provider status:**
+   - Look for the green "Validated" badge
+   - Ensure the provider shows as "Active"
 
 3. **Check rate limits:**
    - Wait if rate limited
-   - Check Anthropic dashboard for usage
+   - Check your provider's dashboard for usage
 
 4. **Increase timeout:**
    ```bash
