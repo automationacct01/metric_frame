@@ -321,8 +321,6 @@ export default function Settings() {
       
       localStorage.setItem('appSettings', JSON.stringify(localSettings));
 
-      // Save risk thresholds to backend
-      await apiClient.updateRiskThresholds(state.settings.riskThresholds);
 
       setState(prev => ({
         ...prev,

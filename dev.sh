@@ -40,16 +40,16 @@ echo "⏳ Waiting for database to be ready..."
 sleep 10
 
 echo "🗄️  Running database migrations..."
-$DOCKER_COMPOSE exec backend poetry run alembic upgrade head
+$DOCKER_COMPOSE exec backend alembic upgrade head
 
-echo "🌱 Loading seed metrics data..."
-$DOCKER_COMPOSE exec backend poetry run python -m src.seeds.load_seed
+echo "🌱 Loading seed data (356 metrics with risk definitions)..."
+$DOCKER_COMPOSE exec backend python -m src.seeds.seed_all --clear
 
 echo "✅ Application is ready!"
 echo ""
-echo "🌐 Frontend: http://localhost:5173"
-echo "📡 Backend API: http://localhost:8000"
-echo "📊 API Docs: http://localhost:8000/docs"
+echo "🌐 Frontend: http://localhost:5175"
+echo "📡 Backend API: http://localhost:8002"
+echo "📊 API Docs: http://localhost:8002/docs"
 echo ""
 echo "To stop the application, run: $DOCKER_COMPOSE down"
 echo "To view logs, run: $DOCKER_COMPOSE logs -f"

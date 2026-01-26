@@ -385,16 +385,16 @@ docker compose ps
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>Frontend</strong></td><td>http://localhost:5173</td><td>Main dashboard</td></tr>
-            <tr><td><strong>API Docs</strong></td><td>http://localhost:8000/docs</td><td>Swagger UI</td></tr>
-            <tr><td><strong>Database</strong></td><td>localhost:5432</td><td>PostgreSQL (user: postgres)</td></tr>
+            <tr><td><strong>Frontend</strong></td><td>http://localhost:5175</td><td>Main dashboard</td></tr>
+            <tr><td><strong>API Docs</strong></td><td>http://localhost:8002/docs</td><td>Swagger UI</td></tr>
+            <tr><td><strong>Database</strong></td><td>localhost:5434</td><td>PostgreSQL (user: nist)</td></tr>
           </tbody>
         </Box>
       </Section>
 
       <Section title="First Steps After Setup">
         <SubSection title="1. Explore the Dashboard">
-          <Typography variant="body2">Navigate to http://localhost:5173 to see the executive dashboard:</Typography>
+          <Typography variant="body2">Navigate to http://localhost:5175 to see the executive dashboard:</Typography>
           <Box component="ul" sx={{ pl: 3 }}>
             <li>View risk score cards for each CSF function</li>
             <li>Explore the pre-loaded 356 metrics</li>
@@ -403,7 +403,7 @@ docker compose ps
         </SubSection>
 
         <SubSection title="2. Review Pre-Loaded Metrics">
-          <Typography variant="body2">The application seeds 276 CSF 2.0 metrics distributed across functions:</Typography>
+          <Typography variant="body2">The application seeds 356 metrics (276 CSF 2.0 + 80 AI RMF) distributed across functions:</Typography>
           <Box component="table" sx={{ ...tableStyles, mt: 2 }}>
             <thead>
               <tr>
@@ -413,12 +413,12 @@ docker compose ps
               </tr>
             </thead>
             <tbody>
-              <tr><td>GOVERN</td><td>35</td><td>Board briefings, policy compliance</td></tr>
-              <tr><td>IDENTIFY</td><td>34</td><td>Asset inventory, vulnerability scanning</td></tr>
-              <tr><td>PROTECT</td><td>44</td><td>MFA adoption, patching cadence</td></tr>
-              <tr><td>DETECT</td><td>30</td><td>MTTD, monitoring coverage</td></tr>
-              <tr><td>RESPOND</td><td>28</td><td>MTTR, incident containment</td></tr>
-              <tr><td>RECOVER</td><td>28</td><td>RTO achievement, backup success</td></tr>
+              <tr><td>GOVERN</td><td>48</td><td>Board briefings, policy compliance, AI governance</td></tr>
+              <tr><td>IDENTIFY</td><td>47</td><td>Asset inventory, vulnerability scanning, AI asset mapping</td></tr>
+              <tr><td>PROTECT</td><td>56</td><td>MFA adoption, patching cadence, AI safeguards</td></tr>
+              <tr><td>DETECT</td><td>44</td><td>MTTD, monitoring coverage, AI anomaly detection</td></tr>
+              <tr><td>RESPOND</td><td>42</td><td>MTTR, incident containment, AI incident response</td></tr>
+              <tr><td>RECOVER</td><td>39</td><td>RTO achievement, backup success, AI recovery</td></tr>
             </tbody>
           </Box>
         </SubSection>
@@ -447,7 +447,7 @@ docker compose ps
               <tr><td>AI_API_KEY</td><td>API key for AI provider (configured in settings)</td><td>None</td></tr>
               <tr><td>DEBUG</td><td>Enable debug mode</td><td>false</td></tr>
               <tr><td>LOG_LEVEL</td><td>Logging verbosity</td><td>INFO</td></tr>
-              <tr><td>CORS_ORIGINS</td><td>Allowed frontend origins</td><td>http://localhost:5173</td></tr>
+              <tr><td>CORS_ORIGINS</td><td>Allowed frontend origins</td><td>http://localhost:5175</td></tr>
             </tbody>
           </Box>
         </SubSection>
@@ -2112,7 +2112,7 @@ function APIReferenceContent() {
 
       <Section title="Base URL & Authentication">
         <Box component="pre" sx={codeBlockStyles}>
-{`Base URL: http://localhost:8000/api/v1
+{`Base URL: http://localhost:8002/api/v1
 
 Authentication (optional):
 Authorization: Bearer <api_key>`}
@@ -2337,7 +2337,7 @@ GET /frameworks/{id}/functions/{code}/categories - Get categories`}
           </tbody>
         </Box>
         <Typography variant="body2" sx={{ mt: 2 }}>
-          For full interactive API documentation, visit <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer">http://localhost:8000/docs</a> (Swagger UI)
+          For full interactive API documentation, visit <a href="http://localhost:8002/docs" target="_blank" rel="noopener noreferrer">http://localhost:8002/docs</a> (Swagger UI)
         </Typography>
       </Section>
     </Box>
@@ -2580,10 +2580,10 @@ cp .env.example .env
 alembic upgrade head
 
 # Seed database
-python -m src.seeds.seed_metrics
+python -m src.seeds.seed_all --clear
 
 # Start development server
-uvicorn src.main:app --reload --port 8000`}
+uvicorn src.main:app --reload --port 8002`}
           </Box>
         </SubSection>
 
@@ -2752,7 +2752,7 @@ function TroubleshootingContent() {
 
       <Section title="Connection Issues">
         <SubSection title="Backend Not Starting">
-          <Typography variant="body2" paragraph><strong>Symptoms:</strong> API returns connection refused, Port 8000 not responding</Typography>
+          <Typography variant="body2" paragraph><strong>Symptoms:</strong> API returns connection refused, Port 8002 not responding</Typography>
           <Box component="pre" sx={codeBlockStyles}>
 {`# Check Docker containers
 docker compose ps
@@ -2762,7 +2762,7 @@ docker compose ps
 docker compose logs api
 
 # Verify port availability
-lsof -i :8000
+lsof -i :8002
 # Kill any conflicting process
 
 # Restart backend
@@ -2771,7 +2771,7 @@ docker compose restart api`}
         </SubSection>
 
         <SubSection title="Frontend Not Loading">
-          <Typography variant="body2" paragraph><strong>Symptoms:</strong> Blank page at localhost:5173, Vite errors in console</Typography>
+          <Typography variant="body2" paragraph><strong>Symptoms:</strong> Blank page at localhost:5175, Vite errors in console</Typography>
           <Box component="pre" sx={codeBlockStyles}>
 {`# Check container
 docker compose logs web
@@ -2895,7 +2895,7 @@ docker compose ps
 docker compose logs --tail=50
 
 # Backend health
-curl http://localhost:8000/health
+curl http://localhost:8002/health
 
 # Database connectivity
 docker exec metricframe_db pg_isready
@@ -2915,7 +2915,7 @@ docker stats --no-stream`}
           </thead>
           <tbody>
             <tr><td>This Documentation</td><td>In-app documentation viewer</td></tr>
-            <tr><td>API Docs</td><td><a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer">http://localhost:8000/docs</a></td></tr>
+            <tr><td>API Docs</td><td><a href="http://localhost:8002/docs" target="_blank" rel="noopener noreferrer">http://localhost:8002/docs</a></td></tr>
             <tr><td>GitHub Wiki</td><td>wiki/ directory in repository</td></tr>
           </tbody>
         </Box>

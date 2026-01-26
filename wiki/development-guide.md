@@ -55,10 +55,10 @@ cp .env.example .env
 alembic upgrade head
 
 # Seed database
-python -m src.seeds.seed_metrics
+python -m src.seeds.seed_all --clear
 
 # Start development server
-uvicorn src.main:app --reload --port 8000
+uvicorn src.main:app --reload --port 8002
 ```
 
 #### Frontend Setup
@@ -115,7 +115,8 @@ metricframe/
 │   │   │   ├── catalog_scoring.py
 │   │   │   └── csf_reference.py
 │   │   └── seeds/
-│   │       ├── seed_metrics.py
+│   │       ├── seed_all.py      # Master seed script
+│   │       ├── load_metrics.py  # JSON metrics loader
 │   │       └── data/
 │   ├── alembic/
 │   │   ├── versions/         # Migration files
@@ -397,7 +398,7 @@ export function useMetrics(functionFilter?: string) {
 // frontend/src/api/client.ts
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
