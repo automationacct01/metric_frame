@@ -135,7 +135,7 @@ class APIClient {
         if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
           console.error('🔌 Connection Error: Cannot reach the backend API server');
           console.error('💡 Troubleshooting tips:');
-          console.error('   1. Check if backend is running on http://localhost:8000');
+          console.error('   1. Check if backend is running on http://localhost:8002');
           console.error('   2. Verify CORS settings allow requests from this origin');
           console.error('   3. Check if database is connected and running');
         }

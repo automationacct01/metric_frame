@@ -80,17 +80,17 @@ docker compose ps
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Landing Page** | http://localhost:5173 | Marketing & entry point |
-| **Main App** | http://localhost:5173/app | Dashboard & full features |
-| **Demo Mode** | http://localhost:5173/demo | Try features without setup |
-| **API Docs** | http://localhost:8000/docs | Swagger UI |
-| **Database** | localhost:5432 | PostgreSQL (user: postgres) |
+| **Landing Page** | http://localhost:5175 | Marketing & entry point |
+| **Main App** | http://localhost:5175/app | Dashboard & full features |
+| **Demo Mode** | http://localhost:5175/demo | Try features without setup |
+| **API Docs** | http://localhost:8002/docs | Swagger UI |
+| **Database** | localhost:5434 | PostgreSQL (user: nist) |
 
 ## First Steps After Setup
 
 ### 1. Try Demo Mode (Quick Preview)
 
-Visit http://localhost:5173/demo to experience the application without configuration:
+Visit http://localhost:5175/demo to experience the application without configuration:
 - Enter any email to start a demo session
 - Explore the dashboard with simulated data
 - Test AI features with limited quota
@@ -98,23 +98,23 @@ Visit http://localhost:5173/demo to experience the application without configura
 
 ### 2. Explore the Full Dashboard
 
-Navigate to http://localhost:5173/app to see the executive dashboard:
+Navigate to http://localhost:5175/app to see the executive dashboard:
 - View risk score cards for each CSF function
 - Explore the pre-loaded 356 metrics
 - Check framework coverage visualization
 
 ### 3. Review Pre-Loaded Metrics
 
-The application seeds 276 CSF 2.0 metrics distributed across functions:
+The application seeds 356 metrics (276 CSF 2.0 + 80 AI RMF) distributed across functions:
 
 | Function | Metrics | Examples |
 |----------|---------|----------|
-| GOVERN | 35 | Board briefings, policy compliance |
-| IDENTIFY | 34 | Asset inventory, vulnerability scanning |
-| PROTECT | 44 | MFA adoption, patching cadence |
-| DETECT | 30 | MTTD, monitoring coverage |
-| RESPOND | 28 | MTTR, incident containment |
-| RECOVER | 28 | RTO achievement, backup success |
+| GOVERN | 48 | Board briefings, policy compliance, AI governance |
+| IDENTIFY | 47 | Asset inventory, vulnerability scanning, AI asset mapping |
+| PROTECT | 56 | MFA adoption, patching cadence, AI safeguards |
+| DETECT | 44 | MTTD, monitoring coverage, AI anomaly detection |
+| RESPOND | 42 | MTTR, incident containment, AI incident response |
+| RECOVER | 39 | RTO achievement, backup success, AI recovery |
 
 ### 4. Try the AI Assistant
 
@@ -146,7 +146,7 @@ Use the Catalog Manager to import your own metrics:
 | `AI_API_KEY` | API key for AI provider (configured in settings) | None |
 | `DEBUG` | Enable debug mode | false |
 | `LOG_LEVEL` | Logging verbosity | INFO |
-| `CORS_ORIGINS` | Allowed frontend origins | http://localhost:5173 |
+| `CORS_ORIGINS` | Allowed frontend origins | http://localhost:5175 |
 
 ### Scoring Thresholds
 
@@ -154,10 +154,10 @@ Customize risk rating thresholds:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SCORE_VERY_LOW_THRESHOLD` | Very Low risk minimum | 90 |
-| `SCORE_LOW_THRESHOLD` | Low risk minimum | 75 |
-| `SCORE_MODERATE_THRESHOLD` | Moderate risk minimum | 60 |
-| `SCORE_ELEVATED_THRESHOLD` | Elevated risk minimum | 40 |
+| `RISK_THRESHOLD_VERY_LOW` | Very Low risk minimum | 90 |
+| `RISK_THRESHOLD_LOW` | Low risk minimum | 75 |
+| `RISK_THRESHOLD_MEDIUM` | Medium risk minimum | 50 |
+| `RISK_THRESHOLD_HIGH` | High risk minimum | 30 |
 
 ## Seed Data
 

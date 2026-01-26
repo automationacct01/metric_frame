@@ -8,7 +8,7 @@ This application provides:
 
 - **Multi-Framework Support**: Unified dashboard for NIST CSF 2.0 (cybersecurity) and AI RMF 1.0 (AI risk)
 - **Executive Dashboard**: Color-coded risk scores across all framework functions
-- **Metrics Catalog**: 276 CSF metrics + 80 AI RMF metrics with transparent gap-to-target scoring
+- **Metrics Catalog**: 356 total metrics (276 CSF 2.0 + 80 AI RMF) with risk definitions and gap-to-target scoring
 - **AI Assistant**: Multi-provider support (6 options) for intelligent metrics management and explanation
 - **Interactive UI**: Spreadsheet-like editing with real-time score calculations and column tooltips
 - **Local-First**: Runs entirely on Docker for secure, offline-capable deployment
@@ -26,7 +26,7 @@ This application provides:
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   React + TS    │    │   FastAPI + PY   │    │   PostgreSQL    │
 │   Frontend      │◄──►│   Backend        │◄──►│   Database      │
-│   (Port 5173)   │    │   (Port 8000)    │    │   (Port 5432)   │
+│   (Port 5175)   │    │   (Port 8002)    │    │   (Port 5432)   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -57,15 +57,14 @@ This application provides:
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:5173
-   - API Documentation: http://localhost:8000/docs
-   - Database: localhost:5432
+   - Frontend: http://localhost:5175
+   - API Documentation: http://localhost:8002/docs
+   - Database: localhost:5434
 
 The application will automatically:
 - Build and start all containers
 - Run database migrations
-- Load 200+ comprehensive metrics across all CSF functions
-- Generate sample historical data
+- Load 356 pre-configured metrics (276 CSF 2.0 + 80 AI RMF) with risk definitions
 
 ## 📊 Features
 
@@ -102,27 +101,29 @@ The application will automatically:
 **Backend (.env)**
 ```env
 DATABASE_URL=postgresql://nist:nist@db:5432/nistmetrics
-RISK_THRESHOLD_LOW=85.0
-RISK_THRESHOLD_MODERATE=65.0
-RISK_THRESHOLD_ELEVATED=40.0
+RISK_THRESHOLD_VERY_LOW=90.0
+RISK_THRESHOLD_LOW=75.0
+RISK_THRESHOLD_MEDIUM=50.0
+RISK_THRESHOLD_HIGH=30.0
 ```
 
 **AI Configuration**: Configure your AI provider through Settings → AI Configuration in the app. Bring your own API key with 6 provider options available.
 
 ### Risk Rating Thresholds
-- **Low Risk**: ≥85% achievement
-- **Moderate Risk**: 65-84% achievement  
-- **Elevated Risk**: 40-64% achievement
-- **High Risk**: <40% achievement
+- **Very Low Risk**: ≥90% achievement
+- **Low Risk**: 75-89% achievement
+- **Medium Risk**: 50-74% achievement
+- **High Risk**: 30-49% achievement
+- **Very High Risk**: <30% achievement
 
 ## 📈 Comprehensive Metrics Catalog
 
-The application includes 200+ enterprise-grade metrics across all cybersecurity domains:
+The application includes 356 enterprise-grade metrics across all cybersecurity domains:
 
-### Govern (GV) - 35 metrics
-**Governance & Strategic Leadership:**
+### Govern (GV) - 48 metrics
+**Governance & Strategic Leadership (36 CSF + 12 AI Profile):**
 - Board Cyber Briefing Frequency (4/year target)
-- Policy Compliance Rate (95% target) 
+- Policy Compliance Rate (95% target)
 - Cybersecurity Budget Allocation (8% target)
 - CISO Direct Reporting to Executive Level
 - Cybersecurity Strategy Document Currency
@@ -130,10 +131,10 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Security Training Completion Rate
 - Regulatory Compliance Assessment Score
 - Security Governance Committee Meeting Frequency
-- And 26 additional governance metrics...
+- And 39 additional governance metrics...
 
-### Identify (ID) - 34 metrics  
-**Asset Management & Risk Assessment:**
+### Identify (ID) - 47 metrics
+**Asset Management & Risk Assessment (35 CSF + 12 AI Profile):**
 - Asset Inventory Accuracy (99% target)
 - Vulnerability Scan Coverage (100% target)
 - Critical Vulnerability MTTF (7 days target)
@@ -143,10 +144,10 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Data Classification Completeness
 - Third-Party Risk Assessment Currency
 - Supply Chain Visibility Score
-- And 25 additional identification metrics...
+- And 38 additional identification metrics...
 
-### Protect (PR) - 44 metrics
-**Safeguards & Access Controls:**
+### Protect (PR) - 56 metrics
+**Safeguards & Access Controls (44 CSF + 12 AI Profile):**
 - MFA Coverage for Privileged Accounts (100% target)
 - Patch Compliance Critical Severity (90% target)
 - Zero Trust Architecture Implementation (70% target)
@@ -156,10 +157,10 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Privileged Access Management Coverage
 - Application Security Testing Coverage
 - Secure Code Review Coverage
-- And 35 additional protection metrics...
+- And 47 additional protection metrics...
 
-### Detect (DE) - 30 metrics
-**Monitoring & Threat Detection:**
+### Detect (DE) - 44 metrics
+**Monitoring & Threat Detection (32 CSF + 12 AI Profile):**
 - Mean Time to Detect - MTTD (24 hours target)
 - Security Event Monitoring Coverage
 - User Behavior Analytics Coverage
@@ -169,10 +170,10 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Insider Threat Detection Coverage
 - Cloud Security Monitoring Coverage
 - API Security Monitoring
-- And 21 additional detection metrics...
+- And 35 additional detection metrics...
 
-### Respond (RS) - 28 metrics
-**Incident Response & Crisis Management:**
+### Respond (RS) - 42 metrics
+**Incident Response & Crisis Management (30 CSF + 12 AI Profile):**
 - Mean Time to Respond - MTTR (24 hours target)
 - Incident Response Plan Activation
 - Crisis Management Team Activation Time
@@ -182,10 +183,10 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Incident Classification Accuracy
 - Automated Response Action Success Rate
 - Cross-Functional Response Coordination
-- And 19 additional response metrics...
+- And 33 additional response metrics...
 
-### Recover (RC) - 28 metrics
-**Business Continuity & Recovery:**
+### Recover (RC) - 39 metrics
+**Business Continuity & Recovery (31 CSF + 8 AI Profile):**
 - Backup Restore Success Rate (98% target)
 - Recovery Time Objective Achievement (90% target)
 - Recovery Point Objective Achievement (95% target)
@@ -194,7 +195,7 @@ The application includes 200+ enterprise-grade metrics across all cybersecurity 
 - Business Continuity Plan Testing
 - Vendor Recovery Coordination
 - Recovery Team Cross-Training Coverage
-- And 20 additional recovery metrics...
+- And 31 additional recovery metrics...
 
 ## 🤖 NIST AI RMF 1.0 Metrics
 
@@ -204,10 +205,10 @@ The application also includes metrics aligned with the **NIST AI Risk Management
 
 | Function | Metrics | Focus |
 |----------|---------|-------|
-| **Govern** | 4 | AI policies, training, team diversity |
-| **Map** | 3 | AI system documentation, risk/impact assessments |
-| **Measure** | 6 | Model accuracy, bias, explainability, security, drift |
-| **Manage** | 4 | Incident response, decommissioning, third-party risk |
+| **Govern** | 22 | AI policies, training, team diversity, oversight |
+| **Map** | 18 | AI system documentation, risk/impact assessments |
+| **Measure** | 22 | Model accuracy, bias, explainability, security, drift |
+| **Manage** | 18 | Incident response, decommissioning, third-party risk |
 
 ### Trustworthiness Characteristics
 
@@ -292,7 +293,7 @@ npm test
 
 ## 📚 Documentation
 
-- **API Documentation**: http://localhost:8000/docs (Swagger UI)
+- **API Documentation**: http://localhost:8002/docs (Swagger UI)
 - **Frameworks Guide**: [docs/frameworks-guide.md](docs/frameworks-guide.md) - Learn about NIST CSF 2.0 and AI RMF 1.0
 - **Scoring Methodology**: [docs/scoring-method.md](docs/scoring-method.md)
 - **AI RMF Support**: [docs/ai-rmf-support.md](docs/ai-rmf-support.md)
@@ -337,7 +338,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **GitHub Issues**: Report bugs or feature requests
 - **Documentation**: Check `/docs` folder for detailed guides
-- **API Reference**: http://localhost:8000/docs when running locally
+- **API Reference**: http://localhost:8002/docs when running locally
 
 ## 📊 Roadmap
 

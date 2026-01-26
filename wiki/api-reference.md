@@ -10,7 +10,7 @@ Complete REST API documentation for MetricFrame backend services.
 ## Base URL
 
 ```
-http://localhost:8000/api/v1
+http://localhost:8002/api/v1
 ```
 
 Production deployments should use HTTPS.
@@ -235,7 +235,7 @@ GET /scores/overview
         "name": "GOVERN",
         "score": 78.0,
         "rating": "Low",
-        "metric_count": 35,
+        "metric_count": 48,
         "trend": "up"
       },
       {
@@ -243,7 +243,7 @@ GET /scores/overview
         "name": "IDENTIFY",
         "score": 65.0,
         "rating": "Moderate",
-        "metric_count": 34,
+        "metric_count": 47,
         "trend": "stable"
       }
     ],

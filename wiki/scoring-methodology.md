@@ -327,9 +327,9 @@ Overall = (78 + 65 + 79 + 71 + 68 + 74) / 6
 |-------------|--------|-------|----------------|
 | 90-100% | Very Low | Dark Green | Exceeding security targets |
 | 75-89% | Low | Green | Meeting most targets |
-| 60-74% | Moderate | Yellow | Approaching targets |
-| 40-59% | Elevated | Orange | Below targets |
-| 0-39% | High | Red | Significantly below targets |
+| 50-74% | Medium | Yellow | Approaching targets |
+| 30-49% | High | Orange | Below targets |
+| 0-29% | Very High | Red | Significantly below targets |
 
 ### Rating Assignment
 
@@ -339,12 +339,12 @@ def get_risk_rating(score):
         return "Very Low"
     elif score >= 75:
         return "Low"
-    elif score >= 60:
-        return "Moderate"
-    elif score >= 40:
-        return "Elevated"
-    else:
+    elif score >= 50:
+        return "Medium"
+    elif score >= 30:
         return "High"
+    else:
+        return "Very High"
 ```
 
 ### Visual Representation
@@ -371,12 +371,12 @@ Progress Bar:
 Customize rating thresholds in `backend/.env`:
 
 ```env
-# Score thresholds (percentages)
-SCORE_VERY_LOW_THRESHOLD=90
-SCORE_LOW_THRESHOLD=75
-SCORE_MODERATE_THRESHOLD=60
-SCORE_ELEVATED_THRESHOLD=40
-# Below ELEVATED is "High Risk"
+# Risk thresholds (percentages)
+RISK_THRESHOLD_VERY_LOW=90
+RISK_THRESHOLD_LOW=75
+RISK_THRESHOLD_MEDIUM=50
+RISK_THRESHOLD_HIGH=30
+# Below HIGH is "Very High Risk"
 ```
 
 ### Custom Threshold Example
@@ -384,17 +384,16 @@ SCORE_ELEVATED_THRESHOLD=40
 For a more conservative organization:
 
 ```env
-SCORE_VERY_LOW_THRESHOLD=95
-SCORE_LOW_THRESHOLD=85
-SCORE_MODERATE_THRESHOLD=70
-SCORE_ELEVATED_THRESHOLD=50
+RISK_THRESHOLD_VERY_LOW=95
+RISK_THRESHOLD_LOW=85
+RISK_THRESHOLD_MEDIUM=70
+RISK_THRESHOLD_HIGH=50
 ```
 
 ### Threshold Precedence
 
 1. Environment variables (highest)
-2. Database configuration
-3. Default values (lowest)
+2. Default values (lowest)
 
 ## Catalog-Aware Scoring
 
@@ -478,7 +477,7 @@ Response:
       "function_name": "PROTECT",
       "score": 79.2,
       "rating": "Low",
-      "metric_count": 44,
+      "metric_count": 56,
       "trend": "up"
     },
     ...

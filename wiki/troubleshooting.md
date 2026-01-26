@@ -13,7 +13,7 @@ Solutions to common issues and problems when using MetricFrame.
 
 **Symptoms:**
 - API returns connection refused
-- Port 8000 not responding
+- Port 8002 not responding
 
 **Solutions:**
 
@@ -30,7 +30,7 @@ Solutions to common issues and problems when using MetricFrame.
 
 3. **Verify port availability:**
    ```bash
-   lsof -i :8000
+   lsof -i :8002
    # Kill any conflicting process
    ```
 
@@ -42,7 +42,7 @@ Solutions to common issues and problems when using MetricFrame.
 ### Frontend Not Loading
 
 **Symptoms:**
-- Blank page at localhost:5173
+- Blank page at localhost:5175
 - Vite errors in console
 
 **Solutions:**
@@ -196,7 +196,7 @@ Solutions to common issues and problems when using MetricFrame.
 
 2. **Re-run seed:**
    ```bash
-   python -m src.seeds.seed_metrics
+   python -m src.seeds.seed_all --clear
    ```
 
 3. **Check for existing data:**
@@ -223,7 +223,7 @@ Solutions to common issues and problems when using MetricFrame.
 2. **Rebuild scores cache:**
    ```bash
    # Call score recalculation endpoint
-   curl -X POST http://localhost:8000/api/v1/scores/recalculate
+   curl -X POST http://localhost:8002/api/v1/scores/recalculate
    ```
 
 ## Performance Issues
@@ -340,7 +340,7 @@ Solutions to common issues and problems when using MetricFrame.
 | Resource | Location |
 |----------|----------|
 | Wiki | This documentation |
-| API Docs | http://localhost:8000/docs |
+| API Docs | http://localhost:8002/docs |
 | README | Repository root |
 
 ### Diagnostic Commands
@@ -351,7 +351,7 @@ docker compose ps
 docker compose logs --tail=50
 
 # Backend health
-curl http://localhost:8000/health
+curl http://localhost:8002/health
 
 # Database connectivity
 docker exec metricframe_db pg_isready
