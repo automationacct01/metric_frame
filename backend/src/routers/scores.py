@@ -19,8 +19,6 @@ from ..services.scoring import (
     compute_category_scores,
     compute_category_score,
     get_category_metrics_summary,
-    get_runtime_thresholds,
-    save_thresholds_to_db,
     # Multi-framework scoring functions
     compute_framework_function_scores,
     compute_framework_category_scores,
@@ -294,35 +292,26 @@ async def recalculate_scores(
 
 
 @router.get("/thresholds")
-async def get_risk_thresholds(db: Session = Depends(get_db)):
+async def get_risk_thresholds():
     """Get current risk rating thresholds."""
-    t = get_runtime_thresholds(db)
+    import os
+
     return {
-        "thresholds": t,
-        "description": {
-            "very_low": f"≥{t['very_low']}% - Very low risk, excellent performance",
-            "low": f"{t['low']}-{t['very_low'] - 1}% - Low risk, good performance",
-            "medium": f"{t['medium']}-{t['low'] - 1}% - Medium risk, moderate gaps",
-            "high": f"{t['high']}-{t['medium'] - 1}% - High risk, significant gaps",
-            "very_high": f"<{t['high']}% - Very high risk, critical gaps",
+        "thresholds": {
+            "very_low": float(os.getenv("RISK_THRESHOLD_VERY_LOW", "90.0")),
+            "low": float(os.getenv("RISK_THRESHOLD_LOW", "75.0")),
+            "medium": float(os.getenv("RISK_THRESHOLD_MEDIUM", "50.0")),
+            "high": float(os.getenv("RISK_THRESHOLD_HIGH", "30.0")),
         },
+        "description": {
+            "very_low": "≥90% - Very low risk, excellent performance",
+            "low": "75-89% - Low risk, good performance",
+            "medium": "50-74% - Medium risk, moderate gaps",
+            "high": "30-49% - High risk, significant gaps",
+            "very_high": "<30% - Very high risk, critical gaps",
+        },
+        "note": "5-level risk thresholds can be configured via environment variables",
     }
-
-
-@router.put("/thresholds")
-async def update_risk_thresholds(body: dict, db: Session = Depends(get_db)):
-    """Update risk rating thresholds and persist to database."""
-    thresholds = body.get("thresholds", {})
-    valid_keys = {"very_low", "low", "medium", "high"}
-    update = {}
-    for key in valid_keys:
-        if key in thresholds:
-            update[key] = float(thresholds[key])
-    if update:
-        saved = save_thresholds_to_db(db, update)
-    else:
-        saved = get_runtime_thresholds(db)
-    return {"status": "ok", "thresholds": saved}
 
 
 # ==============================================================================
