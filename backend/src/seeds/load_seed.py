@@ -280,8 +280,8 @@ def main():
         print("  - 28 Respond metrics (incident response, crisis management)")
         print("  - 28 Recover metrics (business continuity, vendor coordination)")
         print("\n🌐 You can now:")
-        print("  - View the executive dashboard at http://localhost:5173")
-        print("  - Explore the comprehensive API at http://localhost:8000/docs")
+        print("  - View the executive dashboard at http://localhost:5175")
+        print("  - Explore the comprehensive API at http://localhost:8002/docs")
         print("  - Test AI-powered metrics assistant with GPT-4o")
         print("  - Analyze 6 months of historical trend data")
         

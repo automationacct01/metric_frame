@@ -348,10 +348,10 @@ export default function Dashboard() {
                   <Typography variant="subtitle2" gutterBottom>Troubleshooting Steps:</Typography>
                   <Typography variant="body2" component="div">
                     <ol>
-                      <li>Ensure the backend API is running on <strong>http://localhost:8000</strong></li>
+                      <li>Ensure the backend API is running on <strong>http://localhost:8002</strong></li>
                       <li>Check if the database is connected and contains seeded metrics data</li>
-                      <li>Verify CORS settings allow requests from <strong>http://localhost:5173</strong></li>
-                      <li>Try accessing the API directly: <strong>http://localhost:8000/api/v1/health</strong></li>
+                      <li>Verify CORS settings allow requests from <strong>http://localhost:5175</strong></li>
+                      <li>Try accessing the API directly: <strong>http://localhost:8002/api/v1/health</strong></li>
                       <li>Run <code>docker-compose logs backend</code> to check backend logs</li>
                     </ol>
                   </Typography>

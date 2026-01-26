@@ -9,7 +9,7 @@ Demo mode provides a quick way to experience MetricFrame without configuration o
 
 ## Accessing Demo Mode
 
-Navigate to http://localhost:5173/demo (or your deployment URL + `/demo`).
+Navigate to http://localhost:5175/demo (or your deployment URL + `/demo`).
 
 ### Starting a Demo Session
 
