@@ -385,19 +385,21 @@ export default function Dashboard() {
   const calculateMetricsAtTarget = () => {
     if (dashboard?.metrics_at_target_pct !== undefined) return dashboard.metrics_at_target_pct;
     if (!frameworkScores?.function_scores?.length) return 0;
-    // Estimate: metrics at target based on weighted average of function scores
     const totalMetricsFromFunctions = frameworkScores.function_scores.reduce((sum, f) => sum + f.metrics_count, 0);
-    const weightedAtTarget = frameworkScores.function_scores.reduce((sum, f) => {
-      // Approximate metrics at target as (score% / 100) * metrics_count
-      return sum + (f.score_pct / 100) * f.metrics_count;
-    }, 0);
-    return totalMetricsFromFunctions > 0 ? Math.round((weightedAtTarget / totalMetricsFromFunctions) * 100) : 0;
+    const totalBelowTarget = frameworkScores.function_scores.reduce((sum, f) => sum + (f.metrics_below_target_count ?? 0), 0);
+    const atTarget = totalMetricsFromFunctions - totalBelowTarget;
+    return totalMetricsFromFunctions > 0 ? Math.round((atTarget / totalMetricsFromFunctions) * 100) : 0;
   };
 
   const metricsAtTargetPct = calculateMetricsAtTarget();
 
   // Calculate below target metrics
-  const metricsBelowTarget = dashboard?.metrics_below_target ?? Math.round(totalMetrics * (1 - metricsAtTargetPct / 100));
+  const calculateBelowTarget = () => {
+    if (dashboard?.metrics_below_target !== undefined) return dashboard.metrics_below_target;
+    if (!frameworkScores?.function_scores?.length) return 0;
+    return frameworkScores.function_scores.reduce((sum, f) => sum + (f.metrics_below_target_count ?? 0), 0);
+  };
+  const metricsBelowTarget = calculateBelowTarget();
 
   // Calculate high risk functions from function_scores if riskDistribution not available
   const calculateHighRiskFunctions = () => {
@@ -612,7 +614,7 @@ export default function Dashboard() {
                     score_pct: functionScore.score_pct,
                     risk_rating: functionScore.risk_rating as any,
                     metrics_count: functionScore.metrics_count,
-                    metrics_below_target_count: 0,
+                    metrics_below_target_count: functionScore.metrics_below_target_count ?? 0,
                     weighted_score: functionScore.weighted_score,
                   }}
                   functionName={functionScore.function_name}
