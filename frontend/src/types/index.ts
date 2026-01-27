@@ -54,6 +54,7 @@ export interface FrameworkFunctionScore {
   score_pct: number;
   risk_rating: string;
   metrics_count: number;
+  metrics_below_target_count: number;
   weighted_score: number;
 }
 

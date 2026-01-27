@@ -23,8 +23,11 @@ COPY pyproject.toml ./
 # Copy application code
 COPY . .
 
-# Install dependencies directly with pip (Claude-only, no OpenAI)
-RUN pip install --no-cache-dir fastapi uvicorn[standard] sqlalchemy alembic psycopg2-binary python-dotenv anthropic pandas python-multipart pydantic
+# Install dependencies directly with pip (all AI providers)
+RUN pip install --no-cache-dir \
+    fastapi uvicorn[standard] sqlalchemy alembic psycopg2-binary \
+    python-dotenv pandas python-multipart pydantic cryptography \
+    anthropic openai together boto3 google-genai azure-identity
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
