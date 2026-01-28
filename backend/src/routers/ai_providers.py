@@ -234,8 +234,13 @@ async def create_configuration(
 
     # Encrypt credentials
     encryption = CredentialEncryption()
+    if not encryption.is_available:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Credential encryption not configured. Set AI_CREDENTIALS_MASTER_KEY environment variable.",
+        )
     creds_dict = config.credentials.model_dump(exclude_none=True)
-    encrypted_creds = encryption.encrypt_credentials(creds_dict) if encryption.is_available else None
+    encrypted_creds = encryption.encrypt_credentials(creds_dict)
 
     # Create configuration
     db_config = UserAIConfiguration(
@@ -302,11 +307,20 @@ async def update_configuration(
     # Update credentials if provided
     if update.credentials:
         encryption = CredentialEncryption()
+        if not encryption.is_available:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Credential encryption not configured. Set AI_CREDENTIALS_MASTER_KEY environment variable.",
+            )
         creds_dict = update.credentials.model_dump(exclude_none=True)
-        if creds_dict and encryption.is_available:
-            db_config.encrypted_credentials = encryption.encrypt_credentials(creds_dict)
-            db_config.credentials_validated = False  # Require re-validation
-            db_config.validation_error = None
+        if not creds_dict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one credential field is required.",
+            )
+        db_config.encrypted_credentials = encryption.encrypt_credentials(creds_dict)
+        db_config.credentials_validated = False  # Require re-validation
+        db_config.validation_error = None
 
     db_config.updated_at = datetime.utcnow()
     db.commit()
@@ -412,7 +426,7 @@ async def validate_configuration(
         creds_dict = encryption.decrypt_credentials(db_config.encrypted_credentials)
         credentials = _credentials_from_schema(creds_dict, provider_type)
     except Exception as e:
-        logger.error(f"Failed to decrypt credentials: {e}")
+        logger.error(f"Failed to decrypt credentials for config {config_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to decrypt credentials",
@@ -423,7 +437,7 @@ async def validate_configuration(
         provider_instance = get_provider(provider_type)
         valid = await provider_instance.validate_credentials(credentials)
     except Exception as e:
-        logger.error(f"Credential validation failed: {e}")
+        logger.error(f"Credential validation failed for config {config_id}: {type(e).__name__}")
         valid = False
 
     # Update validation status
