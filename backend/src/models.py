@@ -72,6 +72,13 @@ class CSFFunction(enum.Enum):
     RECOVER = "rc"
 
 
+class UserRole(enum.Enum):
+    """User roles for access control."""
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+
 # ==============================================================================
 # FRAMEWORK HIERARCHY TABLES
 # ==============================================================================
@@ -322,6 +329,7 @@ class Metric(Base):
     subcategory = relationship("FrameworkSubcategory", back_populates="metrics")
     history = relationship("MetricHistory", back_populates="metric", cascade="all, delete-orphan")
     ai_changes = relationship("AIChangeLog", back_populates="metric")
+    versions = relationship("MetricVersion", back_populates="metric", cascade="all, delete-orphan")
 
     @property
     def csf_function(self):
@@ -421,6 +429,36 @@ class MetricHistory(Base):
 
     def __repr__(self) -> str:
         return f"<MetricHistory(metric_id={self.metric_id}, collected_at={self.collected_at})>"
+
+
+class MetricVersion(Base):
+    """Full state snapshots of metrics on every update.
+
+    Captures the complete metric state before changes are applied,
+    enabling version comparison, audit trails, and rollback support.
+    """
+
+    __tablename__ = "metric_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+    snapshot_json = Column(JSON, nullable=False)
+    changed_fields = Column(JSON)  # List of field names that changed
+    changed_by = Column(String(255))
+    change_source = Column(String(50))  # 'api', 'ai', 'import', 'system'
+    change_notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('metric_id', 'version_number', name='uq_metric_version_number'),
+    )
+
+    # Relationships
+    metric = relationship("Metric", back_populates="versions")
+
+    def __repr__(self) -> str:
+        return f"<MetricVersion(metric_id={self.metric_id}, version={self.version_number})>"
 
 
 # ==============================================================================
@@ -674,7 +712,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True)
-    role = Column(String(50))
+    role = Column(String(50), default="viewer")
     active = Column(Boolean, default=True)
 
     # Framework preferences
@@ -839,6 +877,46 @@ class DemoMetric(Base):
 
 
 # ==============================================================================
+# SUBSCRIPTION / PAYMENT TABLES
+# ==============================================================================
+
+class SubscriptionStatus(enum.Enum):
+    """Stripe subscription statuses."""
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    INCOMPLETE = "incomplete"
+    TRIALING = "trialing"
+
+
+class Subscription(Base):
+    """Stripe subscription records.
+
+    Tracks customer subscriptions created via Stripe Checkout.
+    No user FK required - identity is managed by Stripe via customer email.
+    """
+
+    __tablename__ = "subscriptions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    stripe_customer_id = Column(String(255), nullable=False, index=True)
+    stripe_subscription_id = Column(String(255), unique=True, nullable=False, index=True)
+    stripe_checkout_session_id = Column(String(255), nullable=True)
+    customer_email = Column(String(255), nullable=False, index=True)
+    plan_name = Column(String(50), nullable=False)  # 'standard' or 'professional'
+    status = Column(Enum(SubscriptionStatus), nullable=False, default=SubscriptionStatus.INCOMPLETE)
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False)
+    canceled_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:
+        return f"<Subscription(id={self.id}, email='{self.customer_email}', plan='{self.plan_name}', status='{self.status.value}')>"
+
+
+# ==============================================================================
 # INDICES
 # ==============================================================================
 
@@ -866,6 +944,10 @@ Index("idx_metrics_ai_profile", Metric.ai_profile_focus)
 
 # History indices
 Index("idx_history_metric_collected", MetricHistory.metric_id, MetricHistory.collected_at.desc())
+
+# Version indices
+Index("idx_version_metric_id", MetricVersion.metric_id)
+Index("idx_version_metric_created", MetricVersion.metric_id, MetricVersion.created_at.desc())
 
 # AI change log indices
 Index("idx_ai_changes_applied", AIChangeLog.applied, AIChangeLog.created_at.desc())
@@ -896,6 +978,10 @@ Index("idx_demo_users_expires", DemoUser.demo_expires_at)
 Index("idx_demo_users_expired", DemoUser.expired)
 Index("idx_demo_metrics_user", DemoMetric.demo_user_id)
 Index("idx_demo_metrics_framework", DemoMetric.framework)
+
+# Subscription indices
+Index("idx_subscriptions_email_status", Subscription.customer_email, Subscription.status)
+Index("idx_subscriptions_customer_stripe", Subscription.stripe_customer_id)
 
 # Alias for backward compatibility
 MetricCatalogCSFMapping = MetricCatalogFrameworkMapping

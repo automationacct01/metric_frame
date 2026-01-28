@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -22,7 +22,6 @@ import {
   ListItemText,
   Divider,
   Tooltip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -50,24 +49,35 @@ import { useFramework } from '../../contexts/FrameworkContext';
 import { RecommendationsResponse, CoverageGaps } from '../../types';
 
 interface MetricRecommendation {
-  id: string;
-  name: string;
+  id?: string;
+  metric_name: string;
   description: string;
-  suggested_function: string;
-  suggested_category?: string;
+  function_code: string;
+  category_code?: string;
   priority: number;
   rationale: string;
-  data_source_suggestion?: string;
-  collection_frequency?: string;
+  expected_impact?: string;
 }
 
-interface GapInfo {
+// GapInfo types matching API response
+interface FunctionGap {
   function_code: string;
   function_name: string;
-  coverage_pct: number;
-  metrics_count: number;
-  gap_severity: 'high' | 'medium' | 'low';
-  categories_missing: string[];
+  description?: string;
+}
+
+interface LowCoverageFunction {
+  function_code: string;
+  function_name: string;
+  metric_count: number;
+}
+
+interface CategoryGap {
+  category_code: string;
+  category_name: string;
+  category_description?: string;
+  function_code: string;
+  function_name: string;
 }
 
 const MetricRecommendations: React.FC = () => {
@@ -141,7 +151,7 @@ const MetricRecommendations: React.FC = () => {
   const handleCreateFromRecommendation = (recommendation: MetricRecommendation) => {
     setSelectedRecommendation(recommendation);
     setNewMetricForm({
-      name: recommendation.name,
+      name: recommendation.metric_name,
       description: recommendation.description,
       direction: 'higher_is_better',
       target_value: 100,
@@ -149,8 +159,8 @@ const MetricRecommendations: React.FC = () => {
       unit: '%',
       priority_rank: recommendation.priority,
       owner_function: 'SecOps',
-      data_source: recommendation.data_source_suggestion || '',
-      collection_frequency: recommendation.collection_frequency || 'monthly',
+      data_source: '',
+      collection_frequency: 'monthly',
     });
     setCreateDialogOpen(true);
   };
@@ -160,22 +170,13 @@ const MetricRecommendations: React.FC = () => {
 
     const metric = {
       ...newMetricForm,
-      csf_function: selectedRecommendation.suggested_function,
-      category_code: selectedRecommendation.suggested_category,
+      csf_function: selectedRecommendation.function_code,
+      category_code: selectedRecommendation.category_code,
       active: true,
       framework_code: frameworkCode,
     };
 
     createMetricMutation.mutate(metric);
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'error';
-      case 'medium': return 'warning';
-      case 'low': return 'success';
-      default: return 'default';
-    }
   };
 
   const getPriorityLabel = (priority: number) => {
@@ -196,8 +197,10 @@ const MetricRecommendations: React.FC = () => {
     }
   };
 
-  const isLoading = isLoadingRecommendations || isLoadingGaps || isLoadingDistribution;
-  const hasError = recommendationsError || gapsError;
+  // Only block on coverage data loading - recommendations can load in background
+  const isLoadingCoverageData = isLoadingGaps || isLoadingDistribution;
+  // Critical error only if gaps fail - recommendations failing is less severe
+  const hasCriticalError = gapsError;
 
   return (
     <Box>
@@ -217,24 +220,24 @@ const MetricRecommendations: React.FC = () => {
           onClick={() => {
             refetchRecommendations();
           }}
-          disabled={isLoading}
+          disabled={isLoadingCoverageData || isLoadingRecommendations}
         >
           Refresh
         </Button>
       </Box>
 
-      {hasError && (
+      {hasCriticalError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          <AlertTitle>Error Loading Recommendations</AlertTitle>
-          Failed to load AI recommendations. Please try again later.
+          <AlertTitle>Error Loading Coverage Data</AlertTitle>
+          Failed to load coverage analysis. Please try again later.
         </Alert>
       )}
 
-      {isLoading ? (
+      {isLoadingCoverageData ? (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <CircularProgress sx={{ mb: 2 }} />
           <Typography variant="body2" color="text.secondary">
-            Analyzing your metrics and generating recommendations...
+            Loading coverage data...
           </Typography>
         </Box>
       ) : (
@@ -285,34 +288,81 @@ const MetricRecommendations: React.FC = () => {
                 <Typography variant="h6">Coverage Gaps</Typography>
               </Box>
 
-              {coverageGaps?.gaps && coverageGaps.gaps.length > 0 ? (
-                <List>
-                  {coverageGaps.gaps.slice(0, 5).map((gap: GapInfo, index: number) => (
-                    <React.Fragment key={gap.function_code}>
+              {((coverageGaps?.functions_without_metrics?.length ?? 0) > 0 ||
+                (coverageGaps?.functions_with_low_coverage?.length ?? 0) > 0 ||
+                (coverageGaps?.categories_without_metrics?.length ?? 0) > 0) ? (
+                <List sx={{ maxHeight: 280, overflowY: 'auto' }}>
+                  {/* Functions without any metrics - high severity */}
+                  {coverageGaps?.functions_without_metrics?.slice(0, 3).map((gap: FunctionGap, index: number) => (
+                    <React.Fragment key={`func-${gap.function_code}`}>
                       <ListItem>
                         <ListItemIcon>
                           <Chip
                             size="small"
-                            label={gap.gap_severity}
-                            color={getSeverityColor(gap.gap_severity) as any}
+                            label="high"
+                            color="error"
                           />
                         </ListItemIcon>
                         <ListItemText
                           primary={gap.function_name}
+                          secondary="No metrics defined for this function"
+                        />
+                      </ListItem>
+                      {index < (coverageGaps?.functions_without_metrics?.length ?? 0) - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+
+                  {/* Functions with low coverage - medium severity */}
+                  {coverageGaps?.functions_with_low_coverage?.slice(0, 2).map((gap: LowCoverageFunction, index: number) => (
+                    <React.Fragment key={`low-${gap.function_code}`}>
+                      <ListItem>
+                        <ListItemIcon>
+                          <Chip
+                            size="small"
+                            label="medium"
+                            color="warning"
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={gap.function_name}
+                          secondary={`Only ${gap.metric_count} metric${gap.metric_count === 1 ? '' : 's'} defined`}
+                        />
+                      </ListItem>
+                      {index < (coverageGaps?.functions_with_low_coverage?.length ?? 0) - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+
+                  {/* Categories without metrics - show each one */}
+                  {coverageGaps?.categories_without_metrics?.map((cat: CategoryGap, index: number) => (
+                    <React.Fragment key={`cat-${cat.category_code}`}>
+                      <ListItem alignItems="flex-start">
+                        <ListItemIcon>
+                          <Chip
+                            size="small"
+                            label={cat.function_code.toUpperCase()}
+                            color="info"
+                            variant="outlined"
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" fontWeight="medium">
+                                {cat.category_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ({cat.category_code})
+                              </Typography>
+                            </Box>
+                          }
                           secondary={
-                            <>
-                              {gap.metrics_count} metrics ({gap.coverage_pct.toFixed(0)}% coverage)
-                              {gap.categories_missing?.length > 0 && (
-                                <Typography variant="caption" display="block" color="text.secondary">
-                                  Missing: {gap.categories_missing.slice(0, 3).join(', ')}
-                                  {gap.categories_missing.length > 3 && ` +${gap.categories_missing.length - 3} more`}
-                                </Typography>
-                              )}
-                            </>
+                            cat.category_description
+                              ? cat.category_description
+                              : `No metrics tracking ${cat.category_name.toLowerCase()} within ${cat.function_name}`
                           }
                         />
                       </ListItem>
-                      {index < Math.min(coverageGaps.gaps.length, 5) - 1 && <Divider />}
+                      {index < (coverageGaps?.categories_without_metrics?.length ?? 0) - 1 && <Divider variant="inset" />}
                     </React.Fragment>
                   ))}
                 </List>
@@ -333,27 +383,79 @@ const MetricRecommendations: React.FC = () => {
                 <Typography variant="h6">AI Insights</Typography>
               </Box>
 
-              {recommendations?.summary ? (
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {recommendations.summary}
+              {isLoadingRecommendations ? (
+                <Typography variant="body2" color="text.secondary">
+                  Generating AI insights...
+                </Typography>
+              ) : recommendations ? (
+                <Box component="ul" sx={{ m: 0, pl: 2, '& li': { mb: 0.75 } }}>
+                  {/* Coverage stat */}
+                  <Typography component="li" variant="body2" color="text.secondary">
+                    <strong>Coverage:</strong> {recommendations.gap_analysis?.coverage_percentage?.toFixed(0) || recommendations.current_coverage?.category_coverage_pct?.toFixed(0) || '100'}% of framework categories have metrics defined
+                  </Typography>
+
+                  {/* Underrepresented areas */}
+                  {(recommendations.gap_analysis?.underrepresented_functions?.length ?? 0) > 0 && (
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      <strong>Gaps identified:</strong> {recommendations.gap_analysis?.underrepresented_functions?.join(', ')} need additional metrics
+                    </Typography>
+                  )}
+
+                  {/* Key insight from top recommendation */}
+                  {recommendations.recommendations?.length > 0 && recommendations.recommendations[0]?.rationale && (
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      <strong>Key finding:</strong> {(() => {
+                        const text = recommendations.recommendations[0].rationale;
+                        // Split on period followed by space (avoids breaking on "ID.IM")
+                        const match = text.match(/^(.+?\.)\s/);
+                        return match ? match[1] : (text.length > 150 ? text.slice(0, 150) + '...' : text);
+                      })()}
+                    </Typography>
+                  )}
+
+                  {/* Impact/why it matters from expected_impact */}
+                  {recommendations.recommendations?.length > 0 && recommendations.recommendations[0]?.expected_impact && (
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      <strong>Impact:</strong> {(() => {
+                        const text = recommendations.recommendations[0].expected_impact;
+                        const match = text.match(/^(.+?\.)\s/);
+                        return match ? match[1] : (text.length > 150 ? text.slice(0, 150) + '...' : text);
+                      })()}
+                    </Typography>
+                  )}
+
+                  {/* Recommendation summary */}
+                  {recommendations.recommendations?.length > 0 ? (
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      <strong>Suggested actions:</strong> {recommendations.recommendations.filter(r => r.priority === 1).length} high priority, {recommendations.recommendations.filter(r => r.priority === 2).length} medium priority metrics to consider
+                    </Typography>
+                  ) : (
+                    <Typography component="li" variant="body2" color="success.main">
+                      <strong>Status:</strong> Excellent program maturity - no gaps identified
+                    </Typography>
+                  )}
+                </Box>
+              ) : recommendationsError ? (
+                <Typography variant="body2" color="text.secondary">
+                  AI insights unavailable. View coverage gaps below.
                 </Typography>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  AI analysis will provide insights about your metrics coverage and suggest improvements.
+                  AI analysis will provide insights about your metrics coverage.
                 </Typography>
               )}
 
               <Box sx={{ mt: 2 }}>
                 <Chip
                   icon={<LightbulbIcon />}
-                  label={`${recommendations?.recommendations?.length || 0} Recommendations`}
+                  label={isLoadingRecommendations ? 'Loading...' : `${recommendations?.recommendations?.length || 0} Recommendations`}
                   color="primary"
                   variant="outlined"
                   sx={{ mr: 1 }}
                 />
                 <Chip
                   icon={<WarningIcon />}
-                  label={`${coverageGaps?.gaps?.length || 0} Gaps Identified`}
+                  label={`${coverageGaps?.total_gap_count || 0} Gaps Identified`}
                   color="warning"
                   variant="outlined"
                 />
@@ -369,7 +471,26 @@ const MetricRecommendations: React.FC = () => {
                 <Typography variant="h6">Recommended Metrics</Typography>
               </Box>
 
-              {recommendations?.recommendations && recommendations.recommendations.length > 0 ? (
+              {isLoadingRecommendations ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <CircularProgress sx={{ mb: 2 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    AI is generating metric recommendations... This may take up to 90 seconds.
+                  </Typography>
+                </Box>
+              ) : recommendationsError ? (
+                <Alert
+                  severity="warning"
+                  action={
+                    <Button color="inherit" size="small" onClick={() => refetchRecommendations()}>
+                      Retry
+                    </Button>
+                  }
+                >
+                  <AlertTitle>Recommendations Unavailable</AlertTitle>
+                  AI recommendations timed out or encountered an error. Coverage data above is still available.
+                </Alert>
+              ) : recommendations?.recommendations && recommendations.recommendations.length > 0 ? (
                 <Grid container spacing={2}>
                   {recommendations.recommendations.map((rec: MetricRecommendation, index: number) => (
                     <Grid item xs={12} md={6} lg={4} key={rec.id || index}>
@@ -388,13 +509,15 @@ const MetricRecommendations: React.FC = () => {
                         <CardContent sx={{ flexGrow: 1 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                             <Typography variant="subtitle1" fontWeight="medium">
-                              {rec.name}
+                              {rec.metric_name}
                             </Typography>
-                            <Chip
-                              size="small"
-                              label={getPriorityLabel(rec.priority)}
-                              color={getPriorityColor(rec.priority)}
-                            />
+                            <Tooltip title="Implementation priority (High = address first)" arrow>
+                              <Chip
+                                size="small"
+                                label={getPriorityLabel(rec.priority)}
+                                color={getPriorityColor(rec.priority)}
+                              />
+                            </Tooltip>
                           </Box>
 
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -402,17 +525,21 @@ const MetricRecommendations: React.FC = () => {
                           </Typography>
 
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
-                            <Chip
-                              size="small"
-                              label={rec.suggested_function.toUpperCase()}
-                              variant="outlined"
-                            />
-                            {rec.suggested_category && (
+                            <Tooltip title="Framework function this metric maps to" arrow>
                               <Chip
                                 size="small"
-                                label={rec.suggested_category}
+                                label={rec.function_code.toUpperCase()}
                                 variant="outlined"
                               />
+                            </Tooltip>
+                            {rec.category_code && (
+                              <Tooltip title="Framework category within the function" arrow>
+                                <Chip
+                                  size="small"
+                                  label={rec.category_code}
+                                  variant="outlined"
+                                />
+                              </Tooltip>
                             )}
                           </Box>
 
@@ -469,7 +596,7 @@ const MetricRecommendations: React.FC = () => {
         <DialogContent>
           {selectedRecommendation && (
             <Alert severity="info" sx={{ mb: 3 }}>
-              Creating metric based on AI recommendation: <strong>{selectedRecommendation.name}</strong>
+              Creating metric based on AI recommendation: <strong>{selectedRecommendation.metric_name}</strong>
             </Alert>
           )}
 
