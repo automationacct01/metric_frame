@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
 from ..db import get_db
-from ..models import Metric, MetricHistory, Framework, FrameworkFunction, FrameworkCategory
+from ..models import Metric, MetricHistory, MetricVersion, Framework, FrameworkFunction, FrameworkCategory, User
 from ..schemas import (
     MetricResponse,
     MetricCreate,
@@ -24,9 +24,13 @@ from ..schemas import (
     MetricListResponse,
     MetricHistoryCreate,
     MetricHistoryResponse,
+    MetricVersionResponse,
+    MetricVersionDiff as MetricVersionDiffSchema,
     CSFFunction,
 )
 from ..services.scoring import compute_metric_score, compute_gap_to_target
+from ..services.metric_versioning import create_version_snapshot, get_version_diff
+from ..middleware.roles import require_role
 
 
 def _add_scores_to_response(metric: Metric) -> MetricResponse:
@@ -140,6 +144,7 @@ async def list_metrics(
 async def create_metric(
     metric: MetricCreate,
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Create a new metric."""
     from ..models import Framework, FrameworkFunction
@@ -225,13 +230,14 @@ async def update_metric(
     metric_id: UUID,
     metric_update: MetricUpdate,
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
-    """Update a metric (full update)."""
-    
+    """Update a metric (full update). Auto-creates version snapshot and history entry."""
+
     metric = db.query(Metric).filter(Metric.id == metric_id).first()
     if not metric:
         raise HTTPException(status_code=404, detail="Metric not found")
-    
+
     # Check for duplicate name if updating name
     if metric_update.name and metric_update.name != metric.name:
         existing = db.query(Metric).filter(
@@ -239,21 +245,66 @@ async def update_metric(
         ).first()
         if existing:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Metric with name '{metric_update.name}' already exists"
             )
-    
-    # Update fields
+
+    # Detect which fields are actually changing
     update_data = metric_update.model_dump(exclude_unset=True)
+    changed_fields = []
+    for field, new_value in update_data.items():
+        current_value = getattr(metric, field, None)
+        # Normalize for comparison (handle enum .value, Decimal, etc.)
+        current_comparable = current_value.value if hasattr(current_value, 'value') else current_value
+        new_comparable = new_value.value if hasattr(new_value, 'value') else new_value
+        if isinstance(current_comparable, (int, float)) and isinstance(new_comparable, (int, float)):
+            if float(current_comparable) != float(new_comparable):
+                changed_fields.append(field)
+        elif current_comparable != new_comparable:
+            changed_fields.append(field)
+
+    # Create version snapshot BEFORE applying changes (only if something actually changed)
+    if changed_fields:
+        try:
+            create_version_snapshot(
+                db=db,
+                metric=metric,
+                changed_fields=changed_fields,
+                changed_by="system",
+                source="api",
+            )
+        except Exception:
+            # Don't fail the update if versioning fails
+            pass
+
+    # Track whether current_value is changing for MetricHistory
+    old_current_value = metric.current_value
+    current_value_changing = (
+        "current_value" in update_data
+        and update_data["current_value"] != (float(old_current_value) if old_current_value is not None else None)
+    )
+
+    # Apply updates
     for field, value in update_data.items():
         setattr(metric, field, value)
-    
+
     # Validate target_value for non-binary metrics
     if metric.direction != "binary" and metric.target_value is None:
         raise HTTPException(
             status_code=400,
             detail="target_value is required for non-binary metrics"
         )
+
+    # Auto-create MetricHistory entry when current_value changes
+    if current_value_changing and metric.current_value is not None:
+        from datetime import datetime as dt
+        history_entry = MetricHistory(
+            metric_id=metric.id,
+            collected_at=dt.now(tz=None),
+            normalized_value=metric.current_value,
+            source_ref="api_update",
+        )
+        db.add(history_entry)
 
     db.commit()
     db.refresh(metric)
@@ -266,6 +317,7 @@ async def patch_metric(
     metric_id: UUID,
     metric_update: MetricUpdate,
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Partially update a metric."""
     return await update_metric(metric_id, metric_update, db)
@@ -276,6 +328,7 @@ async def delete_metric(
     metric_id: UUID,
     hard_delete: bool = Query(False, description="Permanently delete instead of soft delete"),
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_role(["admin"])),
 ):
     """Delete a metric (soft delete by default)."""
     
@@ -298,6 +351,7 @@ async def add_metric_value(
     metric_id: UUID,
     history: MetricHistoryCreate,
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Add a new value to metric history and update current value."""
     
@@ -352,6 +406,103 @@ async def get_metric_history(
     )
     
     return [MetricHistoryResponse.model_validate(h) for h in history]
+
+
+# ==============================================================================
+# VERSION HISTORY ENDPOINTS
+# ==============================================================================
+
+@router.get("/{metric_id}/versions", response_model=List[MetricVersionResponse])
+async def get_metric_versions(
+    metric_id: UUID,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Get version history for a metric, newest first."""
+
+    metric = db.query(Metric).filter(Metric.id == metric_id).first()
+    if not metric:
+        raise HTTPException(status_code=404, detail="Metric not found")
+
+    versions = (
+        db.query(MetricVersion)
+        .filter(MetricVersion.metric_id == metric_id)
+        .order_by(desc(MetricVersion.version_number))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return [MetricVersionResponse.model_validate(v) for v in versions]
+
+
+@router.get("/{metric_id}/versions/{version_number}", response_model=MetricVersionResponse)
+async def get_metric_version(
+    metric_id: UUID,
+    version_number: int,
+    db: Session = Depends(get_db),
+):
+    """Get a specific version snapshot for a metric."""
+
+    version = (
+        db.query(MetricVersion)
+        .filter(
+            MetricVersion.metric_id == metric_id,
+            MetricVersion.version_number == version_number,
+        )
+        .first()
+    )
+    if not version:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Version {version_number} not found for this metric",
+        )
+
+    return MetricVersionResponse.model_validate(version)
+
+
+@router.get("/{metric_id}/versions/diff", response_model=MetricVersionDiffSchema)
+async def get_metric_version_diff(
+    metric_id: UUID,
+    version_a: int = Query(..., description="First version number"),
+    version_b: int = Query(..., description="Second version number"),
+    db: Session = Depends(get_db),
+):
+    """Compare two version snapshots and return a field-level diff."""
+
+    va = (
+        db.query(MetricVersion)
+        .filter(
+            MetricVersion.metric_id == metric_id,
+            MetricVersion.version_number == version_a,
+        )
+        .first()
+    )
+    vb = (
+        db.query(MetricVersion)
+        .filter(
+            MetricVersion.metric_id == metric_id,
+            MetricVersion.version_number == version_b,
+        )
+        .first()
+    )
+
+    if not va:
+        raise HTTPException(status_code=404, detail=f"Version {version_a} not found")
+    if not vb:
+        raise HTTPException(status_code=404, detail=f"Version {version_b} not found")
+
+    diff = get_version_diff(va.snapshot_json, vb.snapshot_json)
+
+    return MetricVersionDiffSchema(
+        metric_id=metric_id,
+        version_a=version_a,
+        version_b=version_b,
+        diff=diff,
+        snapshot_a=va.snapshot_json,
+        snapshot_b=vb.snapshot_json,
+    )
 
 
 @router.get("/functions/list")
@@ -573,6 +724,7 @@ async def lock_metric(
     metric_id: UUID,
     locked_by: Optional[str] = Query(None, description="User who locked the metric"),
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Lock a metric to prevent editing."""
 
@@ -598,6 +750,7 @@ async def unlock_metric(
     metric_id: UUID,
     unlocked_by: Optional[str] = Query(None, description="User who unlocked the metric"),
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Unlock a metric to allow editing."""
 
@@ -624,6 +777,7 @@ async def update_metric_field(
     field: str = Query(..., description="Field name to update"),
     value: str = Query(..., description="New value for the field"),
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Update a single field of a metric (requires metric to be unlocked).
 
@@ -733,6 +887,7 @@ async def toggle_metric_lock(
     metric_id: UUID,
     user: Optional[str] = Query(None, description="User performing the action"),
     db: Session = Depends(get_db),
+    _editor: User = Depends(require_role(["editor", "admin"])),
 ):
     """Toggle the lock state of a metric."""
 

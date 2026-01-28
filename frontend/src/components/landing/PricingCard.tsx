@@ -30,6 +30,7 @@ interface PricingCardProps {
   comingSoon?: boolean;
   ctaText?: string;
   ctaAction?: () => void;
+  onSubscribe?: () => void;
 }
 
 export default function PricingCard({
@@ -42,11 +43,14 @@ export default function PricingCard({
   comingSoon = false,
   ctaText = 'Get Started',
   ctaAction,
+  onSubscribe,
 }: PricingCardProps) {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (ctaAction) {
+    if (onSubscribe) {
+      onSubscribe();
+    } else if (ctaAction) {
       ctaAction();
     } else {
       navigate('/app');

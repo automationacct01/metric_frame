@@ -15,6 +15,8 @@ import {
   MetricListResponse,
   MetricFilters,
   MetricHistory,
+  MetricVersionResponse,
+  MetricVersionDiff,
   ScoresResponse,
   DashboardSummary,
   FunctionScore,
@@ -399,6 +401,35 @@ class APIClient {
     return response.data;
   }
 
+  // ==============================================================================
+  // METRIC VERSION ENDPOINTS
+  // ==============================================================================
+
+  async getMetricVersions(metricId: string, limit = 50, offset = 0): Promise<MetricVersionResponse[]> {
+    const response = await this.client.get<MetricVersionResponse[]>(
+      `/metrics/${metricId}/versions?limit=${limit}&offset=${offset}`
+    );
+    return response.data;
+  }
+
+  async getMetricVersion(metricId: string, versionNumber: number): Promise<MetricVersionResponse> {
+    const response = await this.client.get<MetricVersionResponse>(
+      `/metrics/${metricId}/versions/${versionNumber}`
+    );
+    return response.data;
+  }
+
+  async compareMetricVersions(
+    metricId: string,
+    versionA: number,
+    versionB: number
+  ): Promise<MetricVersionDiff> {
+    const response = await this.client.get<MetricVersionDiff>(
+      `/metrics/${metricId}/versions/diff?version_a=${versionA}&version_b=${versionB}`
+    );
+    return response.data;
+  }
+
   async getCSFFunctions(): Promise<any> {
     const response = await this.client.get('/metrics/functions/list/');
     return response.data;
@@ -513,7 +544,12 @@ class APIClient {
     const params = new URLSearchParams();
     params.append('framework', framework);
     params.append('max_recommendations', maxRecommendations.toString());
-    const response = await this.client.post<RecommendationsResponse>(`/ai/recommendations?${params.toString()}`);
+    // AI recommendations can take a while to generate - use 90 second timeout
+    const response = await this.client.post<RecommendationsResponse>(
+      `/ai/recommendations?${params.toString()}`,
+      {},
+      { timeout: 90000 }
+    );
     return response.data;
   }
 
@@ -927,6 +963,118 @@ class APIClient {
       { headers: { 'X-Demo-Session': sessionId } }
     );
     return response.data;
+  }
+
+  // =============================================================================
+  // STRIPE PAYMENT ENDPOINTS
+  // =============================================================================
+
+  /**
+   * Create a Stripe Checkout Session for subscription
+   */
+  async createCheckoutSession(plan: string, customerEmail?: string): Promise<{
+    checkout_url: string;
+    session_id: string;
+  }> {
+    const response = await this.client.post<{
+      checkout_url: string;
+      session_id: string;
+    }>('/payments/create-checkout-session', {
+      plan,
+      customer_email: customerEmail,
+    });
+    return response.data;
+  }
+
+  /**
+   * Get subscription status by email
+   */
+  async getSubscriptionStatus(email: string): Promise<{
+    has_subscription: boolean;
+    status: string | null;
+    plan_name: string | null;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean;
+  }> {
+    const params = new URLSearchParams();
+    params.append('email', email);
+    const response = await this.client.get(`/payments/subscription-status?${params.toString()}`);
+    return response.data;
+  }
+
+  // ==============================================================================
+  // USER MANAGEMENT ENDPOINTS
+  // ==============================================================================
+
+  /**
+   * Get all users (admin only)
+   */
+  async getUsers(activeOnly = false, role?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (activeOnly) params.append('active_only', 'true');
+    if (role) params.append('role', role);
+    const response = await this.client.get<any[]>(`/users/?${params.toString()}`);
+    return response.data;
+  }
+
+  /**
+   * Create a new user (admin only)
+   */
+  async createUser(userData: { name: string; email: string; role: string }): Promise<any> {
+    const response = await this.client.post<any>('/users/', userData);
+    return response.data;
+  }
+
+  /**
+   * Get current user profile from X-User-Email header
+   */
+  async getCurrentUser(): Promise<any> {
+    const response = await this.client.get<any>('/users/me');
+    return response.data;
+  }
+
+  /**
+   * Get a user by ID (admin only)
+   */
+  async getUser(userId: string): Promise<any> {
+    const response = await this.client.get<any>(`/users/${userId}`);
+    return response.data;
+  }
+
+  /**
+   * Update a user (admin only)
+   */
+  async updateUser(userId: string, updates: Record<string, any>): Promise<any> {
+    const response = await this.client.put<any>(`/users/${userId}`, updates);
+    return response.data;
+  }
+
+  /**
+   * Soft delete (deactivate) a user (admin only)
+   */
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/users/${userId}`);
+    return response.data;
+  }
+
+  /**
+   * Assign a role to a user (admin only)
+   */
+  async assignUserRole(userId: string, role: string): Promise<any> {
+    const response = await this.client.put<any>(`/users/${userId}/role`, { role });
+    return response.data;
+  }
+
+  /**
+   * Set the current user email header for all subsequent requests.
+   * This is used for role-based access control.
+   */
+  setCurrentUserEmail(email: string | null): void {
+    if (email) {
+      this.client.defaults.headers.common['X-User-Email'] = email;
+    } else {
+      delete this.client.defaults.headers.common['X-User-Email'];
+    }
   }
 }
 

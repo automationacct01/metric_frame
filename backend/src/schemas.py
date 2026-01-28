@@ -837,3 +837,126 @@ class DemoAIChatStatusResponse(BaseModel):
     lock_reason: Optional[str] = None
     starters: List[DemoStarterOption]
     refinements: List[DemoRefinementOption]
+
+
+# ==============================================================================
+# STRIPE PAYMENT SCHEMAS
+# ==============================================================================
+
+class CheckoutSessionCreate(BaseModel):
+    """Schema for creating a Stripe checkout session."""
+    plan: str = Field(..., pattern=r"^(standard|professional)$", description="Plan name: 'standard' or 'professional'")
+    customer_email: Optional[str] = Field(None, max_length=255, description="Pre-fill customer email in checkout")
+
+
+class CheckoutSessionResponse(BaseModel):
+    """Response with Stripe checkout session URL."""
+    checkout_url: str
+    session_id: str
+
+
+class SubscriptionResponse(BaseModel):
+    """Schema for subscription details response."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    stripe_customer_id: str
+    stripe_subscription_id: str
+    customer_email: str
+    plan_name: str
+    status: str
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
+    canceled_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SubscriptionStatusResponse(BaseModel):
+    """Response for subscription status lookup by email."""
+    has_subscription: bool
+    status: Optional[str] = None
+    plan_name: Optional[str] = None
+    current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
+
+
+# ==============================================================================
+# METRIC VERSION SCHEMAS
+# ==============================================================================
+
+class MetricVersionResponse(BaseModel):
+    """Schema for metric version responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    metric_id: UUID
+    version_number: int
+    snapshot_json: Dict[str, Any]
+    changed_fields: Optional[List[str]] = None
+    changed_by: Optional[str] = None
+    change_source: Optional[str] = None
+    change_notes: Optional[str] = None
+    created_at: datetime
+
+
+class MetricVersionDiff(BaseModel):
+    """Schema for version diff responses."""
+    metric_id: UUID
+    version_a: int
+    version_b: int
+    diff: Dict[str, Any]  # {field_name: {"from": old_val, "to": new_val}}
+    snapshot_a: Dict[str, Any]
+    snapshot_b: Dict[str, Any]
+
+
+# ==============================================================================
+# USER MANAGEMENT SCHEMAS
+# ==============================================================================
+
+class UserRole(str, Enum):
+    """User roles for access control."""
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+
+class UserBase(BaseModel):
+    """Base user schema."""
+    name: str = Field(..., min_length=1, max_length=255)
+    email: str = Field(..., min_length=3, max_length=255)
+    role: Optional[UserRole] = Field(UserRole.VIEWER)
+
+
+class UserCreate(UserBase):
+    """Schema for creating a new user."""
+    pass
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating a user."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    email: Optional[str] = Field(None, min_length=3, max_length=255)
+    role: Optional[UserRole] = None
+    active: Optional[bool] = None
+
+
+class UserRoleAssign(BaseModel):
+    """Schema for assigning a role."""
+    role: UserRole
+
+
+class UserResponse(BaseModel):
+    """Schema for user API responses."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    email: Optional[str] = None
+    role: Optional[str] = None
+    active: bool = True
+    selected_framework_id: Optional[UUID] = None
+    onboarding_completed: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

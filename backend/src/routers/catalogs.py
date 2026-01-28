@@ -20,7 +20,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..db import get_db
-from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework
+from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, User as UserModel
+from ..middleware.roles import require_role
 from ..schemas import (
     MetricCatalogResponse,
     MetricCatalogCreate,
@@ -152,7 +153,8 @@ async def upload_catalog(
     description: Optional[str] = Form(None),
     owner: Optional[str] = Form(None),
     framework: str = Form("csf_2_0", description="Target framework (csf_2_0, ai_rmf)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _editor: UserModel = Depends(require_role(["editor", "admin"])),
 ):
     """
     Upload and import a metric catalog file.
@@ -372,7 +374,8 @@ async def get_catalog_enhancements(
 async def save_catalog_mappings(
     catalog_id: UUID,
     mappings: List[MetricCatalogCSFMappingCreate],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _editor: UserModel = Depends(require_role(["editor", "admin"])),
 ):
     """Save CSF mappings for catalog items."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -423,7 +426,8 @@ async def save_catalog_mappings(
 async def activate_catalog(
     catalog_id: UUID,
     request: CatalogActivationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _editor: UserModel = Depends(require_role(["editor", "admin"])),
 ):
     """Activate or deactivate a catalog."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -487,7 +491,8 @@ async def get_catalog(
 @router.delete("/{catalog_id}")
 async def delete_catalog(
     catalog_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: UserModel = Depends(require_role(["admin"])),
 ):
     """Delete a catalog and all its items."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()

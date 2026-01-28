@@ -7,6 +7,7 @@
 import React from 'react';
 import { Box, Container, Typography, Grid } from '@mui/material';
 import PricingCard from './PricingCard';
+import { apiClient } from '../../api/client';
 
 const pricingTiers = [
   {
@@ -43,6 +44,18 @@ const pricingTiers = [
 ];
 
 export default function PricingSection() {
+  const handleSubscribe = async (planName: string) => {
+    try {
+      const plan = planName.toLowerCase();
+      const { checkout_url } = await apiClient.createCheckoutSession(plan);
+      window.location.href = checkout_url;
+    } catch (error) {
+      console.error('Failed to create checkout session:', error);
+      // Fallback to demo if Stripe is not configured
+      window.location.href = '/demo';
+    }
+  };
+
   return (
     <Box
       id="pricing"
@@ -102,6 +115,7 @@ export default function PricingSection() {
                 highlighted={tier.highlighted}
                 comingSoon={tier.comingSoon}
                 ctaText={tier.ctaText}
+                onSubscribe={() => handleSubscribe(tier.name)}
               />
             </Grid>
           ))}
