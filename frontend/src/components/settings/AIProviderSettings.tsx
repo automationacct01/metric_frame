@@ -98,6 +98,13 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
   // Expanded provider cards
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
 
+  // Clear credential state on unmount
+  useEffect(() => {
+    return () => {
+      setCredentialValues({});
+    };
+  }, []);
+
   // Load data on mount
   useEffect(() => {
     loadData();
@@ -268,6 +275,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
           placeholder={field.placeholder}
           helperText={field.help_text}
           required={field.required}
+          autoComplete="off"
           sx={{ mb: 2 }}
         />
       );
@@ -284,6 +292,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
         placeholder={field.placeholder}
         helperText={field.help_text}
         required={field.required}
+        autoComplete="off"
         sx={{ mb: 2 }}
         InputProps={isPassword ? {
           endAdornment: (
