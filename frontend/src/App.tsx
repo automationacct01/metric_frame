@@ -22,6 +22,8 @@ import { FrameworkSelection } from './components/onboarding';
 
 // Landing Page
 import LandingPage from './pages/LandingPage';
+import CheckoutSuccess from './pages/CheckoutSuccess';
+import CheckoutCancel from './pages/CheckoutCancel';
 
 // Demo Components
 import { DemoOnboarding, DemoBanner } from './components/demo';
@@ -187,6 +189,10 @@ function App() {
 
               {/* Demo onboarding page */}
               <Route path="/demo" element={<DemoOnboarding />} />
+
+              {/* Stripe checkout result pages */}
+              <Route path="/checkout/success" element={<CheckoutSuccess />} />
+              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
               {/* Main app with framework context at /app/* */}
               <Route

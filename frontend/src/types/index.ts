@@ -229,6 +229,27 @@ export interface MetricHistory {
   source_ref?: string;
 }
 
+export interface MetricVersionResponse {
+  id: string;
+  metric_id: string;
+  version_number: number;
+  snapshot_json: Record<string, any>;
+  changed_fields?: string[];
+  changed_by?: string;
+  change_source?: string;
+  change_notes?: string;
+  created_at: string;
+}
+
+export interface MetricVersionDiff {
+  metric_id: string;
+  version_a: number;
+  version_b: number;
+  diff: Record<string, { from: any; to: any }>;
+  snapshot_a: Record<string, any>;
+  snapshot_b: Record<string, any>;
+}
+
 export interface CategoryScore {
   category_code: string;
   category_name: string;
@@ -624,4 +645,39 @@ export interface DemoAIChatStatus {
   lock_reason?: string;
   starters: DemoStarterOption[];
   refinements: DemoRefinementOption[];
+}
+
+// ==============================================================================
+// USER MANAGEMENT TYPES
+// ==============================================================================
+
+export type UserRole = 'viewer' | 'editor' | 'admin';
+
+export interface UserRecord {
+  id: string;
+  name: string;
+  email: string | null;
+  role: UserRole | null;
+  active: boolean;
+  selected_framework_id?: string | null;
+  onboarding_completed?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface UserCreate {
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface UserUpdate {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  active?: boolean;
+}
+
+export interface UserRoleAssign {
+  role: UserRole;
 }

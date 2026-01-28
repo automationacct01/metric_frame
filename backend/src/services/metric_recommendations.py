@@ -111,23 +111,35 @@ Analyze gaps in framework coverage and recommend metrics that would:
 3. Align with industry best practices
 4. Support executive decision-making
 
+IMPORTANT - Metric Naming Convention:
+- All metric names MUST be quantifiable and start with "Percent of...", "Percentage of...", "Number of...", "Count of...", "Average...", "Mean time to...", or similar measurable formats
+- Example good names: "Percent of AI systems with human oversight classification", "Number of model drift incidents detected monthly"
+- Example bad names: "Classification of AI systems by oversight" (not quantifiable), "Human oversight framework" (not a metric)
+- Keep names concise (under 80 characters) while being specific
+
+IMPORTANT - Rationale Writing:
+- Write in business language, not technical jargon
+- Explain the RISK if this area isn't tracked (e.g., "Without visibility into X, the organization cannot detect Y, leading to Z")
+- Keep to 2-3 sentences maximum
+- Focus on business outcomes: financial loss, regulatory exposure, reputational damage, operational disruption
+
 Respond with JSON:
 {{
   "recommendations": [
     {{
-      "metric_name": "Recommended metric name",
-      "description": "What it measures",
+      "metric_name": "Percent of X that Y",
+      "description": "What it measures and how",
       "function_code": "target_function",
       "category_code": "target_category",
       "priority": 1|2|3,
-      "rationale": "Why this metric is recommended",
-      "expected_impact": "How this improves security visibility"
+      "rationale": "2-3 sentences in business language explaining: what risk this tracks, why it matters to leadership, what could go wrong without it",
+      "expected_impact": "One sentence on business value"
     }}
   ],
   "gap_analysis": {{
     "underrepresented_functions": ["list of functions with few metrics"],
     "coverage_percentage": 75.0,
-    "overall_assessment": "Summary of current coverage state"
+    "overall_assessment": "2-3 sentence summary of coverage state and key gaps"
   }}
 }}"""
 
@@ -351,6 +363,7 @@ def get_coverage_gaps(
                 gaps["categories_without_metrics"].append({
                     "category_code": cat.code,
                     "category_name": cat.name,
+                    "category_description": cat.description,
                     "function_code": func.code,
                     "function_name": func.name,
                 })

@@ -419,6 +419,7 @@ async def ai_chat(
 
         # Log the interaction
         change_log = AIChangeLog(
+            operation_type="chat",
             user_prompt=request.message,
             ai_response_json=ai_response,
             applied=False,
@@ -478,6 +479,7 @@ async def apply_ai_actions(
                 
                 # Log the application
                 change_log = AIChangeLog(
+                    operation_type="create",
                     metric_id=db_metric.id,
                     user_prompt=f"Applied AI action: add_metric for {action.metric.name}",
                     ai_response_json={"action": action.model_dump()},
@@ -514,6 +516,7 @@ async def apply_ai_actions(
                 
                 # Log the application
                 change_log = AIChangeLog(
+                    operation_type="update",
                     metric_id=metric.id,
                     user_prompt=f"Applied AI action: update_metric for {metric.name}",
                     ai_response_json={"action": action.model_dump()},
@@ -522,7 +525,7 @@ async def apply_ai_actions(
                     applied_at=datetime.utcnow(),
                 )
                 db.add(change_log)
-            
+
             elif action.action == "delete_metric":
                 if not action.metric_id:
                     errors.append(f"Missing metric_id for delete_metric action")
@@ -546,6 +549,7 @@ async def apply_ai_actions(
                 
                 # Log the application
                 change_log = AIChangeLog(
+                    operation_type="delete",
                     metric_id=metric.id,
                     user_prompt=f"Applied AI action: delete_metric for {metric.name}",
                     ai_response_json={"action": action.model_dump()},
