@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from uuid import UUID
 from enum import Enum
 
@@ -626,19 +626,30 @@ class AIProviderListResponse(BaseModel):
 
 class AIConfigurationCredentials(BaseModel):
     """Credentials for AI provider configuration (input only, never returned)."""
-    api_key: Optional[str] = None
+    api_key: Optional[str] = Field(None, max_length=500)
     # Azure-specific
-    azure_endpoint: Optional[str] = None
-    azure_deployment: Optional[str] = None
-    azure_api_version: Optional[str] = None
+    azure_endpoint: Optional[str] = Field(None, max_length=500)
+    azure_deployment: Optional[str] = Field(None, max_length=200)
+    azure_api_version: Optional[str] = Field(None, max_length=200)
     # AWS-specific
-    aws_access_key: Optional[str] = None
-    aws_secret_key: Optional[str] = None
-    aws_region: Optional[str] = None
+    aws_access_key: Optional[str] = Field(None, max_length=500)
+    aws_secret_key: Optional[str] = Field(None, max_length=500)
+    aws_region: Optional[str] = Field(None, max_length=50)
     # GCP-specific
-    gcp_project: Optional[str] = None
-    gcp_location: Optional[str] = None
-    gcp_credentials_json: Optional[str] = None
+    gcp_project: Optional[str] = Field(None, max_length=200)
+    gcp_location: Optional[str] = Field(None, max_length=200)
+    gcp_credentials_json: Optional[str] = Field(None, max_length=10000)
+
+    @field_validator('gcp_credentials_json')
+    @classmethod
+    def validate_gcp_json(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            import json as json_module
+            try:
+                json_module.loads(v)
+            except (json_module.JSONDecodeError, TypeError):
+                raise ValueError("gcp_credentials_json must be valid JSON")
+        return v
 
 
 class AIConfigurationCreate(BaseModel):

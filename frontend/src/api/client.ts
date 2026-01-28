@@ -125,7 +125,6 @@ class APIClient {
           duration,
           baseURL: error.config?.baseURL,
           timeout: error.config?.timeout,
-          responseData: error.response?.data,
           timestamp: new Date().toISOString(),
         };
 
