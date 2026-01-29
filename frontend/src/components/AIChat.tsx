@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Box,
   Typography,
@@ -36,6 +39,7 @@ import {
   History as HistoryIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
+  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -102,6 +106,71 @@ export default function AIChat() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const reportRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [exportingPdf, setExportingPdf] = useState<string | null>(null);
+
+  const exportToPdf = async (messageId: string) => {
+    const element = reportRefs.current[messageId];
+    if (!element) return;
+
+    setExportingPdf(messageId);
+    try {
+      // Create a temporary container for better PDF rendering
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = `
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        width: 800px;
+        padding: 40px;
+        background: white;
+        font-family: Arial, sans-serif;
+      `;
+      tempContainer.innerHTML = element.innerHTML;
+      document.body.appendChild(tempContainer);
+
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      document.body.removeChild(tempContainer);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgWidth = 190;
+      const pageHeight = 277;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      pdf.save(`cybersecurity-report-${timestamp}.pdf`);
+      showSnackbar('Report exported to PDF successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      showSnackbar('Failed to export PDF', 'error');
+    } finally {
+      setExportingPdf(null);
+    }
+  };
 
   const showSnackbar = (message: string, severity: typeof state.snackbarSeverity = 'info') => {
     setState(prev => ({
@@ -123,6 +192,65 @@ export default function AIChat() {
   useEffect(() => {
     checkAIStatus();
   }, []);
+
+  // Auto-generate report when switching to report mode
+  const generateReport = async () => {
+    if (state.loading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: 'Generate a report',
+      timestamp: new Date(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      messages: [...prev.messages, userMessage],
+      loading: true,
+      error: null,
+    }));
+
+    try {
+      const request: AIChatRequest = {
+        message: 'Generate a comprehensive executive report on our current cybersecurity posture, including risk scores, key findings, and recommendations.',
+        mode: 'report',
+        framework: frameworkCode,
+        context_opts: {},
+      };
+
+      const response = await apiClient.chatWithAI(request, frameworkCode);
+
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.assistant_message,
+        timestamp: new Date(),
+        actions: response.actions,
+        needsConfirmation: response.needs_confirmation,
+      };
+
+      setState(prev => ({
+        ...prev,
+        messages: [...prev.messages, assistantMessage],
+        loading: false,
+      }));
+    } catch (error: any) {
+      console.error('Failed to generate report:', error);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to generate report',
+      }));
+    }
+  };
+
+  // Trigger report generation when switching to report mode
+  useEffect(() => {
+    if (state.mode === 'report' && state.messages.length === 0 && !state.loading) {
+      generateReport();
+    }
+  }, [state.mode]);
 
   const checkAIStatus = async () => {
     try {
@@ -297,39 +425,95 @@ export default function AIChat() {
       </Box>
 
       {/* View Tabs */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 1 }}>
-        <Chip
-          icon={<BotIcon />}
-          label="Chat"
-          color={state.activeView === 'chat' ? 'primary' : 'default'}
-          variant={state.activeView === 'chat' ? 'filled' : 'outlined'}
+      <Box sx={{ mb: 3, display: 'flex', gap: 1.5 }}>
+        <Button
+          variant={state.activeView === 'chat' ? 'contained' : 'outlined'}
+          color="primary"
+          startIcon={<BotIcon />}
           onClick={() => setActiveView('chat')}
-          sx={{ cursor: 'pointer' }}
-        />
-        <Chip
-          icon={<AIIcon />}
-          label="Recommendations"
-          color={state.activeView === 'recommendations' ? 'primary' : 'default'}
-          variant={state.activeView === 'recommendations' ? 'filled' : 'outlined'}
+          sx={{
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            fontWeight: 600,
+            boxShadow: state.activeView === 'chat' ? 3 : 0,
+            borderWidth: 2,
+            '&:hover': {
+              boxShadow: 4,
+              borderWidth: 2,
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Chat
+        </Button>
+        <Button
+          variant={state.activeView === 'recommendations' ? 'contained' : 'outlined'}
+          color="primary"
+          startIcon={<AIIcon />}
           onClick={() => setActiveView('recommendations')}
-          sx={{ cursor: 'pointer' }}
-        />
-        <Chip
-          icon={<SendIcon />}
-          label="Create Metric"
-          color={state.activeView === 'create' ? 'primary' : 'default'}
-          variant={state.activeView === 'create' ? 'filled' : 'outlined'}
+          sx={{
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            fontWeight: 600,
+            boxShadow: state.activeView === 'recommendations' ? 3 : 0,
+            borderWidth: 2,
+            '&:hover': {
+              boxShadow: 4,
+              borderWidth: 2,
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Recommendations
+        </Button>
+        <Button
+          variant={state.activeView === 'create' ? 'contained' : 'outlined'}
+          color="primary"
+          startIcon={<SendIcon />}
           onClick={() => setActiveView('create')}
-          sx={{ cursor: 'pointer' }}
-        />
-        <Chip
-          icon={<HistoryIcon />}
-          label="Gap Analysis"
-          color={state.activeView === 'gaps' ? 'primary' : 'default'}
-          variant={state.activeView === 'gaps' ? 'filled' : 'outlined'}
+          sx={{
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            fontWeight: 600,
+            boxShadow: state.activeView === 'create' ? 3 : 0,
+            borderWidth: 2,
+            '&:hover': {
+              boxShadow: 4,
+              borderWidth: 2,
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Create Metric
+        </Button>
+        <Button
+          variant={state.activeView === 'gaps' ? 'contained' : 'outlined'}
+          color="primary"
+          startIcon={<HistoryIcon />}
           onClick={() => setActiveView('gaps')}
-          sx={{ cursor: 'pointer' }}
-        />
+          sx={{
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            fontWeight: 600,
+            boxShadow: state.activeView === 'gaps' ? 3 : 0,
+            borderWidth: 2,
+            '&:hover': {
+              boxShadow: 4,
+              borderWidth: 2,
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Gap Analysis
+        </Button>
       </Box>
 
       {/* Recommendations View */}
@@ -375,7 +559,7 @@ export default function AIChat() {
                         AI Assistant Status
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        {state.aiStatus?.ai_service_available
+                        {state.aiStatus?.available
                           ? '🟢 AI Service Available'
                           : '🔴 AI Service Unavailable'}
                         {selectedFramework && (
@@ -485,9 +669,38 @@ export default function AIChat() {
                     color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
                   }}
                 >
-                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {message.content}
-                  </Typography>
+                  {message.role === 'assistant' ? (
+                    <Box
+                      ref={(el: HTMLDivElement | null) => { reportRefs.current[message.id] = el; }}
+                      sx={{
+                        '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 0, mb: 1 },
+                        '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 2, mb: 1 },
+                        '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1.5, mb: 0.5 },
+                        '& p': { my: 1 },
+                        '& ul, & ol': { pl: 2, my: 1 },
+                        '& li': { mb: 0.5 },
+                        '& strong': { fontWeight: 600 },
+                        '& code': {
+                          backgroundColor: 'rgba(0,0,0,0.05)',
+                          px: 0.5,
+                          borderRadius: 0.5,
+                          fontFamily: 'monospace',
+                        },
+                        '& pre': {
+                          backgroundColor: 'rgba(0,0,0,0.05)',
+                          p: 1,
+                          borderRadius: 1,
+                          overflow: 'auto',
+                        },
+                      }}
+                    >
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {message.content}
+                    </Typography>
+                  )}
                   {message.actions && message.actions.length > 0 && (
                     <Box sx={{ mt: 1 }}>
                       <Typography variant="caption" color="textSecondary">
@@ -495,9 +708,27 @@ export default function AIChat() {
                       </Typography>
                     </Box>
                   )}
-                  <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7 }}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                      {message.timestamp.toLocaleTimeString()}
+                    </Typography>
+                    {message.role === 'assistant' && state.mode === 'report' && (
+                      <Tooltip title="Export as PDF">
+                        <IconButton
+                          size="small"
+                          onClick={() => exportToPdf(message.id)}
+                          disabled={exportingPdf === message.id}
+                          sx={{ ml: 1 }}
+                        >
+                          {exportingPdf === message.id ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <PdfIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </Paper>
               </Box>
             ))}
@@ -511,6 +742,55 @@ export default function AIChat() {
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
           {state.error}
         </Alert>
+      )}
+
+      {/* Export PDF Button - Show when in report mode with messages */}
+      {state.mode === 'report' && state.messages.some(m => m.role === 'assistant') && (
+        <Paper
+          sx={{
+            p: 2,
+            mb: 2,
+            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+            color: 'white',
+          }}
+        >
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box display="flex" alignItems="center" gap={2}>
+              <PdfIcon sx={{ fontSize: 32 }} />
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Export Report as PDF
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Download your cybersecurity executive report
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => {
+                const lastAssistantMessage = [...state.messages].reverse().find(m => m.role === 'assistant');
+                if (lastAssistantMessage) {
+                  exportToPdf(lastAssistantMessage.id);
+                }
+              }}
+              disabled={exportingPdf !== null}
+              sx={{
+                backgroundColor: 'white',
+                color: '#1976d2',
+                fontWeight: 'bold',
+                px: 4,
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                },
+              }}
+              startIcon={exportingPdf ? <CircularProgress size={20} color="inherit" /> : <PdfIcon />}
+            >
+              {exportingPdf ? 'Exporting...' : 'Download PDF'}
+            </Button>
+          </Box>
+        </Paper>
       )}
 
       {/* Message Input */}

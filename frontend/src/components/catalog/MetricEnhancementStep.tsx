@@ -46,12 +46,6 @@ const priorityLabels = {
   3: 'Low'
 };
 
-const priorityColors = {
-  1: 'error',
-  2: 'warning',
-  3: 'info'
-};
-
 const ownerFunctions = [
   'GRC', 'SecOps', 'IAM', 'IT Ops', 'IR', 'BCP', 'CISO'
 ];
@@ -250,7 +244,6 @@ const MetricEnhancementStep: React.FC<MetricEnhancementStepProps> = ({ state, up
                     <Chip
                       label={priorityLabels[enhancement.suggested_priority as keyof typeof priorityLabels]}
                       size="small"
-                      color={priorityColors[enhancement.suggested_priority as keyof typeof priorityColors] as any}
                       variant="outlined"
                     />
                   </TableCell>

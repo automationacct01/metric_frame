@@ -93,6 +93,7 @@ class MetricBase(BaseModel):
     current_label: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
     risk_definition: Optional[str] = None  # Why this metric matters - business risk context
+    business_impact: Optional[str] = None  # Business consequences if this area is not monitored
     active: bool = True
 
 
@@ -140,6 +141,7 @@ class MetricUpdate(BaseModel):
     current_label: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
     risk_definition: Optional[str] = None
+    business_impact: Optional[str] = None
     active: Optional[bool] = None
 
 

@@ -18,10 +18,13 @@
     "@tanstack/react-query": "^5.8.4",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.48.2",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.20.1",
     "recharts": "^2.8.0"
   },

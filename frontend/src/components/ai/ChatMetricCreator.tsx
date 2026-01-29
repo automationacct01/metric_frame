@@ -302,11 +302,18 @@ const ChatMetricCreator: React.FC = () => {
             {EXAMPLE_PROMPTS.map((prompt, index) => (
               <Chip
                 key={index}
-                label={prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
+                label={prompt}
                 size="small"
                 variant="outlined"
                 onClick={() => handleExampleClick(prompt)}
-                sx={{ cursor: 'pointer' }}
+                sx={{
+                  cursor: 'pointer',
+                  height: 'auto',
+                  '& .MuiChip-label': {
+                    whiteSpace: 'normal',
+                    py: 0.5,
+                  },
+                }}
               />
             ))}
           </Box>

@@ -311,6 +311,7 @@ class Metric(Base):
     # Metadata
     notes = Column(Text)
     risk_definition = Column(Text)  # Why this metric matters - business risk context
+    business_impact = Column(Text)  # Business consequences if this area is not monitored
     active = Column(Boolean, default=True, index=True)
     locked = Column(Boolean, default=True, index=True)  # Locked metrics cannot be edited
     locked_by = Column(String(100))  # Who locked/unlocked the metric
