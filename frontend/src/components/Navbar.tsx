@@ -43,6 +43,11 @@ const navItems: NavItem[] = [
     icon: MetricsIcon,
   },
   {
+    label: 'AI Assistant',
+    path: '/app/ai-assistant',
+    icon: AIIcon,
+  },
+  {
     label: 'Import Catalog',
     path: '/app/catalog-wizard',
     icon: UploadIcon,
@@ -51,11 +56,6 @@ const navItems: NavItem[] = [
     label: 'Manage Catalogs',
     path: '/app/catalog-manager',
     icon: StorageIcon,
-  },
-  {
-    label: 'AI Assistant',
-    path: '/app/ai-assistant',
-    icon: AIIcon,
   },
   {
     label: 'Documentation',

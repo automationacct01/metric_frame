@@ -23,6 +23,13 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 import { useFramework, Framework } from '../contexts/FrameworkContext';
 
+// Helper to strip version from framework name when version is displayed separately
+const getDisplayName = (name: string, version?: string): string => {
+  if (!version) return name;
+  // Remove version number from name if it appears at the end (e.g., "Framework 2.0" -> "Framework")
+  return name.replace(new RegExp(`\\s*${version.replace('.', '\\.')}\\s*$`), '').trim();
+};
+
 // Framework icons mapping
 const FRAMEWORK_ICONS: Record<string, React.ReactNode> = {
   csf_2_0: <SecurityIcon fontSize="small" />,
@@ -108,7 +115,7 @@ export function FrameworkSelector({
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {FRAMEWORK_ICONS[fw.code] || <SecurityIcon fontSize="small" />}
-                <Typography variant="body2">{fw.name}</Typography>
+                <Typography variant="body2">{getDisplayName(fw.name, fw.version)}</Typography>
                 {fw.version && (
                   <Chip
                     label={fw.version}
@@ -135,7 +142,7 @@ export function FrameworkSelector({
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                   {FRAMEWORK_ICONS[framework.code] || <SecurityIcon fontSize="small" />}
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="body2">{framework.name}</Typography>
+                    <Typography variant="body2">{getDisplayName(framework.name, framework.version)}</Typography>
                     {showDescription && framework.description && (
                       <Typography
                         variant="caption"
