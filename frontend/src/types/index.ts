@@ -209,6 +209,7 @@ export interface Metric {
   current_label?: string;
   notes?: string;
   risk_definition?: string;  // Why this metric matters - business risk context
+  business_impact?: string;  // Business consequences if this area is not monitored
   active: boolean;
   created_at: string;
   updated_at: string;

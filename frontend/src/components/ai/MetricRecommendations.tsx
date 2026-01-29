@@ -42,6 +42,7 @@ import {
   Psychology as PsychologyIcon,
   Refresh as RefreshIcon,
   AutoAwesome as AutoAwesomeIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
@@ -188,15 +189,6 @@ const MetricRecommendations: React.FC = () => {
     }
   };
 
-  const getPriorityColor = (priority: number): 'error' | 'warning' | 'info' => {
-    switch (priority) {
-      case 1: return 'error';
-      case 2: return 'warning';
-      case 3: return 'info';
-      default: return 'warning';
-    }
-  };
-
   // Only block on coverage data loading - recommendations can load in background
   const isLoadingCoverageData = isLoadingGaps || isLoadingDistribution;
   // Critical error only if gaps fail - recommendations failing is less severe
@@ -291,7 +283,8 @@ const MetricRecommendations: React.FC = () => {
               {((coverageGaps?.functions_without_metrics?.length ?? 0) > 0 ||
                 (coverageGaps?.functions_with_low_coverage?.length ?? 0) > 0 ||
                 (coverageGaps?.categories_without_metrics?.length ?? 0) > 0) ? (
-                <List sx={{ maxHeight: 280, overflowY: 'auto' }}>
+                <Box sx={{ position: 'relative' }}>
+                  <List sx={{ maxHeight: 280, overflowY: 'auto' }}>
                   {/* Functions without any metrics - high severity */}
                   {coverageGaps?.functions_without_metrics?.slice(0, 3).map((gap: FunctionGap, index: number) => (
                     <React.Fragment key={`func-${gap.function_code}`}>
@@ -299,8 +292,8 @@ const MetricRecommendations: React.FC = () => {
                         <ListItemIcon>
                           <Chip
                             size="small"
-                            label="high"
-                            color="error"
+                            label="High"
+                            variant="outlined"
                           />
                         </ListItemIcon>
                         <ListItemText
@@ -319,8 +312,8 @@ const MetricRecommendations: React.FC = () => {
                         <ListItemIcon>
                           <Chip
                             size="small"
-                            label="medium"
-                            color="warning"
+                            label="Medium"
+                            variant="outlined"
                           />
                         </ListItemIcon>
                         <ListItemText
@@ -365,7 +358,30 @@ const MetricRecommendations: React.FC = () => {
                       {index < (coverageGaps?.categories_without_metrics?.length ?? 0) - 1 && <Divider variant="inset" />}
                     </React.Fragment>
                   ))}
-                </List>
+                  </List>
+                  {/* Scroll indicator */}
+                  {(coverageGaps?.categories_without_metrics?.length ?? 0) > 3 && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 40,
+                        background: 'linear-gradient(transparent, rgba(255,255,255,0.95))',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', pb: 0.5 }}>
+                        <KeyboardArrowDownIcon fontSize="small" />
+                        <Typography variant="caption">Scroll for more</Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
               ) : (
                 <Alert severity="success" icon={<CheckCircleIcon />}>
                   <AlertTitle>Great Coverage!</AlertTitle>
@@ -515,7 +531,7 @@ const MetricRecommendations: React.FC = () => {
                               <Chip
                                 size="small"
                                 label={getPriorityLabel(rec.priority)}
-                                color={getPriorityColor(rec.priority)}
+                                variant="outlined"
                               />
                             </Tooltip>
                           </Box>

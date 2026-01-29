@@ -708,7 +708,7 @@ export default function Dashboard() {
                           <Chip
                             label={metric.priority_rank === 1 ? 'High' : metric.priority_rank === 2 ? 'Med' : 'Low'}
                             size="small"
-                            color={metric.priority_rank === 1 ? 'error' : metric.priority_rank === 2 ? 'warning' : 'default'}
+                            variant="outlined"
                           />
                         </TableCell>
 

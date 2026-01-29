@@ -463,7 +463,6 @@ export default function DemoAIChatWizard() {
                   <Chip
                     label={`Priority: ${state.generatedMetric.priority_rank === 1 ? 'High' : state.generatedMetric.priority_rank === 2 ? 'Medium' : 'Low'}`}
                     size="small"
-                    color="secondary"
                     variant="outlined"
                   />
                 </Box>

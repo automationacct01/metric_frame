@@ -103,6 +103,7 @@ const CSF_COLUMN_TOOLTIPS: Record<string, string> = {
   name: 'Descriptive name explaining what the metric measures',
   formula: 'Calculation method used to compute the metric value',
   risk_definition: 'Description of the risk or security outcome this metric helps measure',
+  business_impact: 'Business consequences if this area is not monitored (financial, regulatory, reputational)',
   csf_function: 'NIST CSF 2.0 Function: Govern, Identify, Protect, Detect, Respond, or Recover',
   csf_category_name: 'NIST CSF 2.0 Category within the function (e.g., Risk Management, Asset Management)',
   csf_subcategory_code: 'NIST CSF 2.0 Subcategory identifier (e.g., GV.RM-01, ID.AM-02)',
@@ -124,6 +125,7 @@ const AI_RMF_COLUMN_TOOLTIPS: Record<string, string> = {
   name: 'Descriptive name explaining what the metric measures',
   formula: 'Calculation method used to compute the metric value',
   risk_definition: 'Description of the AI risk or trustworthiness outcome this metric helps measure',
+  business_impact: 'Business consequences if this AI area is not monitored (compliance, safety, trust)',
   ai_rmf_function: 'NIST AI RMF 1.0 Function: Govern, Map, Measure, or Manage',
   ai_rmf_category_name: 'NIST AI RMF 1.0 Category within the function (e.g., Policies & Processes, Context & Purpose)',
   ai_rmf_subcategory_code: 'NIST AI RMF 1.0 Subcategory identifier (e.g., GOVERN-1.1, MAP-2.3)',
@@ -1152,6 +1154,38 @@ export default function MetricsGrid() {
         );
       },
     },
+    {
+      field: 'business_impact',
+      headerName: 'Business Impact',
+      width: 350,
+      minWidth: 200,
+      flex: 1,
+      renderHeader: renderHeaderWithTooltipMap('business_impact', 'Business Impact', CSF_COLUMN_TOOLTIPS),
+      renderCell: (params: GridRenderCellParams) => {
+        const impact = params.row.business_impact;
+
+        if (!impact) {
+          return (
+            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+              Not defined
+            </span>
+          );
+        }
+
+        return (
+          <div style={{
+            whiteSpace: 'normal',
+            wordWrap: 'break-word',
+            lineHeight: '1.3',
+            padding: '4px 0',
+            fontSize: '0.85rem',
+            color: '#c62828',  // Red-ish to emphasize business impact
+          }}>
+            {impact}
+          </div>
+        );
+      },
+    },
     // Framework-specific columns: CSF 2.0 or AI RMF based on selected framework
     ...(frameworkCode === 'ai_rmf' ? [
       // AI RMF Function column
@@ -1472,7 +1506,7 @@ export default function MetricsGrid() {
           <Chip
             label={PRIORITY_NAMES[params.value as number] || 'Unknown'}
             size="small"
-            color={params.value === 1 ? 'error' : params.value === 2 ? 'warning' : 'default'}
+            variant="outlined"
           />
         );
       },

@@ -524,7 +524,7 @@ export default function FunctionDetail() {
                         <Chip
                           label={PRIORITY_NAMES[metric.priority_rank] || 'Unknown'}
                           size="small"
-                          color={metric.priority_rank === 1 ? 'error' : metric.priority_rank === 2 ? 'warning' : 'default'}
+                          variant="outlined"
                         />
                       </TableCell>
                       

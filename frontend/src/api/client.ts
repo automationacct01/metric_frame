@@ -503,7 +503,13 @@ class APIClient {
   async chatWithAI(request: AIChatRequest, framework = 'csf_2_0'): Promise<AIResponse> {
     const params = new URLSearchParams();
     params.append('framework', request.framework || framework);
-    const response = await this.client.post<AIResponse>(`/ai/chat?${params.toString()}`, request);
+    // Report generation can take longer - use 120 second timeout
+    const timeout = request.mode === 'report' ? 120000 : 60000;
+    const response = await this.client.post<AIResponse>(
+      `/ai/chat?${params.toString()}`,
+      request,
+      { timeout }
+    );
     return response.data;
   }
 
