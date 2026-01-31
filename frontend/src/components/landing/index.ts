@@ -14,8 +14,6 @@ export { default as FeatureShowcase } from './FeatureShowcase';
 export { default as FeatureCard } from './FeatureCard';
 export { default as HowItWorks } from './HowItWorks';
 export { default as UseCasesSection } from './UseCasesSection';
-export { default as PricingSection } from './PricingSection';
-export { default as PricingCard } from './PricingCard';
 export { default as FAQSection } from './FAQSection';
 export { default as CTASection } from './CTASection';
 export { default as LandingFooter } from './LandingFooter';

@@ -1,0 +1,76 @@
+# MetricFrame Production Docker Compose
+# For server deployments and self-hosting
+#
+# Quick Start:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# With custom settings:
+#   Create a .env file with your settings, then:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-metricframe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-metricframe}
+      POSTGRES_DB: ${POSTGRES_DB:-metricframe}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metricframe}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metricframe
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metricframe}:${POSTGRES_PASSWORD:-metricframe}@db:5432/${POSTGRES_DB:-metricframe}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80}
+      API_PREFIX: /api/v1
+      # AI Provider keys (optional - users configure in app)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - metricframe
+
+  # React Frontend (nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend.prod
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - metricframe
+
+networks:
+  metricframe:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,6 +1,7 @@
 """FastAPI main application for multi-framework cybersecurity metrics.
 
 Supports NIST CSF 2.0 (with Cyber AI Profile) and NIST AI RMF 1.0.
+Supports both PostgreSQL (Docker/server) and SQLite (desktop app).
 """
 
 import os
@@ -12,23 +13,68 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-from .db import engine, get_db
-from .models import Base
+from .db import engine, get_db, IS_SQLITE, IS_POSTGRESQL, get_database_info, init_db
+from .models import Base, Framework
 from .schemas import HealthResponse
-from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers, demo, payments, users
-from .middleware import DemoModeMiddleware
+from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers, users
 
 
 load_dotenv()
+
+
+def check_database_needs_seeding(db: Session) -> bool:
+    """Check if database needs initial seeding (no frameworks exist)."""
+    try:
+        framework_count = db.query(Framework).count()
+        return framework_count == 0
+    except Exception:
+        return True
+
+
+def seed_database_if_empty():
+    """Seed the database with initial data if it's empty.
+
+    For SQLite (desktop app), this runs on first launch.
+    For PostgreSQL (Docker), seeding is handled by dev.sh or deployment scripts.
+    """
+    from .db import SessionLocal
+    db = SessionLocal()
+    try:
+        if check_database_needs_seeding(db):
+            print("Database is empty, seeding initial data...")
+            # Import and run the seeding script
+            try:
+                from .seeds.seed_all import run_full_seed
+                run_full_seed(clear_existing=False)
+                print("Database seeding complete!")
+            except ImportError:
+                print("Warning: Seeding module not found, skipping initial data seed")
+            except Exception as e:
+                print(f"Warning: Failed to seed database: {e}")
+        else:
+            print("Database already contains data, skipping seed")
+    finally:
+        db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print("Starting Multi-Framework Cybersecurity Metrics API...")
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
+    db_info = get_database_info()
+    print(f"Starting Multi-Framework Cybersecurity Metrics API...")
+    print(f"Database type: {db_info['type']}")
+
+    if IS_SQLITE:
+        # For SQLite (desktop app): Create tables and seed data automatically
+        print("SQLite mode: Auto-initializing database...")
+        init_db()  # Creates all tables from models
+        seed_database_if_empty()
+    else:
+        # For PostgreSQL (Docker): Just create tables, seeding is handled separately
+        print("PostgreSQL mode: Creating tables if not exist...")
+        Base.metadata.create_all(bind=engine)
+
     yield
     # Shutdown
     print("Shutting down Multi-Framework Cybersecurity Metrics API...")
@@ -63,9 +109,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add demo mode middleware (enforces restrictions for demo users)
-app.add_middleware(DemoModeMiddleware)
-
 # Include routers
 api_prefix = os.getenv("API_PREFIX", "/api/v1")
 app.include_router(frameworks.router, prefix=api_prefix)  # Frameworks router includes its own /frameworks prefix
@@ -75,8 +118,6 @@ app.include_router(ai.router, prefix=f"{api_prefix}/ai", tags=["ai"])
 app.include_router(csf.router, prefix=f"{api_prefix}")  # CSF router includes its own /csf prefix
 app.include_router(catalogs.router, prefix=f"{api_prefix}")  # Catalogs router includes its own /catalogs prefix
 app.include_router(ai_providers.router, prefix=api_prefix)  # AI providers router includes its own /ai-providers prefix
-app.include_router(demo.router, prefix=api_prefix)  # Demo router includes its own /demo prefix
-app.include_router(payments.router, prefix=api_prefix)  # Payments router includes its own /payments prefix
 app.include_router(users.router, prefix=api_prefix)  # Users router includes its own /users prefix
 
 
@@ -120,6 +161,12 @@ async def health_check(db: Session = Depends(get_db)):
         database_connected=database_connected,
         ai_service_available=ai_service_available,
     )
+
+
+@app.get("/health/database")
+async def database_info():
+    """Get database configuration info."""
+    return get_database_info()
 
 
 @app.exception_handler(404)

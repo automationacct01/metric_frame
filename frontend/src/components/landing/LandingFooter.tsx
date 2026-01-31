@@ -17,7 +17,6 @@ const footerLinks = {
     title: 'Product',
     links: [
       { label: 'Features', href: '#features' },
-      { label: 'Pricing', href: '#pricing' },
       { label: 'FAQ', href: '#faq' },
       { label: 'Changelog', href: '#' },
     ],
@@ -31,13 +30,13 @@ const footerLinks = {
       { label: 'Support', href: '#' },
     ],
   },
-  company: {
-    title: 'Company',
+  services: {
+    title: 'Services',
     links: [
-      { label: 'About', href: '#' },
-      { label: 'Careers', href: '#' },
-      { label: 'Contact', href: '#' },
-      { label: 'Partners', href: '#' },
+      { label: 'Implementation Support', href: '#contact-services' },
+      { label: 'Customization', href: '#contact-services' },
+      { label: 'Enterprise Support', href: '#contact-services' },
+      { label: 'Contact Us', href: '#contact-services' },
     ],
   },
   legal: {
@@ -46,7 +45,6 @@ const footerLinks = {
       { label: 'Privacy Policy', href: '#' },
       { label: 'Terms of Service', href: '#' },
       { label: 'Security', href: '#' },
-      { label: 'Compliance', href: '#' },
     ],
   },
 };
@@ -173,6 +171,54 @@ export default function LandingFooter() {
             </Grid>
           ))}
         </Grid>
+
+        {/* Professional Services Section */}
+        <Box
+          id="contact-services"
+          sx={{
+            mt: 6,
+            p: 4,
+            borderRadius: 2,
+            backgroundColor: 'rgba(14, 165, 233, 0.1)',
+            border: '1px solid rgba(14, 165, 233, 0.3)',
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+            Need Help with Implementation?
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.7)',
+              mb: 2,
+              maxWidth: 500,
+              mx: 'auto',
+            }}
+          >
+            Our team offers professional services including implementation support,
+            customization, training, and enterprise integrations.
+          </Typography>
+          <Link
+            href="mailto:services@metricframe.com"
+            sx={{
+              display: 'inline-block',
+              px: 3,
+              py: 1,
+              borderRadius: 1,
+              backgroundColor: '#0ea5e9',
+              color: '#ffffff',
+              textDecoration: 'none',
+              fontWeight: 500,
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: '#0284c7',
+              },
+            }}
+          >
+            Contact Us for Services
+          </Link>
+        </Box>
 
         <Divider sx={{ my: 4, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
 

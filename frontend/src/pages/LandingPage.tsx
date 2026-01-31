@@ -17,7 +17,6 @@ import FeatureShowcase from '../components/landing/FeatureShowcase';
 import BYOMSection from '../components/landing/BYOMSection';
 import HowItWorks from '../components/landing/HowItWorks';
 import UseCasesSection from '../components/landing/UseCasesSection';
-import PricingSection from '../components/landing/PricingSection';
 import FAQSection from '../components/landing/FAQSection';
 import CTASection from '../components/landing/CTASection';
 import LandingFooter from '../components/landing/LandingFooter';
@@ -35,7 +34,6 @@ export default function LandingPage() {
       <BYOMSection />
       <HowItWorks />
       <UseCasesSection />
-      <PricingSection />
       <FAQSection />
       <CTASection />
       <LandingFooter />

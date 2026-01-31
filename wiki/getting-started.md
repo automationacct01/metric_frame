@@ -23,7 +23,7 @@ Optional (for AI features):
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/metricframe.git
+git clone https://github.com/automationacct01/metric_frame.git
 cd metricframe
 ```
 

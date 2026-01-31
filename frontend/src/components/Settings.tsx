@@ -31,6 +31,7 @@ import {
   Info as InfoIcon,
   SmartToy as AIIcon,
   Tune as TuneIcon,
+  Support as SupportIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -622,9 +623,40 @@ export default function Settings() {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Professional Services */}
+        <Grid item xs={12}>
+          <Card sx={{ backgroundColor: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+            <CardHeader
+              avatar={<SupportIcon sx={{ color: 'primary.main' }} />}
+              title="Professional Services"
+              subheader="Need help with implementation, customization, or enterprise support?"
+            />
+            <CardContent>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Our team offers professional services to help you get the most out of MetricFrame:
+              </Typography>
+              <Box component="ul" sx={{ pl: 3, mb: 2, color: 'text.secondary' }}>
+                <li>Implementation and onboarding support</li>
+                <li>Custom metric catalog development</li>
+                <li>Enterprise integrations (SIEM, GRC tools)</li>
+                <li>Training and workshops</li>
+              </Box>
+              <Button
+                variant="contained"
+                color="primary"
+                href="mailto:services@metricframe.com"
+                target="_blank"
+                sx={{ textTransform: 'none' }}
+              >
+                Contact Us for Services
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
-        {/* Action Buttons */}
+      {/* Action Buttons */}
         <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
           <Button
             variant="outlined"
