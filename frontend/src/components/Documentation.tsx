@@ -326,7 +326,7 @@ function GettingStartedContent() {
         <SubSection title="Step 1: Clone the Repository">
           <Box component="pre" sx={codeBlockStyles}>
 {`git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe`}
+cd metric_frame`}
           </Box>
         </SubSection>
 
@@ -2551,7 +2551,7 @@ function DevelopmentGuideContent() {
         <Box component="pre" sx={codeBlockStyles}>
 {`# Clone repository
 git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe
+cd metric_frame
 
 # Copy environment file
 cp backend/.env.example backend/.env
@@ -2615,7 +2615,7 @@ docker run -d \\
 
       <Section title="Project Structure">
         <Box component="pre" sx={codeBlockStyles}>
-{`metricframe/
+{`metric_frame/
 ├── backend/
 │   ├── src/
 │   │   ├── main.py           # FastAPI application entry

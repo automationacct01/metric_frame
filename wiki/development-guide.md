@@ -25,7 +25,7 @@ Complete guide for setting up a development environment and contributing to Metr
 ```bash
 # Clone repository
 git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe
+cd metric_frame
 
 # Copy environment file
 cp backend/.env.example backend/.env
@@ -92,7 +92,7 @@ docker run -d \
 ## Project Structure
 
 ```
-metricframe/
+metric_frame/
 ├── backend/
 │   ├── src/
 │   │   ├── main.py           # FastAPI application entry

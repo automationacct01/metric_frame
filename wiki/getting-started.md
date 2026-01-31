@@ -24,7 +24,7 @@ Optional (for AI features):
 
 ```bash
 git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe
+cd metric_frame
 ```
 
 ### Step 2: Configure Environment
@@ -82,21 +82,12 @@ docker compose ps
 |---------|-----|---------|
 | **Landing Page** | http://localhost:5175 | Marketing & entry point |
 | **Main App** | http://localhost:5175/app | Dashboard & full features |
-| **Demo Mode** | http://localhost:5175/demo | Try features without setup |
 | **API Docs** | http://localhost:8002/docs | Swagger UI |
 | **Database** | localhost:5434 | PostgreSQL (user: nist) |
 
 ## First Steps After Setup
 
-### 1. Try Demo Mode (Quick Preview)
-
-Visit http://localhost:5175/demo to experience the application without configuration:
-- Enter any email to start a demo session
-- Explore the dashboard with simulated data
-- Test AI features with limited quota
-- No API keys required
-
-### 2. Explore the Full Dashboard
+### 1. Explore the Dashboard
 
 Navigate to http://localhost:5175/app to see the executive dashboard:
 - View risk score cards for each CSF function
