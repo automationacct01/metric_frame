@@ -50,7 +50,7 @@ export default function CTASection() {
           <Button
             variant="contained"
             size="large"
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/download')}
             sx={{
               backgroundColor: '#0ea5e9',
               px: 5,
@@ -64,7 +64,7 @@ export default function CTASection() {
               },
             }}
           >
-            Try Demo
+            Get Started
           </Button>
 
           {/* Trust Note */}
@@ -75,7 +75,7 @@ export default function CTASection() {
               mt: 3,
             }}
           >
-            No credit card required
+            Free and open source
           </Typography>
         </Box>
       </Container>

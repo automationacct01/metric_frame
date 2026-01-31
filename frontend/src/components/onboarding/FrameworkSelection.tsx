@@ -154,7 +154,7 @@ export function FrameworkSelection() {
     isLoadingFrameworks,
     frameworksError,
     selectFramework,
-    setOnboardingCompleted,
+    setOnboardingStep,
   } = useFramework();
 
   const [selectedFrameworkLocal, setSelectedFrameworkLocal] = useState<Framework | null>(null);
@@ -170,7 +170,8 @@ export function FrameworkSelection() {
     setIsSubmitting(true);
     try {
       selectFramework(selectedFrameworkLocal);
-      setOnboardingCompleted(true);
+      // Move to API key setup step instead of completing onboarding
+      setOnboardingStep('apikey');
     } finally {
       setIsSubmitting(false);
     }

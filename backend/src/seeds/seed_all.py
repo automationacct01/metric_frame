@@ -135,6 +135,19 @@ def print_summary(db=None):
             db.close()
 
 
+def run_full_seed(clear_existing: bool = False):
+    """Run the full seeding process.
+
+    This function is designed to be called programmatically from main.py
+    for auto-initialization on desktop app first launch.
+
+    Args:
+        clear_existing: If True, clears existing data before loading
+    """
+    create_tables()
+    seed_all(clear=clear_existing)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Load all framework and metrics seed data",

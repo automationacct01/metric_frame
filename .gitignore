@@ -59,11 +59,19 @@ dist/
 .cache/
 .parcel-cache/
 
-# Environment variables
+# Environment variables - NEVER commit real credentials!
+.env
 .env.local
+.env.development
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
+backend/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!backend/.env.example
 
 # Database
 *.db
@@ -97,3 +105,6 @@ coverage.xml
 
 # Documentation builds
 docs/_build/
+
+# License keys (NEVER commit these!)
+secrets/

@@ -17,6 +17,16 @@ import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 
 const faqs = [
   {
+    question: 'Is MetricFrame really free?',
+    answer:
+      'Yes! MetricFrame is 100% free and open source. You can download it, run it on your own infrastructure, and use all features without any cost. The source code is available on GitHub.',
+  },
+  {
+    question: 'Do I need my own API key?',
+    answer:
+      'Yes, MetricFrame requires you to bring your own AI API key from Anthropic (Claude) or OpenAI (GPT-4). This means your data stays private—we never see your metrics or API usage. You can get an API key from console.anthropic.com or platform.openai.com.',
+  },
+  {
     question: 'How does the scoring methodology work?',
     answer:
       'MetricFrame uses a transparent gap-to-target scoring methodology. Each metric has a target value, and your score is calculated based on how close your current value is to that target. For "higher is better" metrics like compliance rates, the formula is current/target. For "lower is better" metrics like incident response time, the formula is target/current. All calculations are visible and auditable.',
@@ -27,14 +37,14 @@ const faqs = [
       'Yes! MetricFrame supports CSV import through our Catalog Wizard. Simply upload your spreadsheet, map your columns to our fields, and our AI will automatically suggest NIST CSF 2.0 or AI RMF mappings for each metric. You can review and adjust these mappings before activating your catalog.',
   },
   {
-    question: 'Does MetricFrame support custom frameworks?',
-    answer:
-      'Currently, MetricFrame supports NIST CSF 2.0 and NIST AI RMF 1.0 frameworks. However, our Bring Your Own Catalog feature allows you to import any metrics you want, regardless of their original framework. Our AI will help map them to NIST subcategories while preserving your original categorization. The platform can also expand to support additional frameworks upon request—contact us to discuss your specific framework needs.',
-  },
-  {
     question: 'Is my data secure?',
     answer:
-      'Absolutely. MetricFrame can be deployed entirely on-premise using Docker, meaning your data never leaves your infrastructure. For cloud deployments, we use industry-standard encryption at rest and in transit, and we never share your data with third parties. All AI processing uses your own API keys.',
+      'Absolutely. MetricFrame runs entirely on your own infrastructure—whether as a desktop app or Docker deployment. Your data never leaves your systems. All AI processing uses your own API keys, so even AI interactions are private between you and your chosen provider.',
+  },
+  {
+    question: 'What frameworks are supported?',
+    answer:
+      'MetricFrame supports NIST CSF 2.0 and NIST AI RMF 1.0 frameworks out of the box. Our Bring Your Own Catalog feature allows you to import any metrics you want, regardless of their original framework. The AI will help map them to NIST subcategories while preserving your original categorization.',
   },
   {
     question: 'How does AI metric generation work?',
@@ -42,9 +52,9 @@ const faqs = [
       'Our AI assistant understands your natural language descriptions and generates complete metrics. You describe what you want to measure (e.g., "track our phishing training completion rate"), and the AI creates a metric with name, description, formula, target value, and appropriate NIST CSF mapping. You always have final approval before any metric is added.',
   },
   {
-    question: 'Do I need automated data collection to get started?',
+    question: 'Docker or Desktop—which should I choose?',
     answer:
-      'No. MetricFrame is designed for teams at any stage of maturity. You can start by manually entering your current understanding of metric values—no data pipelines or integrations required. Many organizations begin with manual entry to establish baselines and prove value, then integrate automated data feeds as their metrics program matures. Start measuring today and build towards automation over time.',
+      'Choose Desktop if you want a simple, one-click installation for personal use. Choose Docker if you need a server deployment, multi-user support, or want to use PostgreSQL for larger datasets. Both versions have identical features.',
   },
 ];
 

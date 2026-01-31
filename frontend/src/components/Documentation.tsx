@@ -325,7 +325,7 @@ function GettingStartedContent() {
       <Section title="Quick Start">
         <SubSection title="Step 1: Clone the Repository">
           <Box component="pre" sx={codeBlockStyles}>
-{`git clone https://github.com/your-org/metricframe.git
+{`git clone https://github.com/automationacct01/metric_frame.git
 cd metricframe`}
           </Box>
         </SubSection>
@@ -2550,7 +2550,7 @@ function DevelopmentGuideContent() {
       <Section title="Quick Setup (Docker)">
         <Box component="pre" sx={codeBlockStyles}>
 {`# Clone repository
-git clone https://github.com/your-org/metricframe.git
+git clone https://github.com/automationacct01/metric_frame.git
 cd metricframe
 
 # Copy environment file

@@ -73,7 +73,7 @@ export default function HeroSection() {
             <Button
               variant="contained"
               size="large"
-              onClick={() => navigate('/demo')}
+              onClick={() => navigate('/download')}
               sx={{
                 backgroundColor: '#0ea5e9',
                 px: 5,
@@ -87,15 +87,15 @@ export default function HeroSection() {
                 },
               }}
             >
-              Try Demo
+              Get Started
             </Button>
             <Button
               variant="outlined"
               size="large"
               onClick={() => {
-                const pricingSection = document.querySelector('#pricing');
-                if (pricingSection) {
-                  pricingSection.scrollIntoView({ behavior: 'smooth' });
+                const featuresSection = document.querySelector('#features');
+                if (featuresSection) {
+                  featuresSection.scrollIntoView({ behavior: 'smooth' });
                 }
               }}
               sx={{
@@ -113,7 +113,7 @@ export default function HeroSection() {
                 },
               }}
             >
-              Sign Up
+              Learn More
             </Button>
           </Box>
 
@@ -125,7 +125,7 @@ export default function HeroSection() {
               fontSize: '0.875rem',
             }}
           >
-            No credit card required. 24-hour demo access.
+            Free and open source. Use your own AI API keys.
           </Typography>
         </Box>
       </Container>

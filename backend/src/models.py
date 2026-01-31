@@ -1,12 +1,13 @@
 """SQLAlchemy ORM models for multi-framework cybersecurity metrics application.
 
 Supports NIST CSF 2.0 (with integrated Cyber AI Profile) and NIST AI RMF 1.0.
+Supports both PostgreSQL (Docker/server) and SQLite (desktop app).
 """
 
 import enum
 from datetime import datetime
 from typing import Optional
-import uuid
+import uuid as uuid_module
 from sqlalchemy import (
     Boolean,
     Column,
@@ -20,11 +21,52 @@ from sqlalchemy import (
     Text,
     Index,
     UniqueConstraint,
+    TypeDecorator,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .db import Base
+
+
+# ==============================================================================
+# CUSTOM TYPES FOR DATABASE AGNOSTIC SUPPORT
+# ==============================================================================
+
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+
+    Uses PostgreSQL's UUID type when available, otherwise uses String(36).
+    """
+    impl = String(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(postgresql.UUID(as_uuid=True))
+        else:
+            return dialect.type_descriptor(String(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == 'postgresql':
+            return value if isinstance(value, uuid_module.UUID) else uuid_module.UUID(str(value))
+        else:
+            return str(value) if isinstance(value, uuid_module.UUID) else value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == 'postgresql':
+            return value
+        else:
+            return uuid_module.UUID(value) if not isinstance(value, uuid_module.UUID) else value
+
+
+def generate_uuid():
+    """Generate a new UUID."""
+    return uuid_module.uuid4()
 
 
 # ==============================================================================
@@ -91,7 +133,7 @@ class Framework(Base):
 
     __tablename__ = "frameworks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
     code = Column(String(30), unique=True, nullable=False, index=True)  # 'csf_2_0', 'ai_rmf', 'cyber_ai_profile'
     name = Column(String(255), nullable=False)
     version = Column(String(20))
@@ -99,7 +141,7 @@ class Framework(Base):
     source_url = Column(String(500))  # Link to official documentation
     active = Column(Boolean, default=True, index=True)
     is_extension = Column(Boolean, default=False)  # True for Cyber AI Profile (extends CSF 2.0)
-    parent_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=True)
+    parent_framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -134,8 +176,8 @@ class FrameworkFunction(Base):
 
     __tablename__ = "framework_functions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False)
     code = Column(String(20), nullable=False, index=True)  # 'gv', 'govern', 'secure'
     name = Column(String(120), nullable=False)
     description = Column(Text)
@@ -166,8 +208,8 @@ class FrameworkCategory(Base):
 
     __tablename__ = "framework_categories"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    function_id = Column(GUID(), ForeignKey("framework_functions.id"), nullable=False)
     code = Column(String(30), nullable=False, index=True)  # 'GV.OC', 'GOVERN-1'
     name = Column(String(200), nullable=False)
     description = Column(Text)
@@ -197,8 +239,8 @@ class FrameworkSubcategory(Base):
 
     __tablename__ = "framework_subcategories"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    category_id = Column(GUID(), ForeignKey("framework_categories.id"), nullable=False)
     code = Column(String(40), nullable=False, index=True)  # 'GV.OC-01', 'GOVERN-1.1'
     outcome = Column(Text, nullable=False)  # The full outcome/subcategory text
     display_order = Column(Integer, default=0)
@@ -238,12 +280,12 @@ class FrameworkCrossMapping(Base):
 
     __tablename__ = "framework_cross_mappings"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
-    target_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False)
-    source_subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=False)
-    target_subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=False)
-    mapping_type = Column(Enum(MappingType), default=MappingType.DIRECT)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    source_framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False)
+    target_framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False)
+    source_subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=False)
+    target_subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=False)
+    mapping_type = Column(Enum(MappingType, native_enum=False), default=MappingType.DIRECT)
     confidence = Column(Numeric(3, 2))  # 0.00 - 1.00
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -270,7 +312,7 @@ class Metric(Base):
 
     __tablename__ = "metrics"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
     metric_number = Column(String(20), index=True)  # User-friendly metric ID
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
@@ -278,10 +320,10 @@ class Metric(Base):
     calc_expr_json = Column(JSON)
 
     # Framework linkage (new multi-framework support)
-    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
-    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False, index=True)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=True, index=True)
-    subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=True, index=True)
+    framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False, index=True)
+    function_id = Column(GUID(), ForeignKey("framework_functions.id"), nullable=False, index=True)
+    category_id = Column(GUID(), ForeignKey("framework_categories.id"), nullable=True, index=True)
+    subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=True, index=True)
 
     # AI-specific fields (for AI RMF and Cyber AI Profile metrics)
     trustworthiness_characteristic = Column(String(100))  # AI RMF specific
@@ -292,7 +334,7 @@ class Metric(Base):
     weight = Column(Numeric(4, 2), default=1.0)
 
     # Scoring configuration
-    direction = Column(Enum(MetricDirection), nullable=False)
+    direction = Column(Enum(MetricDirection, native_enum=False), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
@@ -301,7 +343,7 @@ class Metric(Base):
     # Ownership and data source
     owner_function = Column(String(100))
     data_source = Column(String(200))
-    collection_frequency = Column(Enum(CollectionFrequency))
+    collection_frequency = Column(Enum(CollectionFrequency, native_enum=False))
 
     # Current state
     last_collected_at = Column(DateTime(timezone=True))
@@ -417,8 +459,8 @@ class MetricHistory(Base):
 
     __tablename__ = "metric_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    metric_id = Column(GUID(), ForeignKey("metrics.id"), nullable=False, index=True)
     collected_at = Column(DateTime(timezone=True), nullable=False, index=True)
     raw_value_json = Column(JSON)
     normalized_value = Column(Numeric(10, 4))
@@ -441,8 +483,8 @@ class MetricVersion(Base):
 
     __tablename__ = "metric_versions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    metric_id = Column(GUID(), ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
     snapshot_json = Column(JSON, nullable=False)
     changed_fields = Column(JSON)  # List of field names that changed
@@ -474,9 +516,9 @@ class AIChangeLog(Base):
 
     __tablename__ = "ai_change_log"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    metric_id = Column(UUID(as_uuid=True), ForeignKey("metrics.id"), nullable=True)
-    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    metric_id = Column(GUID(), ForeignKey("metrics.id"), nullable=True)
+    catalog_id = Column(GUID(), ForeignKey("metric_catalogs.id"), nullable=True)
     operation_type = Column(String(50), nullable=False, index=True)  # 'create', 'recommend', 'map', 'enhance'
     user_prompt = Column(Text, nullable=False)
     ai_response_json = Column(JSON, nullable=False)
@@ -503,8 +545,8 @@ class MetricCatalog(Base):
 
     __tablename__ = "metric_catalogs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     owner = Column(String(255))  # Future: FK to users table
@@ -530,15 +572,15 @@ class MetricCatalogItem(Base):
 
     __tablename__ = "metric_catalog_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    catalog_id = Column(GUID(), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
     metric_id = Column(String(100), nullable=False)  # User's original metric ID
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     formula = Column(Text)
 
     # Core required fields
-    direction = Column(Enum(MetricDirection), nullable=False)
+    direction = Column(Enum(MetricDirection, native_enum=False), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
@@ -551,7 +593,7 @@ class MetricCatalogItem(Base):
     # Data source information
     owner_function = Column(String(100))
     data_source = Column(String(200))
-    collection_frequency = Column(Enum(CollectionFrequency))
+    collection_frequency = Column(Enum(CollectionFrequency, native_enum=False))
 
     # Current state
     current_value = Column(Numeric(10, 4))
@@ -581,18 +623,18 @@ class MetricCatalogFrameworkMapping(Base):
 
     __tablename__ = "metric_catalog_framework_mappings"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    catalog_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
-    catalog_item_id = Column(UUID(as_uuid=True), ForeignKey("metric_catalog_items.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    catalog_id = Column(GUID(), ForeignKey("metric_catalogs.id"), nullable=False, index=True)
+    catalog_item_id = Column(GUID(), ForeignKey("metric_catalog_items.id"), nullable=False, index=True)
 
     # Framework mapping (generic, not CSF-specific)
-    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("framework_categories.id"), nullable=True)
-    subcategory_id = Column(UUID(as_uuid=True), ForeignKey("framework_subcategories.id"), nullable=True)
+    function_id = Column(GUID(), ForeignKey("framework_functions.id"), nullable=False)
+    category_id = Column(GUID(), ForeignKey("framework_categories.id"), nullable=True)
+    subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=True)
 
     # Mapping metadata
     confidence_score = Column(Numeric(3, 2))  # AI confidence in mapping (0.0-1.0)
-    mapping_method = Column(Enum(MappingMethod), default=MappingMethod.AUTO)
+    mapping_method = Column(Enum(MappingMethod, native_enum=False), default=MappingMethod.AUTO)
     mapping_notes = Column(Text)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -618,7 +660,7 @@ class AIProvider(Base):
 
     __tablename__ = "ai_providers"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
     code = Column(String(30), unique=True, nullable=False, index=True)  # 'anthropic', 'openai', etc.
     name = Column(String(100), nullable=False)
     description = Column(Text)
@@ -640,8 +682,8 @@ class AIModel(Base):
 
     __tablename__ = "ai_models"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider_id = Column(UUID(as_uuid=True), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    provider_id = Column(GUID(), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False, index=True)
     model_id = Column(String(100), nullable=False)  # 'claude-sonnet-4-5-20250929', 'gpt-4o'
     display_name = Column(String(200), nullable=False)
     description = Column(Text)
@@ -668,9 +710,9 @@ class UserAIConfiguration(Base):
 
     __tablename__ = "user_ai_configurations"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    provider_id = Column(UUID(as_uuid=True), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(GUID(), ForeignKey("ai_providers.id", ondelete="CASCADE"), nullable=False)
     is_active = Column(Boolean, default=False)
     model_id = Column(String(100))  # Preferred model for this provider
 
@@ -710,18 +752,18 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True)
     role = Column(String(50), default="viewer")
     active = Column(Boolean, default=True)
 
     # Framework preferences
-    selected_framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=True)
+    selected_framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=True)
     onboarding_completed = Column(Boolean, default=False)
 
     # AI provider preferences
-    active_ai_config_id = Column(UUID(as_uuid=True), ForeignKey("user_ai_configurations.id", ondelete="SET NULL", use_alter=True), nullable=True)
+    active_ai_config_id = Column(GUID(), ForeignKey("user_ai_configurations.id", ondelete="SET NULL", use_alter=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -744,8 +786,8 @@ class FrameworkScore(Base):
 
     __tablename__ = "framework_scores"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    framework_id = Column(UUID(as_uuid=True), ForeignKey("frameworks.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False, index=True)
     calculated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     overall_score = Column(Numeric(5, 2))  # 0.00 - 100.00
     risk_level = Column(String(20))  # 'low', 'moderate', 'elevated', 'high', 'critical'
@@ -765,8 +807,8 @@ class FunctionScore(Base):
 
     __tablename__ = "function_scores"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    function_id = Column(UUID(as_uuid=True), ForeignKey("framework_functions.id"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=generate_uuid)
+    function_id = Column(GUID(), ForeignKey("framework_functions.id"), nullable=False, index=True)
     calculated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     score = Column(Numeric(5, 2))  # 0.00 - 100.00
     risk_level = Column(String(20))
@@ -779,142 +821,6 @@ class FunctionScore(Base):
 
     def __repr__(self) -> str:
         return f"<FunctionScore(function_id={self.function_id}, score={self.score})>"
-
-
-# ==============================================================================
-# DEMO MODE TABLES
-# ==============================================================================
-
-class DemoUser(Base):
-    """Demo user session tracking with email capture and AI quotas.
-
-    Tracks prospective users exploring the demo environment with:
-    - Required email capture for lead generation
-    - 24-hour demo window
-    - AI metric creation quotas (2 per framework)
-    """
-
-    __tablename__ = "demo_users"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    session_id = Column(String(100), unique=True, nullable=False, index=True)
-    email = Column(String(255), nullable=False)
-    video_skipped = Column(Boolean, default=False)
-    demo_started_at = Column(DateTime(timezone=True), nullable=True)
-    demo_expires_at = Column(DateTime(timezone=True), nullable=True)
-    expired = Column(Boolean, default=False)
-    ai_metrics_created_csf = Column(Integer, default=0)
-    ai_metrics_created_ai_rmf = Column(Integer, default=0)
-    # AI Chat guided wizard tracking
-    ai_chat_interactions = Column(Integer, default=0)  # Total guided chat interactions
-    ai_chat_locked = Column(Boolean, default=False)  # Lock after abuse detection
-    invalid_request_count = Column(Integer, default=0)  # Track invalid/suspicious requests
-    ip_address = Column(String(45))  # IPv6 compatible
-    user_agent = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    demo_metrics = relationship("DemoMetric", back_populates="demo_user", cascade="all, delete-orphan")
-
-    def __repr__(self) -> str:
-        return f"<DemoUser(id={self.id}, email='{self.email}', session_id='{self.session_id}')>"
-
-    @property
-    def is_expired(self) -> bool:
-        """Check if demo has expired."""
-        if self.expired:
-            return True
-        if self.demo_expires_at:
-            return datetime.now(self.demo_expires_at.tzinfo) > self.demo_expires_at
-        return False
-
-    @property
-    def can_create_csf_metric(self) -> bool:
-        """Check if user can create more CSF 2.0 metrics."""
-        return self.ai_metrics_created_csf < 2
-
-    @property
-    def can_create_ai_rmf_metric(self) -> bool:
-        """Check if user can create more AI RMF metrics."""
-        return self.ai_metrics_created_ai_rmf < 2
-
-    @property
-    def can_use_ai_chat(self) -> bool:
-        """Check if user can still use the guided AI chat wizard."""
-        # 6 total interactions: 3 per framework (starter + optional refinement + create)
-        MAX_DEMO_CHAT_INTERACTIONS = 6
-        return (
-            not self.ai_chat_locked
-            and self.ai_chat_interactions < MAX_DEMO_CHAT_INTERACTIONS
-        )
-
-    @property
-    def ai_chat_interactions_remaining(self) -> int:
-        """Return remaining AI chat interactions."""
-        MAX_DEMO_CHAT_INTERACTIONS = 6
-        return max(0, MAX_DEMO_CHAT_INTERACTIONS - self.ai_chat_interactions)
-
-
-class DemoMetric(Base):
-    """Temporary metrics created during demo mode.
-
-    Stores metrics created by demo users via AI. These are automatically
-    deleted when the demo session expires (CASCADE on demo_user deletion).
-    """
-
-    __tablename__ = "demo_metrics"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    demo_user_id = Column(UUID(as_uuid=True), ForeignKey("demo_users.id", ondelete="CASCADE"), nullable=False)
-    metric_data = Column(JSON, nullable=False)  # Full metric object as JSONB
-    framework = Column(String(20), nullable=False)  # 'csf_2_0' or 'ai_rmf'
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    demo_user = relationship("DemoUser", back_populates="demo_metrics")
-
-    def __repr__(self) -> str:
-        return f"<DemoMetric(id={self.id}, framework='{self.framework}', demo_user_id={self.demo_user_id})>"
-
-
-# ==============================================================================
-# SUBSCRIPTION / PAYMENT TABLES
-# ==============================================================================
-
-class SubscriptionStatus(enum.Enum):
-    """Stripe subscription statuses."""
-    ACTIVE = "active"
-    PAST_DUE = "past_due"
-    CANCELED = "canceled"
-    INCOMPLETE = "incomplete"
-    TRIALING = "trialing"
-
-
-class Subscription(Base):
-    """Stripe subscription records.
-
-    Tracks customer subscriptions created via Stripe Checkout.
-    No user FK required - identity is managed by Stripe via customer email.
-    """
-
-    __tablename__ = "subscriptions"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    stripe_customer_id = Column(String(255), nullable=False, index=True)
-    stripe_subscription_id = Column(String(255), unique=True, nullable=False, index=True)
-    stripe_checkout_session_id = Column(String(255), nullable=True)
-    customer_email = Column(String(255), nullable=False, index=True)
-    plan_name = Column(String(50), nullable=False)  # 'standard' or 'professional'
-    status = Column(Enum(SubscriptionStatus), nullable=False, default=SubscriptionStatus.INCOMPLETE)
-    current_period_start = Column(DateTime(timezone=True), nullable=True)
-    current_period_end = Column(DateTime(timezone=True), nullable=True)
-    cancel_at_period_end = Column(Boolean, default=False)
-    canceled_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    def __repr__(self) -> str:
-        return f"<Subscription(id={self.id}, email='{self.customer_email}', plan='{self.plan_name}', status='{self.status.value}')>"
 
 
 # ==============================================================================
@@ -971,18 +877,6 @@ Index("idx_ai_models_provider", AIModel.provider_id)
 Index("idx_ai_models_active", AIModel.active)
 Index("idx_user_ai_config_user", UserAIConfiguration.user_id)
 Index("idx_user_ai_config_active", UserAIConfiguration.user_id, UserAIConfiguration.is_active)
-
-# Demo indices
-Index("idx_demo_users_session", DemoUser.session_id)
-Index("idx_demo_users_email", DemoUser.email)
-Index("idx_demo_users_expires", DemoUser.demo_expires_at)
-Index("idx_demo_users_expired", DemoUser.expired)
-Index("idx_demo_metrics_user", DemoMetric.demo_user_id)
-Index("idx_demo_metrics_framework", DemoMetric.framework)
-
-# Subscription indices
-Index("idx_subscriptions_email_status", Subscription.customer_email, Subscription.status)
-Index("idx_subscriptions_customer_stripe", Subscription.stripe_customer_id)
 
 # Alias for backward compatibility
 MetricCatalogCSFMapping = MetricCatalogFrameworkMapping

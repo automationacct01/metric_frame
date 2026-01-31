@@ -33,6 +33,9 @@ export interface FrameworkFunction {
   icon_name?: string;
 }
 
+// Onboarding step type
+export type OnboardingStep = 'framework' | 'apikey' | 'complete';
+
 // Context state type
 interface FrameworkContextState {
   // Current selection
@@ -47,10 +50,14 @@ interface FrameworkContextState {
   // Onboarding state
   onboardingCompleted: boolean;
   showOnboarding: boolean;
+  onboardingStep: OnboardingStep;
+  apiKeyConfigured: boolean;
 
   // Actions
   selectFramework: (framework: Framework) => void;
   setOnboardingCompleted: (completed: boolean) => void;
+  setOnboardingStep: (step: OnboardingStep) => void;
+  setApiKeyConfigured: (configured: boolean) => void;
   refreshFrameworks: () => Promise<void>;
 }
 
@@ -63,8 +70,12 @@ const defaultContextValue: FrameworkContextState = {
   frameworksError: null,
   onboardingCompleted: false,
   showOnboarding: true,
+  onboardingStep: 'framework',
+  apiKeyConfigured: false,
   selectFramework: () => {},
   setOnboardingCompleted: () => {},
+  setOnboardingStep: () => {},
+  setApiKeyConfigured: () => {},
   refreshFrameworks: async () => {},
 };
 
@@ -75,6 +86,8 @@ const FrameworkContext = createContext<FrameworkContextState>(defaultContextValu
 const STORAGE_KEYS = {
   SELECTED_FRAMEWORK_ID: 'metricframe_selected_framework_id',
   ONBOARDING_COMPLETED: 'metricframe_onboarding_completed',
+  ONBOARDING_STEP: 'metricframe_onboarding_step',
+  API_KEY_CONFIGURED: 'metricframe_api_key_configured',
 };
 
 // Provider props
@@ -89,12 +102,24 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
   const [isLoadingFrameworks, setIsLoadingFrameworks] = useState(true);
   const [frameworksError, setFrameworksError] = useState<string | null>(null);
   const [onboardingCompleted, setOnboardingCompletedState] = useState(false);
+  const [onboardingStep, setOnboardingStepState] = useState<OnboardingStep>('framework');
+  const [apiKeyConfigured, setApiKeyConfiguredState] = useState(false);
 
   // Load initial state from localStorage
   useEffect(() => {
     const storedOnboardingCompleted = localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
     if (storedOnboardingCompleted === 'true') {
       setOnboardingCompletedState(true);
+    }
+
+    const storedOnboardingStep = localStorage.getItem(STORAGE_KEYS.ONBOARDING_STEP);
+    if (storedOnboardingStep) {
+      setOnboardingStepState(storedOnboardingStep as OnboardingStep);
+    }
+
+    const storedApiKeyConfigured = localStorage.getItem(STORAGE_KEYS.API_KEY_CONFIGURED);
+    if (storedApiKeyConfigured === 'true') {
+      setApiKeyConfiguredState(true);
     }
   }, []);
 
@@ -142,6 +167,22 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
   const setOnboardingCompleted = (completed: boolean) => {
     setOnboardingCompletedState(completed);
     localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, String(completed));
+    if (completed) {
+      setOnboardingStepState('complete');
+      localStorage.setItem(STORAGE_KEYS.ONBOARDING_STEP, 'complete');
+    }
+  };
+
+  // Set onboarding step
+  const setOnboardingStep = (step: OnboardingStep) => {
+    setOnboardingStepState(step);
+    localStorage.setItem(STORAGE_KEYS.ONBOARDING_STEP, step);
+  };
+
+  // Set API key configured
+  const setApiKeyConfigured = (configured: boolean) => {
+    setApiKeyConfiguredState(configured);
+    localStorage.setItem(STORAGE_KEYS.API_KEY_CONFIGURED, String(configured));
   };
 
   // Refresh frameworks
@@ -150,7 +191,7 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
   };
 
   // Determine if we should show onboarding
-  const showOnboarding = !onboardingCompleted && !selectedFramework;
+  const showOnboarding = !onboardingCompleted;
 
   // Context value
   const value: FrameworkContextState = {
@@ -161,8 +202,12 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
     frameworksError,
     onboardingCompleted,
     showOnboarding,
+    onboardingStep,
+    apiKeyConfigured,
     selectFramework,
     setOnboardingCompleted,
+    setOnboardingStep,
+    setApiKeyConfigured,
     refreshFrameworks,
   };
 
