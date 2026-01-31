@@ -45,12 +45,10 @@ import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { AIChatRequest, AIAction } from '../types';
 import { useFramework } from '../contexts/FrameworkContext';
-import { useDemo } from '../contexts/DemoContext';
 import { FrameworkSelector } from './FrameworkSelector';
 import MetricRecommendations from './ai/MetricRecommendations';
 import ChatMetricCreator from './ai/ChatMetricCreator';
 import GapAnalysisChart from './ai/GapAnalysisChart';
-import { DemoAIChatWizard } from './demo';
 
 interface ChatMessage {
   id: string;
@@ -82,11 +80,7 @@ interface AIChatState {
 
 export default function AIChat() {
   const { selectedFramework } = useFramework();
-  const { isDemo, isDemoStarted } = useDemo();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
-
-  // Show demo wizard instead of regular chat in demo mode
-  const showDemoWizard = isDemo && isDemoStarted;
 
   const [state, setState] = useState<AIChatState>({
     messages: [],
@@ -542,11 +536,6 @@ export default function AIChat() {
       {/* Chat View */}
       {state.activeView === 'chat' && (
         <>
-          {/* Demo Mode: Show Guided Wizard */}
-          {showDemoWizard ? (
-            <DemoAIChatWizard />
-          ) : (
-            <>
           {/* AI Status and Mode Selection */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={8}>
@@ -825,8 +814,6 @@ export default function AIChat() {
           </Grid>
         </Grid>
       </Paper>
-            </>
-          )}
         </>
       )}
 

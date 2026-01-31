@@ -24,7 +24,7 @@ Complete guide for setting up a development environment and contributing to Metr
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/metricframe.git
+git clone https://github.com/automationacct01/metric_frame.git
 cd metricframe
 
 # Copy environment file

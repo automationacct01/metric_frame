@@ -386,7 +386,7 @@ When reporting issues, include:
 ### GitHub Issues
 
 Report bugs and request features at:
-[https://github.com/your-org/metricframe/issues](https://github.com/your-org/metricframe/issues)
+[https://github.com/automationacct01/metric_frame/issues](https://github.com/automationacct01/metric_frame/issues)
 
 ---
 

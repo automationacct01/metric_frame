@@ -23,12 +23,10 @@ import {
   useTheme,
 } from '@mui/material';
 import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
-import { useDemo } from '../../contexts/DemoContext';
 
 const navItems = [
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Pricing', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -37,7 +35,6 @@ export default function LandingNavbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { clearDemo } = useDemo();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -51,14 +48,8 @@ export default function LandingNavbar() {
     setMobileOpen(false);
   };
 
-  const handleLogin = () => {
-    // Clear any active demo session before going to full app
-    clearDemo();
-    navigate('/app');
-  };
-
-  const handleTryDemo = () => {
-    navigate('/demo');
+  const handleGetStarted = () => {
+    navigate('/download');
   };
 
   const drawer = (
@@ -78,23 +69,9 @@ export default function LandingNavbar() {
         ))}
         <ListItem disablePadding sx={{ mt: 2 }}>
           <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleLogin}
-            sx={{
-              borderColor: '#0ea5e9',
-              color: '#0ea5e9',
-              py: 1.5,
-            }}
-          >
-            Login
-          </Button>
-        </ListItem>
-        <ListItem disablePadding sx={{ mt: 1 }}>
-          <Button
             variant="contained"
             fullWidth
-            onClick={handleTryDemo}
+            onClick={handleGetStarted}
             sx={{
               backgroundColor: '#0ea5e9',
               py: 1.5,
@@ -103,7 +80,7 @@ export default function LandingNavbar() {
               },
             }}
           >
-            Try Demo
+            Get Started
           </Button>
         </ListItem>
       </List>
@@ -160,32 +137,17 @@ export default function LandingNavbar() {
                   </Button>
                 ))}
                 <Button
-                  variant="outlined"
-                  onClick={handleLogin}
+                  variant="contained"
+                  onClick={handleGetStarted}
                   sx={{
                     ml: 2,
-                    borderColor: '#0ea5e9',
-                    color: '#0ea5e9',
-                    '&:hover': {
-                      borderColor: '#0369a1',
-                      backgroundColor: 'rgba(14, 165, 233, 0.05)',
-                    },
-                  }}
-                >
-                  Login
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleTryDemo}
-                  sx={{
-                    ml: 1,
                     backgroundColor: '#0ea5e9',
                     '&:hover': {
                       backgroundColor: '#0284c7',
                     },
                   }}
                 >
-                  Try Demo
+                  Get Started
                 </Button>
               </Box>
             )}

@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Context
 import { FrameworkProvider, useFramework } from './contexts/FrameworkContext';
-import { DemoProvider, useDemo } from './contexts/DemoContext';
 
 // Components
 import Navbar, { drawerWidthExpanded, drawerWidthCollapsed } from './components/Navbar';
@@ -18,15 +17,11 @@ import FunctionDetail from './components/FunctionDetail';
 import CatalogWizard from './components/CatalogWizard';
 import CatalogManager from './components/CatalogManager';
 import Documentation from './components/Documentation';
-import { FrameworkSelection } from './components/onboarding';
+import { FrameworkSelection, APIKeySetup } from './components/onboarding';
 
 // Landing Page
 import LandingPage from './pages/LandingPage';
-import CheckoutSuccess from './pages/CheckoutSuccess';
-import CheckoutCancel from './pages/CheckoutCancel';
-
-// Demo Components
-import { DemoOnboarding, DemoBanner } from './components/demo';
+import DownloadPage from './pages/DownloadPage';
 
 // Create MUI theme
 const theme = createTheme({
@@ -96,8 +91,14 @@ const queryClient = new QueryClient({
 
 // Main app content with framework-aware routing
 function AppContent() {
-  const { showOnboarding, isLoadingFrameworks, selectedFramework } = useFramework();
-  const { isDemo, isDemoStarted } = useDemo();
+  const {
+    showOnboarding,
+    isLoadingFrameworks,
+    onboardingStep,
+    setOnboardingStep,
+    setOnboardingCompleted,
+    setApiKeyConfigured,
+  } = useFramework();
 
   // Sidebar collapsed state - persisted to localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -113,51 +114,48 @@ function AppContent() {
     });
   }, []);
 
-  // Show onboarding if user hasn't selected a framework yet
+  // Handle API key setup completion
+  const handleApiKeyComplete = useCallback(() => {
+    setApiKeyConfigured(true);
+    setOnboardingCompleted(true);
+  }, [setApiKeyConfigured, setOnboardingCompleted]);
+
+  // Handle API key setup skip
+  const handleApiKeySkip = useCallback(() => {
+    setOnboardingCompleted(true);
+  }, [setOnboardingCompleted]);
+
+  // Show onboarding if not completed
   if (showOnboarding && !isLoadingFrameworks) {
-    return <FrameworkSelection />;
+    // Step 1: Framework selection
+    if (onboardingStep === 'framework') {
+      return <FrameworkSelection />;
+    }
+    // Step 2: API key setup
+    if (onboardingStep === 'apikey') {
+      return (
+        <APIKeySetup
+          onComplete={handleApiKeyComplete}
+          onSkip={handleApiKeySkip}
+        />
+      );
+    }
   }
-
-  // Determine current framework for demo banner
-  const currentFramework = selectedFramework?.code as 'csf_2_0' | 'ai_rmf' | undefined;
-
-  const sidebarWidth = sidebarCollapsed ? drawerWidthCollapsed : drawerWidthExpanded;
-  const showDemoBanner = isDemo && isDemoStarted;
-  const topBarHeight = 48;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Fixed Demo Top Bar - shown when in demo mode */}
-      {showDemoBanner && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: sidebarWidth,
-            right: 0,
-            height: topBarHeight,
-            zIndex: 1100,
-            transition: 'left 0.2s ease-in-out',
-          }}
-        >
-          <DemoBanner showQuota={true} framework={currentFramework} />
-        </Box>
-      )}
-
       <Navbar collapsed={sidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
-          pt: showDemoBanner ? `${topBarHeight + 48}px` : { xs: 2, sm: 3 },
           minHeight: '100vh',
           backgroundColor: 'background.default',
           overflow: 'auto',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
-          transition: 'padding-top 0.2s ease-in-out',
         }}
       >
         <Routes>
@@ -181,41 +179,35 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <DemoProvider>
-          <Router>
-            <Routes>
-              {/* Landing page at root - marketing entry point */}
-              <Route path="/" element={<LandingPage />} />
+        <Router>
+          <Routes>
+            {/* Landing page at root - marketing entry point */}
+            <Route path="/" element={<LandingPage />} />
 
-              {/* Demo onboarding page */}
-              <Route path="/demo" element={<DemoOnboarding />} />
+            {/* Download page for Docker/Desktop options */}
+            <Route path="/download" element={<DownloadPage />} />
 
-              {/* Stripe checkout result pages */}
-              <Route path="/checkout/success" element={<CheckoutSuccess />} />
-              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+            {/* Main app with framework context at /app/* */}
+            <Route
+              path="/app/*"
+              element={
+                <FrameworkProvider>
+                  <AppContent />
+                </FrameworkProvider>
+              }
+            />
 
-              {/* Main app with framework context at /app/* */}
-              <Route
-                path="/app/*"
-                element={
-                  <FrameworkProvider>
-                    <AppContent />
-                  </FrameworkProvider>
-                }
-              />
-
-              {/* Backward compatibility redirects for old URLs */}
-              <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
-              <Route path="/metrics" element={<Navigate to="/app/metrics" replace />} />
-              <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
-              <Route path="/ai-assistant" element={<Navigate to="/app/ai-assistant" replace />} />
-              <Route path="/catalog-wizard" element={<Navigate to="/app/catalog-wizard" replace />} />
-              <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
-              <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
-              <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
-            </Routes>
-          </Router>
-        </DemoProvider>
+            {/* Backward compatibility redirects for old URLs */}
+            <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+            <Route path="/metrics" element={<Navigate to="/app/metrics" replace />} />
+            <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
+            <Route path="/ai-assistant" element={<Navigate to="/app/ai-assistant" replace />} />
+            <Route path="/catalog-wizard" element={<Navigate to="/app/catalog-wizard" replace />} />
+            <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
+            <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
+            <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
+          </Routes>
+        </Router>
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -1,0 +1,56 @@
+# Production Dockerfile for MetricFrame Backend
+# Multi-stage build for smaller image size
+
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies to a shared location
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Production
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
+ENV PATH=/usr/local/bin:$PATH
+
+# Create non-root user before copying app code
+RUN useradd --create-home --shell /bin/bash app
+
+# Copy application code
+COPY --chown=app:app backend/src/ ./src/
+COPY --chown=app:app backend/alembic/ ./alembic/
+COPY --chown=app:app backend/alembic.ini ./
+
+USER app
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run the application (no --reload in production)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
