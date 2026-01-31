@@ -9,7 +9,7 @@ MetricFrame provides:
 - **Multi-Framework Support**: Unified dashboard for NIST CSF 2.0 (cybersecurity) and AI RMF 1.0 (AI risk)
 - **Executive Dashboard**: Color-coded risk scores across all framework functions
 - **Metrics Catalog**: 356 pre-configured metrics with risk definitions and gap-to-target scoring
-- **AI Assistant**: Intelligent metrics management powered by your own API key (Anthropic Claude or OpenAI)
+- **AI Assistant**: Intelligent metrics management powered by your own API key (6 providers supported)
 - **100% Local**: Runs entirely on your infrastructure - your data never leaves your systems
 
 ## Download
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/
 
 # Or with Docker Compose
 git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe
+cd metric_frame
 docker compose -f docker-compose.prod.yml up -d
 ```
 
@@ -38,10 +38,16 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### Bring Your Own API Key
 
-MetricFrame requires your own AI API key for the AI assistant features:
+MetricFrame requires your own AI API key for the AI assistant features. Choose from 6 supported providers:
 
-- **Anthropic Claude** (Recommended): Get a key at [console.anthropic.com](https://console.anthropic.com/account/keys)
-- **OpenAI GPT-4**: Get a key at [platform.openai.com](https://platform.openai.com/api-keys)
+| Provider | Models | Get API Key |
+|----------|--------|-------------|
+| **Anthropic** | Claude Opus, Sonnet, Haiku | [console.anthropic.com](https://console.anthropic.com/account/keys) |
+| **OpenAI** | GPT-4o, GPT-4, GPT-3.5 | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **Together.ai** | DeepSeek, Llama, Mistral | [api.together.xyz](https://api.together.xyz/) |
+| **Azure OpenAI** | GPT-4, GPT-3.5 (Enterprise) | [azure.microsoft.com](https://azure.microsoft.com/en-us/products/ai-services/openai-service) |
+| **AWS Bedrock** | Claude, Llama, Amazon Nova | [aws.amazon.com](https://aws.amazon.com/bedrock/) |
+| **GCP Vertex AI** | Gemini, Claude | [cloud.google.com](https://cloud.google.com/vertex-ai) |
 
 Your API keys are stored locally and encrypted. We never see your keys or your data.
 
@@ -110,7 +116,7 @@ Docker Deployment:
 ```bash
 # Clone the repository
 git clone https://github.com/automationacct01/metric_frame.git
-cd metricframe
+cd metric_frame
 
 # Copy environment template
 cp backend/.env.example backend/.env
@@ -137,9 +143,14 @@ cd frontend && npm install && npm run dev
 # Database (PostgreSQL for Docker, SQLite for Desktop)
 DATABASE_URL=postgresql://metricframe:metricframe@localhost:5432/metricframe
 
-# AI Provider API Keys (bring your own)
+# AI Provider API Keys (bring your own - choose one or more)
 ANTHROPIC_API_KEY=your-key-here
 OPENAI_API_KEY=your-key-here
+TOGETHER_API_KEY=your-key-here
+AZURE_OPENAI_API_KEY=your-key-here
+AWS_ACCESS_KEY_ID=your-key-here
+AWS_SECRET_ACCESS_KEY=your-key-here
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 
 # Risk Thresholds
 RISK_THRESHOLD_VERY_LOW=90.0
