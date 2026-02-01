@@ -58,6 +58,7 @@ import {
   RiskRating,
   MetricDirection,
   CollectionFrequency,
+  UpdateType,
 } from '../types';
 
 // Constants for dropdown options
@@ -151,6 +152,51 @@ const renderHeaderWithTooltipMap = (field: string, headerName: string, tooltips:
   </Tooltip>
 );
 
+/**
+ * Validate that a metric value is within reasonable bounds relative to target.
+ * Returns { valid: true } or { valid: false, error: string }
+ */
+const validateMetricValue = (
+  currentValue: number | undefined,
+  targetValue: number | undefined,
+  targetUnits?: string
+): { valid: boolean; error?: string } => {
+  if (currentValue === undefined || currentValue === null) {
+    return { valid: true };
+  }
+
+  // Rule 1: current_value must be non-negative
+  if (currentValue < 0) {
+    return { valid: false, error: 'Value cannot be negative' };
+  }
+
+  // If no target, allow any non-negative value
+  if (targetValue === undefined || targetValue === null || targetValue === 0) {
+    return { valid: true };
+  }
+
+  // Rule 2: For percentage metrics (target ~= 100 or units = "%"), cap at 150
+  const isPercentage = targetUnits === '%' || (targetValue >= 95 && targetValue <= 105);
+  if (isPercentage && currentValue > 150) {
+    return {
+      valid: false,
+      error: `Value ${currentValue} exceeds maximum of 150 for percentage metrics`,
+    };
+  }
+
+  // Rule 3: For all metrics, current_value shouldn't exceed 10x target
+  const maxMultiplier = 10.0;
+  const maxAllowed = targetValue * maxMultiplier;
+  if (currentValue > maxAllowed) {
+    return {
+      valid: false,
+      error: `Value ${currentValue} exceeds maximum (${maxAllowed.toFixed(1)} = ${maxMultiplier}x target of ${targetValue})`,
+    };
+  }
+
+  return { valid: true };
+};
+
 interface EditingState {
   [metricId: string]: {
     [field: string]: any;
@@ -188,6 +234,10 @@ interface MetricsGridState {
   aiError: string | null;
   // Summary stats (independent of filters)
   summaryStats: SummaryStats;
+  // Update type dialog state
+  updateTypeDialogOpen: boolean;
+  pendingUpdateMetric: Metric | null;
+  pendingUpdateData: Record<string, any> | null;
 }
 
 export default function MetricsGrid() {
@@ -225,6 +275,9 @@ export default function MetricsGrid() {
       highPriority: 0,
       needAttention: 0,
     },
+    updateTypeDialogOpen: false,
+    pendingUpdateMetric: null,
+    pendingUpdateData: null,
   });
 
   const showSnackbar = (message: string, severity: typeof state.snackbarSeverity = 'info') => {
@@ -338,9 +391,25 @@ export default function MetricsGrid() {
       // Apply client-side metric type filter (Cyber vs AI Profile)
       const filteredMetrics = filterMetricsByType(response.items, state.filters.metric_type);
 
+      // Initialize editingValues for any metrics that are already unlocked
+      const newEditingValues: EditingState = { ...state.editingValues };
+      filteredMetrics.forEach(metric => {
+        if (!metric.locked && !newEditingValues[metric.id]) {
+          newEditingValues[metric.id] = {
+            priority_rank: metric.priority_rank,
+            current_value: metric.current_value,
+            target_value: metric.target_value,
+            direction: metric.direction,
+            collection_frequency: metric.collection_frequency,
+            owner_function: metric.owner_function,
+          };
+        }
+      });
+
       setState(prev => ({
         ...prev,
         metrics: filteredMetrics,
+        editingValues: newEditingValues,
         total: state.filters.metric_type ? filteredMetrics.length : response.total,
         loading: false,
       }));
@@ -515,6 +584,35 @@ export default function MetricsGrid() {
           if (editValues.collection_frequency !== undefined) patchData.collection_frequency = editValues.collection_frequency;
           if (editValues.owner_function !== undefined) patchData.owner_function = editValues.owner_function;
 
+          // Validate current_value before saving
+          if (editValues.current_value !== undefined) {
+            const targetVal = editValues.target_value !== undefined ? editValues.target_value : metric.target_value;
+            const validation = validateMetricValue(editValues.current_value, targetVal, metric.target_units);
+            if (!validation.valid) {
+              showSnackbar(validation.error || 'Invalid value', 'error');
+              setState(prev => ({ ...prev, savingMetric: null }));
+              return; // Don't save - let user correct the value
+            }
+          }
+
+          // Check if current_value has changed - show dialog to ask update type
+          const currentValueChanged = (
+            editValues.current_value !== undefined &&
+            editValues.current_value !== metric.current_value
+          );
+
+          if (currentValueChanged && Object.keys(patchData).length > 0) {
+            // Show dialog to ask user for update type
+            setState(prev => ({
+              ...prev,
+              updateTypeDialogOpen: true,
+              pendingUpdateMetric: metric,
+              pendingUpdateData: patchData,
+              savingMetric: null,
+            }));
+            return; // Exit early - will continue in handleUpdateTypeConfirm
+          }
+
           if (Object.keys(patchData).length > 0) {
             await apiClient.patchMetric(metric.id, patchData);
           }
@@ -532,11 +630,81 @@ export default function MetricsGrid() {
         }));
         showSnackbar('Changes saved and metric locked', 'success');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to toggle lock:', error);
-      showSnackbar('Failed to toggle lock', 'error');
+      // Extract validation error message from backend response
+      const errorMessage = error?.response?.data?.detail || 'Failed to toggle lock';
+      showSnackbar(errorMessage, 'error');
       setState(prev => ({ ...prev, savingMetric: null }));
     }
+  };
+
+  // Handle update type confirmation from dialog
+  const handleUpdateTypeConfirm = async (updateType: UpdateType) => {
+    const metric = state.pendingUpdateMetric;
+    const patchData = state.pendingUpdateData;
+
+    if (!metric || !patchData) {
+      setState(prev => ({
+        ...prev,
+        updateTypeDialogOpen: false,
+        pendingUpdateMetric: null,
+        pendingUpdateData: null,
+      }));
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, savingMetric: metric.id }));
+
+      // Add update_type to the patch data
+      const patchWithType = { ...patchData, update_type: updateType };
+      await apiClient.patchMetric(metric.id, patchWithType);
+      await apiClient.lockMetric(metric.id);
+
+      // Reload metrics to get updated values
+      await loadMetrics();
+
+      setState(prev => ({
+        ...prev,
+        editingValues: Object.fromEntries(
+          Object.entries(prev.editingValues).filter(([key]) => key !== metric.id)
+        ),
+        metrics: prev.metrics.map(m =>
+          m.id === metric.id ? { ...m, locked: true } : m
+        ),
+        savingMetric: null,
+        updateTypeDialogOpen: false,
+        pendingUpdateMetric: null,
+        pendingUpdateData: null,
+      }));
+
+      const typeLabel = updateType === UpdateType.PERIOD_UPDATE ? 'Period update' : 'Adjustment';
+      showSnackbar(`${typeLabel} saved and metric locked`, 'success');
+    } catch (error: any) {
+      console.error('Failed to save with update type:', error);
+      // Extract validation error message from backend response
+      const errorMessage = error?.response?.data?.detail || 'Failed to save changes';
+      showSnackbar(errorMessage, 'error');
+      setState(prev => ({
+        ...prev,
+        savingMetric: null,
+        updateTypeDialogOpen: false,
+        pendingUpdateMetric: null,
+        pendingUpdateData: null,
+      }));
+    }
+  };
+
+  // Handle update type dialog cancel
+  const handleUpdateTypeCancel = () => {
+    setState(prev => ({
+      ...prev,
+      updateTypeDialogOpen: false,
+      pendingUpdateMetric: null,
+      pendingUpdateData: null,
+      savingMetric: null,
+    }));
   };
 
   // Lock All / Unlock All handlers
@@ -554,16 +722,40 @@ export default function MetricsGrid() {
 
       for (const metric of unlockedMetrics) {
         try {
-          // Save any pending edits first
+          // Save any pending edits first - only if values actually changed from original
           const editValues = state.editingValues[metric.id];
           if (editValues && Object.keys(editValues).length > 0) {
             const patchData: any = {};
-            if (editValues.priority_rank !== undefined) patchData.priority_rank = editValues.priority_rank;
-            if (editValues.current_value !== undefined) patchData.current_value = editValues.current_value;
-            if (editValues.target_value !== undefined) patchData.target_value = editValues.target_value;
-            if (editValues.direction !== undefined) patchData.direction = editValues.direction;
-            if (editValues.collection_frequency !== undefined) patchData.collection_frequency = editValues.collection_frequency;
-            if (editValues.owner_function !== undefined) patchData.owner_function = editValues.owner_function;
+            // Only include fields that actually changed from original metric values
+            if (editValues.priority_rank !== undefined && editValues.priority_rank !== metric.priority_rank) {
+              patchData.priority_rank = editValues.priority_rank;
+            }
+            if (editValues.current_value !== undefined && editValues.current_value !== metric.current_value) {
+              patchData.current_value = editValues.current_value;
+            }
+            if (editValues.target_value !== undefined && editValues.target_value !== metric.target_value) {
+              patchData.target_value = editValues.target_value;
+            }
+            if (editValues.direction !== undefined && editValues.direction !== metric.direction) {
+              patchData.direction = editValues.direction;
+            }
+            if (editValues.collection_frequency !== undefined && editValues.collection_frequency !== metric.collection_frequency) {
+              patchData.collection_frequency = editValues.collection_frequency;
+            }
+            if (editValues.owner_function !== undefined && editValues.owner_function !== metric.owner_function) {
+              patchData.owner_function = editValues.owner_function;
+            }
+
+            // Validate current_value before saving
+            if (patchData.current_value !== undefined) {
+              const targetVal = patchData.target_value !== undefined ? patchData.target_value : metric.target_value;
+              const validation = validateMetricValue(patchData.current_value, targetVal, metric.target_units);
+              if (!validation.valid) {
+                console.error(`Validation failed for metric ${metric.name}: ${validation.error}`);
+                failCount++;
+                continue; // Skip this metric
+              }
+            }
 
             if (Object.keys(patchData).length > 0) {
               await apiClient.patchMetric(metric.id, patchData);
@@ -942,6 +1134,8 @@ export default function MetricsGrid() {
       headerName: '',
       width: 50,
       sortable: false,
+      cellClassName: 'sticky-lock-cell',
+      headerClassName: 'sticky-lock-header',
       renderHeader: renderHeaderWithTooltipMap('locked', '🔒', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
@@ -1944,6 +2138,27 @@ export default function MetricsGrid() {
                 marginTop: 0,
               },
             },
+            // Sticky lock column styles
+            '& .sticky-lock-cell': {
+              position: 'sticky',
+              left: 0,
+              zIndex: 2,
+              backgroundColor: 'background.paper',
+              borderRight: '1px solid',
+              borderRightColor: 'divider',
+            },
+            '& .sticky-lock-header': {
+              position: 'sticky',
+              left: 0,
+              zIndex: 3,
+              backgroundColor: 'background.paper',
+              borderRight: '1px solid',
+              borderRightColor: 'divider',
+            },
+            // Ensure the scrollable area allows horizontal scroll
+            '& .MuiDataGrid-virtualScroller': {
+              overflowX: 'auto',
+            },
           }}
         />
       </Paper>
@@ -2223,6 +2438,77 @@ export default function MetricsGrid() {
           </Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Update Type Selection Dialog */}
+      <Dialog
+        open={state.updateTypeDialogOpen}
+        onClose={handleUpdateTypeCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Update Type</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            You're changing the current value for "{state.pendingUpdateMetric?.name}".
+            Please select the type of update:
+          </Typography>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Paper
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                border: '2px solid transparent',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  backgroundColor: 'action.hover',
+                },
+              }}
+              onClick={() => handleUpdateTypeConfirm(UpdateType.PERIOD_UPDATE)}
+            >
+              <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                Period Update
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                This is a new measurement for a new reporting period.
+                The value will be recorded in trend/historical data and the audit log.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mt: 1 }}>
+                Use this for regular metric updates (e.g., monthly collection)
+              </Typography>
+            </Paper>
+
+            <Paper
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                border: '2px solid transparent',
+                '&:hover': {
+                  borderColor: 'warning.main',
+                  backgroundColor: 'action.hover',
+                },
+              }}
+              onClick={() => handleUpdateTypeConfirm(UpdateType.ADJUSTMENT)}
+            >
+              <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
+                Adjustment
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                This is a correction or fix to the current value.
+                The change will only be recorded in the audit log, NOT in trend data.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mt: 1 }}>
+                Use this for fixing data entry errors or making corrections
+              </Typography>
+            </Paper>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleUpdateTypeCancel}>
+            Cancel
           </Button>
         </DialogActions>
       </Dialog>

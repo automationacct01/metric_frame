@@ -346,7 +346,7 @@ class APIClient {
   }
 
   async patchMetric(id: string, updates: Partial<Metric>): Promise<Metric> {
-    const response = await this.client.patch<Metric>(`/metrics/${id}/`, updates);
+    const response = await this.client.patch<Metric>(`/metrics/${id}`, updates);
     return response.data;
   }
 
