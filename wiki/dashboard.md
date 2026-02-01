@@ -1,6 +1,6 @@
 # Dashboard Guide
 
-> **Last Updated:** January 2026
+> **Last Updated:** February 2026
 > **Status:** Active Development
 
 ---
@@ -102,11 +102,79 @@ Each CSF function displays a dedicated score card showing:
 
 ### Score Card Interaction
 
-Click any score card to:
-- View category breakdown within the function
-- See individual metrics contributing to the score
-- Access drill-down charts for trend analysis
-- Navigate directly to relevant metrics
+Click any score card to navigate to the **Function Detail** view:
+- View all categories within the function with score cards
+- See category-level scores and risk ratings
+- Click any category card to drill down to **Category Detail** view
+
+## Category Detail View
+
+When you click a category card (e.g., "GV.AI-OC - AI Organizational Context"), you see:
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  HEADER                                                                      │
+│  [< Back to GOVERN]                                    [Reset Filters]       │
+│                                                                              │
+│  GV.AI-OC - AI Organizational Context                          [ELEVATED]   │
+│  "Policies for AI systems are defined and documented"                        │
+│                                                                              │
+│      ████████████████████░░░░░░░░░░░░  70.9%    ▲ +3.2% vs last month       │
+│                                                                              │
+│    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                     │
+│    │ 4 Metrics    │  │ 0 At Target  │  │ 4 Below      │                     │
+│    └──────────────┘  └──────────────┘  └──────────────┘                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  KEY INSIGHTS                                           [AI Explain]         │
+│  • Highest gap: "Policy Review Frequency" at -50% below target              │
+│  • Quick win: "AI Training Completion" only 10% below target                │
+│  • Trend: Category score down 5.2% over 30 days                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  FILTERS & SEARCH                                                            │
+│  [Priority: All ▼] [🔍 Search metrics...]                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  METRICS TABLE                                                               │
+│  │ Metric │ Score │ Current │ Target │ Gap │ Priority │ Owner │             │
+│  │ Policy Review │ 60% │ 2/yr │ 4/yr │ -50% │ HIGH │ Legal │               │
+│  │ AI Training │ 90% │ 85% │ 95% │ -10% │ MED │ HR │                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  VISUALIZATIONS                                                              │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐                   │
+│  │ Score Distribution      │  │ Gap to Target           │                   │
+│  │ (Horizontal bars)       │  │ (Diverging bar chart)   │                   │
+│  └─────────────────────────┘  └─────────────────────────┘                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  TREND CHART (7/30/90 day toggle)                                            │
+│  [Filter Metric: All ▼] [View: Both ▼]                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Search & Filter Features
+
+| Filter | Description |
+|--------|-------------|
+| **Search** | Filter metrics by name (persists in URL) |
+| **Priority** | Filter by High/Medium/Low priority |
+| **Trend Metric** | Filter trend chart to single metric |
+| **Timeframe** | Toggle 7/30/90 day trend view |
+
+### Reset Filters
+
+Click **Reset Filters** button (appears when any filter is active) to:
+- Clear search query
+- Reset trend metric filter
+- Reset priority filter
+- Clear URL search parameters
+- Show all metrics in category
+
+### Navigation from MetricsGrid
+
+The Metrics Catalog includes a **Dashboard Navigation Button** (blue icon) next to each metric's lock icon:
+- Navigates directly to the category dashboard for that metric
+- Pre-fills search filter with the metric name
+- Auto-filters trend chart to show only that metric
 
 ## CSF Coverage View
 

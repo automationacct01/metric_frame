@@ -67,6 +67,16 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 - **Risk Ratings**: Color-coded Low/Moderate/Elevated/High risk levels
 - **Attention Metrics**: Top metrics requiring immediate focus
 - **Catalog Switching**: Toggle between default and custom metrics catalogs
+- **Drill-Down Navigation**: Click functions → categories → individual metrics
+
+### Category Detail View
+- **Category Breakdown**: View all metrics within a specific category
+- **Score Distribution**: Horizontal bar charts showing metric performance
+- **Gap-to-Target Charts**: Visual gap analysis for each metric
+- **Trend Visualization**: Historical trends with 7/30/90 day toggles
+- **Auto-Generated Insights**: AI-analyzed highest gaps and quick wins
+- **Search & Filter**: Filter by priority, search by name, with URL persistence
+- **Reset Filters**: One-click reset of all active filters
 
 ### Bring Your Own Catalog
 - **Custom Metrics Import**: Upload CSV files with your organization's metrics
@@ -80,10 +90,19 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 - **Multiple Directions**: Higher-is-better, lower-is-better, target-range, binary
 - **Configurable Thresholds**: Customizable risk rating boundaries
 
+### Metrics Catalog Grid
+- **Dashboard Navigation**: One-click navigation from metrics to category dashboard
+- **Inline Editing**: Edit metric values directly with validation
+- **Value Validation**: Prevents unrealistic values (>150% for percentages, >10x target)
+- **Lock Protection**: Lock metrics to prevent accidental edits
+- **Version History**: Track all changes with diff comparison
+- **Business Impact**: See why each metric matters to the business
+
 ### AI-Powered Metrics Management
 - **Natural Language**: "Add a metric for board cyber briefings"
 - **Context Awareness**: Understands existing metrics to avoid duplication
 - **Review Process**: Human approval required before applying changes
+- **6 AI Providers**: Anthropic, OpenAI, Together.ai, Azure, AWS Bedrock, GCP Vertex
 
 ## Architecture
 

@@ -12,8 +12,11 @@
 
 ### User Guide
 - [Dashboard](dashboard)
+  - [Category Detail](dashboard#category-detail-view)
 - [Demo Mode](demo-mode)
 - [Metrics Management](metrics-management)
+  - [Value Validation](metrics-management#value-validation)
+  - [Version History](metrics-management#metric-version-history)
 - [AI Assistant](ai-assistant)
   - [Bring Your Own Model](ai-assistant#bring-your-own-model-byom)
 
