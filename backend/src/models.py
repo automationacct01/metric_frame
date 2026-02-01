@@ -790,6 +790,7 @@ class User(Base):
     id = Column(GUID(), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True)
+    password_hash = Column(String(255), nullable=True)  # For simple password auth
     role = Column(String(50), default="viewer")
     active = Column(Boolean, default=True)
 
@@ -799,6 +800,16 @@ class User(Base):
 
     # AI provider preferences
     active_ai_config_id = Column(GUID(), ForeignKey("user_ai_configurations.id", ondelete="SET NULL", use_alter=True), nullable=True)
+
+    # Login tracking
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Password recovery
+    recovery_key_hash = Column(String(255), nullable=True)
+    security_question_1 = Column(String(255), nullable=True)
+    security_answer_1_hash = Column(String(255), nullable=True)
+    security_question_2 = Column(String(255), nullable=True)
+    security_answer_2_hash = Column(String(255), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

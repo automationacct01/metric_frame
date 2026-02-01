@@ -2,10 +2,10 @@
  * UserManagement component for admin user role management.
  *
  * Provides a table view of all users with ability to:
- * - Create new users with name, email, and role
+ * - Invite new users by email with assigned role
  * - Change user roles via dropdown (viewer/editor/admin)
  * - Activate/deactivate users via toggle
- * - View user details
+ * - Delete users
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -31,6 +31,7 @@ import {
   TextField,
   FormControl,
   InputLabel,
+  InputAdornment,
   Snackbar,
   Alert,
   Chip,
@@ -39,14 +40,19 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Refresh as RefreshIcon,
   PersonAdd as PersonAddIcon,
   AdminPanelSettings as AdminIcon,
   Edit as EditIcon,
   Visibility as ViewerIcon,
+  VisibilityOff,
+  Delete as DeleteIcon,
+  HourglassEmpty as PendingIcon,
+  Key as KeyIcon,
 } from '@mui/icons-material';
-import { apiClient } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ==============================================================================
 // TYPES
@@ -57,17 +63,15 @@ export type UserRole = 'viewer' | 'editor' | 'admin';
 export interface UserRecord {
   id: string;
   name: string;
-  email: string | null;
-  role: UserRole | null;
+  email: string;
+  role: UserRole;
   active: boolean;
-  selected_framework_id?: string | null;
-  onboarding_completed?: boolean;
-  created_at?: string | null;
-  updated_at?: string | null;
+  pending: boolean;
+  last_login_at: string | null;
+  created_at: string | null;
 }
 
-interface CreateUserFormData {
-  name: string;
+interface InviteFormData {
   email: string;
   role: UserRole;
 }
@@ -105,13 +109,14 @@ const ROLE_CONFIG: Record<UserRole, { label: string; color: 'default' | 'primary
 // ==============================================================================
 
 const UserManagement: React.FC = () => {
+  const { token, user: currentUser } = useAuth();
+
   // State
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<CreateUserFormData>({
-    name: '',
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<InviteFormData>({
     email: '',
     role: 'viewer',
   });
@@ -122,22 +127,38 @@ const UserManagement: React.FC = () => {
     message: '',
     severity: 'success',
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserRecord | null>(null);
 
-  // Fetch users
+  // Reset password dialog state
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<UserRecord | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // Fetch users using auth endpoint
   const fetchUsers = useCallback(async () => {
+    if (!token) return;
+
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.getUsers();
-      setUsers(response);
+      const response = await fetch(`${API_BASE}/api/v1/auth/users?token=${token}`);
+      if (!response.ok) {
+        throw new Error('Failed to load users');
+      }
+      const data = await response.json();
+      setUsers(data.users);
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Failed to load users';
+      const message = err.message || 'Failed to load users';
       setError(message);
       console.error('Failed to fetch users:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchUsers();
@@ -150,49 +171,56 @@ const UserManagement: React.FC = () => {
 
   // Handle role change
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    if (!token) return;
+
     try {
-      await apiClient.assignUserRole(userId, newRole);
+      const response = await fetch(`${API_BASE}/api/v1/auth/users/${userId}/role?token=${token}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to update role');
+      }
+
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );
       showSnackbar(`Role updated to ${ROLE_CONFIG[newRole].label}`);
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Failed to update role';
-      showSnackbar(message, 'error');
+      showSnackbar(err.message || 'Failed to update role', 'error');
     }
   };
 
   // Handle active toggle
-  const handleActiveToggle = async (userId: string, currentActive: boolean) => {
+  const handleActiveToggle = async (user: UserRecord) => {
+    if (!token) return;
+
     try {
-      if (currentActive) {
-        // Deactivate (soft delete)
-        await apiClient.deleteUser(userId);
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId ? { ...u, active: false } : u))
-        );
-        showSnackbar('User deactivated');
-      } else {
-        // Reactivate
-        await apiClient.updateUser(userId, { active: true });
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId ? { ...u, active: true } : u))
-        );
-        showSnackbar('User reactivated');
+      const response = await fetch(
+        `${API_BASE}/api/v1/auth/users/${user.id}/active?token=${token}&active=${!user.active}`,
+        { method: 'PUT' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to update user status');
       }
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, active: !u.active } : u))
+      );
+      showSnackbar(user.active ? 'User deactivated' : 'User activated');
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Failed to update user status';
-      showSnackbar(message, 'error');
+      showSnackbar(err.message || 'Failed to update user status', 'error');
     }
   };
 
-  // Validate create form
+  // Validate invite form
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      errors.name = 'Name is required';
-    }
 
     if (!formData.email.trim()) {
       errors.email = 'Email is required';
@@ -208,34 +236,110 @@ const UserManagement: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle create user
-  const handleCreateUser = async () => {
-    if (!validateForm()) return;
+  // Handle invite user
+  const handleInviteUser = async () => {
+    if (!validateForm() || !token) return;
 
     setSubmitting(true);
     try {
-      const newUser = await apiClient.createUser({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        role: formData.role,
+      const response = await fetch(`${API_BASE}/api/v1/auth/invite?token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          role: formData.role,
+        }),
       });
-      setUsers((prev) => [...prev, newUser]);
-      setCreateDialogOpen(false);
-      setFormData({ name: '', email: '', role: 'viewer' });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to invite user');
+      }
+
+      setInviteDialogOpen(false);
+      setFormData({ email: '', role: 'viewer' });
       setFormErrors({});
-      showSnackbar(`User '${newUser.name}' created successfully`);
+      showSnackbar(`Invitation sent to ${formData.email}`);
+      fetchUsers();
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Failed to create user';
-      showSnackbar(message, 'error');
+      showSnackbar(err.message || 'Failed to invite user', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Handle delete user
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !token) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/v1/auth/users/${userToDelete.id}?token=${token}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to delete user');
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      showSnackbar(`User ${userToDelete.email} deleted`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to delete user', 'error');
+    }
+  };
+
+  // Handle reset password
+  const handleResetPassword = async () => {
+    if (!userToReset || !token || !newPassword) return;
+
+    if (newPassword !== confirmPassword) {
+      showSnackbar('Passwords do not match', 'error');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      showSnackbar('Password must be at least 4 characters', 'error');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/v1/auth/reset-password/${userToReset.id}?token=${token}&new_password=${encodeURIComponent(newPassword)}`,
+        { method: 'POST' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to reset password');
+      }
+
+      showSnackbar(`Password reset for ${userToReset.email}`);
+      handleCloseResetDialog();
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to reset password', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Close reset password dialog
+  const handleCloseResetDialog = () => {
+    setResetPasswordOpen(false);
+    setUserToReset(null);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+  };
+
   // Close dialog and reset
   const handleCloseDialog = () => {
-    setCreateDialogOpen(false);
-    setFormData({ name: '', email: '', role: 'viewer' });
+    setInviteDialogOpen(false);
+    setFormData({ email: '', role: 'viewer' });
     setFormErrors({});
   };
 
@@ -267,15 +371,15 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h5" fontWeight={600}>
+          <Typography variant="h6" fontWeight={600}>
             User Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage user accounts and assign roles. Roles control access to metrics and catalog operations.
+            Invite users by email and assign roles. Users must register with the invited email to access the application.
           </Typography>
         </Box>
         <Box display="flex" gap={1}>
@@ -287,9 +391,9 @@ const UserManagement: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<PersonAddIcon />}
-            onClick={() => setCreateDialogOpen(true)}
+            onClick={() => setInviteDialogOpen(true)}
           >
-            Add User
+            Invite User
           </Button>
         </Box>
       </Box>
@@ -301,14 +405,14 @@ const UserManagement: React.FC = () => {
             No Users Found
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Create the first user to get started with role-based access control.
+            Invite users to give them access to the application.
           </Typography>
           <Button
             variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateDialogOpen(true)}
+            startIcon={<PersonAddIcon />}
+            onClick={() => setInviteDialogOpen(true)}
           >
-            Create First User
+            Invite First User
           </Button>
         </Paper>
       ) : (
@@ -316,11 +420,11 @@ const UserManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'grey.50' }}>
-                <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
-                <TableCell sx={{ fontWeight: 600 }} align="center">Active</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
+                <TableCell sx={{ fontWeight: 600 }} align="center">Status</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Last Login</TableCell>
+                <TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -333,25 +437,23 @@ const UserManagement: React.FC = () => {
                   }}
                 >
                   <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box>
                       <Typography variant="body2" fontWeight={500}>
-                        {user.name}
+                        {user.name || '(Pending Registration)'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {user.email}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {user.email || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                       <Select
-                        value={user.role || 'viewer'}
+                        value={user.role}
                         onChange={(e: SelectChangeEvent) =>
                           handleRoleChange(user.id, e.target.value as UserRole)
                         }
-                        disabled={!user.active}
+                        disabled={!user.active || user.id === currentUser?.id}
                         size="small"
                         renderValue={(value) => {
                           const role = value as UserRole;
@@ -373,7 +475,7 @@ const UserManagement: React.FC = () => {
                             <Box>
                               <Typography variant="body2">Viewer</Typography>
                               <Typography variant="caption" color="text.secondary">
-                                Read-only access
+                                Read-only access to dashboards
                               </Typography>
                             </Box>
                           </Box>
@@ -384,7 +486,7 @@ const UserManagement: React.FC = () => {
                             <Box>
                               <Typography variant="body2">Editor</Typography>
                               <Typography variant="caption" color="text.secondary">
-                                Create and edit metrics
+                                Create and edit metrics/catalogs
                               </Typography>
                             </Box>
                           </Box>
@@ -395,7 +497,7 @@ const UserManagement: React.FC = () => {
                             <Box>
                               <Typography variant="body2">Admin</Typography>
                               <Typography variant="caption" color="text.secondary">
-                                Full access including user management
+                                Full access + user management
                               </Typography>
                             </Box>
                           </Box>
@@ -404,21 +506,64 @@ const UserManagement: React.FC = () => {
                     </FormControl>
                   </TableCell>
                   <TableCell align="center">
-                    <Tooltip title={user.active ? 'Deactivate user' : 'Reactivate user'}>
-                      <Switch
-                        checked={user.active}
-                        onChange={() => handleActiveToggle(user.id, user.active)}
-                        color="success"
+                    {user.pending ? (
+                      <Chip
+                        icon={<PendingIcon />}
+                        label="Pending"
                         size="small"
+                        color="warning"
+                        variant="outlined"
                       />
-                    </Tooltip>
+                    ) : (
+                      <Tooltip title={user.active ? 'Deactivate user' : 'Reactivate user'}>
+                        <Switch
+                          checked={user.active}
+                          onChange={() => handleActiveToggle(user)}
+                          color="success"
+                          size="small"
+                          disabled={user.id === currentUser?.id}
+                        />
+                      </Tooltip>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Typography variant="caption" color="text.secondary">
-                      {user.created_at
-                        ? new Date(user.created_at).toLocaleDateString()
-                        : '-'}
+                      {user.last_login_at
+                        ? new Date(user.last_login_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Never'}
                     </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Reset password">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setUserToReset(user);
+                          setResetPasswordOpen(true);
+                        }}
+                        disabled={user.pending}
+                      >
+                        <KeyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete user">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          setUserToDelete(user);
+                          setDeleteDialogOpen(true);
+                        }}
+                        disabled={user.id === currentUser?.id}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
@@ -433,16 +578,19 @@ const UserManagement: React.FC = () => {
           Total: {users.length} users
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Active: {users.filter((u) => u.active).length}
+          Active: {users.filter((u) => u.active && !u.pending).length}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Pending: {users.filter((u) => u.pending).length}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Admins: {users.filter((u) => u.role === 'admin').length}
         </Typography>
       </Box>
 
-      {/* Create User Dialog */}
+      {/* Invite User Dialog */}
       <Dialog
-        open={createDialogOpen}
+        open={inviteDialogOpen}
         onClose={handleCloseDialog}
         maxWidth="sm"
         fullWidth
@@ -450,23 +598,17 @@ const UserManagement: React.FC = () => {
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
             <PersonAddIcon />
-            Create New User
+            Invite New User
           </Box>
         </DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter the email address of the person you want to invite. They will be able to register
+            using this email address and will be assigned the selected role.
+          </Typography>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             <TextField
-              label="Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              error={!!formErrors.name}
-              helperText={formErrors.name}
-              fullWidth
-              required
-              autoFocus
-            />
-            <TextField
-              label="Email"
+              label="Email Address"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -474,6 +616,8 @@ const UserManagement: React.FC = () => {
               helperText={formErrors.email}
               fullWidth
               required
+              autoFocus
+              placeholder="user@example.com"
             />
             <FormControl fullWidth>
               <InputLabel>Role</InputLabel>
@@ -484,9 +628,24 @@ const UserManagement: React.FC = () => {
                   setFormData({ ...formData, role: e.target.value as UserRole })
                 }
               >
-                <MenuItem value="viewer">Viewer (read-only)</MenuItem>
-                <MenuItem value="editor">Editor (create/edit metrics)</MenuItem>
-                <MenuItem value="admin">Admin (full access)</MenuItem>
+                <MenuItem value="viewer">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <ViewerIcon fontSize="small" />
+                    Viewer - Read-only access to dashboards
+                  </Box>
+                </MenuItem>
+                <MenuItem value="editor">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <EditIcon fontSize="small" />
+                    Editor - Create and edit metrics/catalogs
+                  </Box>
+                </MenuItem>
+                <MenuItem value="admin">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <AdminIcon fontSize="small" />
+                    Admin - Full access including user management
+                  </Box>
+                </MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -497,11 +656,94 @@ const UserManagement: React.FC = () => {
           </Button>
           <Button
             variant="contained"
-            onClick={handleCreateUser}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={16} /> : <AddIcon />}
+            onClick={handleInviteUser}
+            disabled={submitting || !formData.email}
+            startIcon={submitting ? <CircularProgress size={16} /> : <PersonAddIcon />}
           >
-            {submitting ? 'Creating...' : 'Create User'}
+            {submitting ? 'Inviting...' : 'Send Invitation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          {userToDelete && (
+            <Typography>
+              Are you sure you want to delete <strong>{userToDelete.email}</strong>? This action
+              cannot be undone.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteUser}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordOpen} onClose={handleCloseResetDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Reset Password</DialogTitle>
+        <DialogContent>
+          {userToReset && (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Set a new password for <strong>{userToReset.email}</strong>
+              </Typography>
+              <TextField
+                fullWidth
+                label="New Password"
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                margin="normal"
+                disabled={resetLoading}
+                helperText="Minimum 4 characters"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? <VisibilityOff /> : <ViewerIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Confirm Password"
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                margin="normal"
+                disabled={resetLoading}
+                error={confirmPassword !== '' && newPassword !== confirmPassword}
+                helperText={
+                  confirmPassword !== '' && newPassword !== confirmPassword
+                    ? 'Passwords do not match'
+                    : ''
+                }
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseResetDialog} disabled={resetLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleResetPassword}
+            disabled={resetLoading || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+          >
+            {resetLoading ? <CircularProgress size={20} /> : 'Reset Password'}
           </Button>
         </DialogActions>
       </Dialog>
