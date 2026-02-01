@@ -452,26 +452,55 @@ Respond with JSON:
 
         framework_context = self._get_framework_context(framework)
 
-        system_prompt = f"""You are a {FRAMEWORK_PROMPTS.get(framework, {}).get('name', 'NIST framework')} expert. Map cybersecurity metrics to appropriate framework functions and categories.
+        system_prompt = f"""You are a {FRAMEWORK_PROMPTS.get(framework, {}).get('name', 'NIST framework')} expert. Map cybersecurity metrics to appropriate framework functions, categories, and subcategories.
 
 {framework_context}
 
-Respond with JSON mapping each metric to its best framework function with confidence score:
+VALID CSF 2.0 SUBCATEGORY CODES (use ONLY these - CSF 1.1 codes like PR.AC, PR.IP do NOT exist):
+- PR.AA-01 through PR.AA-06 (Identity Management and Access Control - includes network segmentation, access permissions)
+- PR.AT-01, PR.AT-02 (Awareness and Training)
+- PR.DS-01 through PR.DS-11 (Data Security)
+- PR.PS-01 through PR.PS-06 (Platform Security - firewall config, hardware/software maintenance)
+- PR.IR-01, PR.IR-02 (Technology Infrastructure Resilience)
+- DE.CM-01 through DE.CM-09 (Continuous Monitoring)
+- DE.AE-01 through DE.AE-08 (Adverse Event Analysis)
+- RS.MA-01 through RS.MA-05 (Incident Management)
+- RS.AN-01 through RS.AN-08 (Incident Analysis)
+- RS.CO-01 through RS.CO-03 (Incident Response Reporting)
+- RS.MI-01, RS.MI-02 (Incident Mitigation)
+- RC.RP-01 through RC.RP-06 (Recovery Plan Execution)
+- RC.CO-01 through RC.CO-04 (Recovery Communication)
+- GV.OC-01 through GV.OC-05 (Organizational Context)
+- GV.RM-01 through GV.RM-07 (Risk Management Strategy)
+- GV.RR-01 through GV.RR-04 (Roles, Responsibilities, Authorities)
+- GV.PO-01, GV.PO-02 (Policy)
+- GV.OV-01 through GV.OV-03 (Oversight)
+- GV.SC-01 through GV.SC-10 (Cybersecurity Supply Chain Risk Management)
+- ID.AM-01 through ID.AM-08 (Asset Management)
+- ID.RA-01 through ID.RA-10 (Risk Assessment)
+- ID.IM-01 through ID.IM-04 (Improvement)
+
+IMPORTANT: Do NOT use CSF 1.1 codes (PR.AC, PR.IP, DE.DP, etc.) - they do not exist in CSF 2.0.
+- Network segmentation/access control -> use PR.AA-05 (access permissions and authorizations)
+- Firewall configuration -> use PR.PS-01 (configuration management)
+
+Respond with JSON mapping each metric to its best framework function, category, AND subcategory with confidence score:
 
 {{
   "mappings": [
     {{
       "catalog_item_id": "uuid",
       "metric_name": "string",
-      "suggested_function": "function_code",
-      "suggested_category": "category_code",
-      "suggested_subcategory": "subcategory_code (if applicable)",
+      "suggested_function": "function_code (e.g., pr, de, rs)",
+      "suggested_category": "category_code (e.g., PR.AA, DE.CM)",
+      "suggested_subcategory": "subcategory_code (e.g., PR.AA-01, DE.CM-04) - ALWAYS provide when possible",
       "confidence_score": 0.8,
-      "reasoning": "Brief explanation"
+      "reasoning": "Brief explanation including why this subcategory was chosen"
     }}
   ]
 }}
 
+IMPORTANT: Always provide suggested_subcategory - choose the most specific subcategory that fits the metric's purpose.
 Focus on the metric's primary purpose and main data source to determine the best fit."""
 
         user_prompt = f"Map these cybersecurity metrics to {FRAMEWORK_PROMPTS.get(framework, {}).get('name', 'the framework')}:\n\n{json.dumps(metrics_context, indent=2)}"
@@ -576,7 +605,7 @@ Focus on the metric's primary purpose and main data source to determine the best
                 "current_collection_frequency": item.collection_frequency.value if item.collection_frequency else ""
             })
 
-        system_prompt = """You are a cybersecurity metrics expert. Analyze each metric and suggest optimal configurations for enterprise environments.
+        system_prompt = """You are a cybersecurity metrics expert. Analyze each metric and suggest optimal configurations AND documentation for enterprise environments.
 
 OWNER FUNCTIONS (choose the most appropriate):
 - GRC: Governance, Risk, and Compliance team
@@ -600,6 +629,26 @@ COLLECTION FREQUENCIES:
 - quarterly: Strategic reviews, board reporting
 - ad_hoc: Event-driven or special assessment metrics
 
+FORMULA GUIDELINES:
+- Use clear mathematical notation as ratios (e.g., "detected / total" for percentage metrics)
+- IMPORTANT: Do NOT include "* 100" or "x 100" in formulas - the system automatically handles percentage display
+- For percentage metrics, just use the ratio: "numerator / denominator" (not "(numerator / denominator) * 100")
+- Reference metric variables like current_value, target_value where appropriate
+- Keep formulas concise but complete
+
+RISK DEFINITION GUIDELINES:
+- Explain what cybersecurity risk this metric measures
+- Keep to 1-2 sentences
+- Focus on the security implication, not just the measurement
+- Avoid citing specific statistics or percentages
+
+BUSINESS IMPACT GUIDELINES:
+- Describe the business consequence of poor performance on this metric
+- Include potential impacts like financial loss, reputation damage, compliance penalties, operational disruption
+- IMPORTANT: Do NOT include specific statistics, dollar amounts, percentages, or time frames (e.g., avoid "$4.5M", "60% of breaches", "16 days")
+- Keep descriptions general and qualitative (e.g., "significant financial losses" not "$3.86M average cost")
+- Keep to 1-2 sentences
+
 Respond with JSON suggesting enhancements:
 
 {
@@ -611,6 +660,9 @@ Respond with JSON suggesting enhancements:
       "suggested_owner_function": "owner",
       "suggested_data_source": "specific tool/system",
       "suggested_collection_frequency": "frequency",
+      "suggested_formula": "calculation formula",
+      "suggested_risk_definition": "what risk this measures",
+      "suggested_business_impact": "business consequence of poor performance",
       "reasoning": "Brief explanation"
     }
   ]
