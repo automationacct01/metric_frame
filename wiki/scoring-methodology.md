@@ -1,6 +1,6 @@
 # Scoring Methodology
 
-> **Last Updated:** January 2026
+> **Last Updated:** February 2026
 > **Status:** Active Development
 
 ---
@@ -196,6 +196,18 @@ All scores are bounded:
 - Minimum: 0%
 - Maximum: 100%
 - Invalid data: `null` (excluded from aggregations)
+
+### Input Value Validation
+
+Before scoring, metric values are validated:
+
+| Rule | Validation | Error |
+|------|------------|-------|
+| **Non-negative** | `current_value >= 0` | "Value cannot be negative" |
+| **Percentage cap** | If `target_units == "%"` or `target ≈ 100`: `current <= 150` | "Value exceeds maximum of 150" |
+| **Multiplier cap** | `current <= target * 10` | "Value exceeds maximum (10x target)" |
+
+This prevents unrealistic data entry like 605% for a percentage metric with a 100% target.
 
 ## Weighted Aggregation
 

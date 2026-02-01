@@ -1,6 +1,6 @@
 # Metrics Management
 
-> **Last Updated:** January 2026
+> **Last Updated:** February 2026
 > **Status:** Active Development
 
 ---
@@ -22,6 +22,9 @@ Metrics in MetricFrame represent measurable security KRIs that track your organi
 | **CSF Function** | NIST CSF alignment | PROTECT |
 | **CSF Category** | Specific category | PR.AA |
 | **Priority** | Importance weighting | High |
+| **Risk Definition** | Why this metric matters | "Measures authentication strength" |
+| **Business Impact** | Business consequences if unmonitored | "Increased credential theft risk" |
+| **Formula** | How the metric is calculated | "MFA-enabled users / Total users" |
 
 ## 356 Pre-Configured Metrics
 
@@ -102,15 +105,24 @@ The MetricsGrid component provides a comprehensive interface for metric manageme
 │  ┌────────┬──────────────────┬─────────┬────────┬───────┬────────┬───────┐ │
 │  │ Number │ Name             │ Current │ Target │ Score │ Status │ Actions│ │
 │  ├────────┼──────────────────┼─────────┼────────┼───────┼────────┼───────┤ │
-│  │ PR-001 │ MFA Adoption     │ 85%     │ 95%    │ 89%   │ 🟢     │ ✏️ 🔒 │ │
-│  │ PR-002 │ Patch Cadence    │ 12 days │ 7 days │ 58%   │ 🟠     │ ✏️ 🔒 │ │
-│  │ DE-001 │ MTTD             │ 4.2 hrs │ 1 hr   │ 24%   │ 🔴     │ ✏️ 🔒 │ │
+│  │ PR-001 │ MFA Adoption     │ 85%     │ 95%    │ 89%   │ 🟢     │ 📊🔒 │ │
+│  │ PR-002 │ Patch Cadence    │ 12 days │ 7 days │ 58%   │ 🟠     │ 📊🔒 │ │
+│  │ DE-001 │ MTTD             │ 4.2 hrs │ 1 hr   │ 24%   │ 🔴     │ 📊🔒 │ │
 │  └────────┴──────────────────┴─────────┴────────┴───────┴────────┴───────┘ │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  PAGINATION                                                                  │
 │  Showing 1-25 of 356 metrics  [◀ Prev] [1] [2] [3] ... [15] [Next ▶]        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Action Buttons
+
+| Icon | Action | Description |
+|------|--------|-------------|
+| 📊 | Dashboard | Navigate to Category Detail view for this metric |
+| 🔒 | Lock/Unlock | Toggle metric editing protection |
+
+The **Dashboard button** (📊) navigates to the Category Detail view with the metric pre-selected in the search filter and trend chart.
 
 ### Filtering Options
 
@@ -207,6 +219,44 @@ The AI automatically maps metrics to the full NIST CSF 2.0 hierarchy (Function �
 | `lower_is_better` | Lower values = better performance | Mean Time to Detect |
 | `target_range` | Value should be within range | Budget variance |
 | `binary` | Pass/fail (0 or 100) | Annual audit completion |
+
+## Value Validation
+
+MetricFrame validates metric values to prevent unrealistic data entry:
+
+### Validation Rules
+
+| Rule | Condition | Error Message |
+|------|-----------|---------------|
+| **Non-negative** | All metrics | "Value cannot be negative" |
+| **Percentage cap** | Target units = "%" or target ≈ 100 | "Value exceeds maximum of 150 for percentage metrics" |
+| **Multiplier cap** | All metrics with targets | "Value exceeds maximum (10x target)" |
+
+### Validation Layers
+
+Validation occurs at two levels for defense-in-depth:
+
+1. **Frontend** (MetricsGrid): Immediate feedback before save attempt
+2. **Backend** (API): Safety net returning HTTP 400 on invalid values
+
+### Example Validation
+
+```
+Metric: MFA Adoption Rate
+Target: 95%
+Units: %
+
+Valid values: 0-150
+Invalid: 175% → "Value 175 exceeds maximum of 150 for percentage metrics"
+Invalid: -5% → "Value cannot be negative"
+
+Metric: Vulnerability Count
+Target: 10
+Units: count
+
+Valid values: 0-100 (10x target)
+Invalid: 150 → "Value 150 exceeds maximum (100 = 10x target of 10)"
+```
 
 ## Lock Mechanism
 
@@ -429,6 +479,58 @@ History Table:
 - Automatic: Values recorded on update
 - Manual: Add historical data points
 - Import: Bulk import history via CSV
+
+## Metric Version History
+
+Track all changes to metric definitions over time:
+
+### Version Tracking
+
+Every change to a metric creates a version record:
+
+| Field | Description |
+|-------|-------------|
+| **Version Number** | Incremental version (1, 2, 3...) |
+| **Changed Fields** | List of modified fields |
+| **Changed By** | User who made the change |
+| **Change Source** | How change was made (manual, AI, import) |
+| **Change Notes** | Optional description of changes |
+| **Created At** | Timestamp of the change |
+| **Snapshot** | Complete metric state at that version |
+
+### Viewing Version History
+
+1. Click the history icon on a metric row
+2. View list of all versions with timestamps
+3. Click any version to see full snapshot
+
+### Version Comparison (Diff)
+
+Compare two versions side-by-side:
+
+```
+Version 3 → Version 4
+
+┌─────────────────────────────────────────────────────────────┐
+│  Field          │ Before (v3)       │ After (v4)           │
+├─────────────────────────────────────────────────────────────┤
+│  target_value   │ 90                │ 95                   │
+│  priority_rank  │ 2                 │ 1                    │
+│  description    │ "Track MFA..."    │ "Measure MFA..."     │
+└─────────────────────────────────────────────────────────────┘
+
+Changed by: admin
+Change source: manual
+Notes: "Increased target per Q1 security goals"
+```
+
+### Audit Trail
+
+Version history provides a complete audit trail for:
+- Compliance requirements
+- Change management documentation
+- Rollback reference
+- AI change tracking
 
 ---
 

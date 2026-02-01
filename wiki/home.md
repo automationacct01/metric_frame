@@ -1,6 +1,6 @@
 # MetricFrame
 
-> **Last Updated:** January 2026
+> **Last Updated:** February 2026
 > **Status:** Active Development
 
 ---
@@ -64,22 +64,29 @@ See [Frameworks Reference](frameworks-reference.md) for detailed information abo
 The application is under active development with the following features implemented:
 
 - Executive risk dashboard with color-coded risk scoring
-- Complete metrics CRUD operations
+- **Drill-down navigation**: Dashboard → Function → Category → Metrics
+- **Category Detail view** with insights, trends, and visualizations
+- Complete metrics CRUD operations with **value validation**
 - Multi-framework support (CSF 2.0 and AI RMF 1.0)
 - Multi-catalog support (BYOC)
 - 5-step catalog import wizard
-- AI-powered metrics creation and enhancement
+- AI-powered metrics creation and enhancement (6 AI providers)
 - Framework-specific scoring and views
 - CSV import/export functionality
 - Column tooltips for all metrics fields
+- **Metric version history** with diff comparison
+- **Dashboard navigation** from Metrics Catalog
+- **Search/filter persistence** via URL parameters
 
 ## Dashboard Sections
 
 | Section | Purpose |
 |---------|---------|
 | **Score Cards** | Function-level risk scores with Red/Amber/Green coloring |
+| **Function Detail** | Category breakdown within a function (click score card) |
+| **Category Detail** | Metric-level view with trends and insights (click category) |
 | **CSF Coverage** | Visual coverage map across framework categories |
-| **Metrics Grid** | Filterable table of all KRIs |
+| **Metrics Grid** | Filterable table with dashboard navigation and validation |
 | **AI Chat** | Natural language metrics assistant |
 | **Catalog Manager** | Custom catalog administration |
 | **Demo Mode** | Try features with simulated data (access via `/demo`) |
