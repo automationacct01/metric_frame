@@ -705,6 +705,49 @@ class APIClient {
     return response.data;
   }
 
+  async cloneDefaultCatalog(
+    newName: string,
+    description?: string,
+    clearCurrentValues = true,
+    owner = 'admin'
+  ): Promise<{
+    catalog_id: string;
+    name: string;
+    items_cloned: number;
+    mappings_cloned: number;
+    message: string;
+  }> {
+    const response = await this.client.post('/catalogs/clone-default', {
+      new_name: newName,
+      description,
+      clear_current_values: clearCurrentValues,
+      owner,
+    });
+    return response.data;
+  }
+
+  async cloneCatalog(
+    catalogId: string,
+    newName: string,
+    description?: string,
+    clearCurrentValues = true,
+    owner = 'admin'
+  ): Promise<{
+    catalog_id: string;
+    name: string;
+    items_cloned: number;
+    mappings_cloned: number;
+    message: string;
+  }> {
+    const response = await this.client.post(`/catalogs/${catalogId}/clone`, {
+      new_name: newName,
+      description,
+      clear_current_values: clearCurrentValues,
+      owner,
+    });
+    return response.data;
+  }
+
   // Catalog-aware scoring methods
   async getScoresWithCatalog(catalogId?: string, owner?: string): Promise<ScoresResponse> {
     const params = new URLSearchParams();

@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Context
 import { FrameworkProvider, useFramework } from './contexts/FrameworkContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Components
 import Navbar, { drawerWidthExpanded, drawerWidthCollapsed } from './components/Navbar';
@@ -24,60 +24,7 @@ import { FrameworkSelection, APIKeySetup } from './components/onboarding';
 import LandingPage from './pages/LandingPage';
 import DownloadPage from './pages/DownloadPage';
 
-// Create MUI theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#0ea5e9', // MetricFrame Sky Blue
-      contrastText: '#ffffff',
-    },
-    secondary: {
-      main: '#7C3AED', // Purple for AI RMF
-    },
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-    success: {
-      main: '#059669',
-    },
-    warning: {
-      main: '#D97706',
-    },
-    error: {
-      main: '#DC2626',
-    },
-  },
-  typography: {
-    h4: {
-      fontWeight: 600,
-    },
-    h5: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          borderRadius: 8,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: 6,
-        },
-      },
-    },
-  },
-});
+// Theme is now managed by ThemeContext
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -179,7 +126,7 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider>
         <CssBaseline />
         <Router>
           <Routes>
