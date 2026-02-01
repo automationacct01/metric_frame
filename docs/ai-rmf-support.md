@@ -93,13 +93,17 @@ The application includes 18 sample AI RMF metrics covering all functions and tru
 
 ### Metric Numbering Convention
 
-AI RMF metrics follow the pattern: `AI-{FUNCTION}-{NUMBER}`
-
-Examples:
+**Default AI RMF metrics** follow the pattern: `AI-{FUNCTION}-{NUMBER}`
 - `AI-GOV-001` - AI Systems Inventory Completeness
 - `AI-MAP-001` - AI System Purpose Documentation
 - `AI-MEA-001` - AI Model Accuracy
 - `AI-MAN-001` - AI Incident Response Time
+
+**Imported catalog metrics** use the pattern: `AIRMF-{FUNCTION}-{NUMBER}`
+- `AIRMF-GOVERN-001` - First metric mapped to Govern function
+- `AIRMF-MAP-001` - First metric mapped to Map function
+- `AIRMF-MEASURE-001` - First metric mapped to Measure function
+- `AIRMF-MANAGE-001` - First metric mapped to Manage function
 
 ## Dashboard Features
 
@@ -222,6 +226,34 @@ AI-generated formulas follow NIST CSF conventions:
   "trustworthiness_characteristic": "fair"
 }
 ```
+
+## Importing Custom AI RMF Catalogs
+
+You can import your own AI RMF metrics using the Catalog Import Wizard:
+
+### Import Process
+
+1. Navigate to **Import Catalog** in the navigation menu
+2. Select **NIST AI Risk Management Framework 1.0** as the target framework
+3. Upload your CSV file with your AI metrics
+4. Review AI-generated function mappings (Govern, Map, Measure, Manage)
+5. Confirm mappings and activate your catalog
+
+### Automatic Metric ID Generation
+
+When you import a catalog and accept the AI mappings, metric IDs are automatically generated:
+- Format: `AIRMF-{FUNCTION}-{NUMBER}`
+- Examples: `AIRMF-GOVERN-001`, `AIRMF-MAP-001`, `AIRMF-MEASURE-001`
+
+### CSV Format for AI RMF
+
+```csv
+name,description,direction,target_value,target_units,current_value
+AI Model Accuracy,Percentage of AI models meeting accuracy thresholds,higher_is_better,95,%,82
+AI Bias Detection Coverage,Percentage of production AI models tested for bias,higher_is_better,100,%,65
+```
+
+The AI will automatically map your metrics to the appropriate AI RMF functions based on their names and descriptions.
 
 ## Best Practices
 
