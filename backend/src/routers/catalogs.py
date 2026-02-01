@@ -20,7 +20,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..db import get_db
-from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, User as UserModel, MappingMethod
+from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, User as UserModel, MappingMethod, Metric
 from ..middleware.roles import require_role
 from ..schemas import (
     MetricCatalogResponse,
@@ -29,6 +29,8 @@ from ..schemas import (
     CatalogImportResponse,
     CatalogMappingSuggestion,
     CatalogActivationRequest,
+    CatalogCloneRequest,
+    CatalogCloneResponse,
     MetricCatalogCSFMappingCreate,
     MetricCatalogCSFMappingResponse,
     MetricResponse,
@@ -972,9 +974,232 @@ async def export_active_catalog_metrics_csv(
     # Create filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"active_catalog_metrics_{timestamp}.csv"
-    
+
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode('utf-8')),
         media_type='text/csv',
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.post("/clone-default", response_model=CatalogCloneResponse)
+async def clone_default_catalog(
+    request: CatalogCloneRequest,
+    db: Session = Depends(get_db)
+):
+    """Clone the default system metrics into a new custom catalog.
+
+    This creates a copy of all default metrics from the Metric table
+    into a new MetricCatalog with MetricCatalogItems. Current values
+    and audit history are cleared in the new catalog.
+    """
+    try:
+        # Deactivate any existing active catalog for this owner
+        db.query(MetricCatalog).filter(
+            MetricCatalog.owner == request.owner,
+            MetricCatalog.active == True
+        ).update({"active": False})
+
+        # Create new catalog
+        new_catalog = MetricCatalog(
+            name=request.new_name,
+            description=request.description or "Cloned from default demo catalog - ready for customization",
+            owner=request.owner,
+            active=False,  # Start inactive, user can activate
+            is_default=False,
+            file_format="clone",
+            original_filename="default-demo"
+        )
+        db.add(new_catalog)
+        db.flush()  # Get the ID
+
+        # Fetch all default metrics from the Metric table
+        default_metrics = db.query(Metric).filter(Metric.active == True).all()
+
+        items_cloned = 0
+        mappings_cloned = 0
+
+        for metric in default_metrics:
+            # Create catalog item (without current_value if clear_current_values is True)
+            catalog_item = MetricCatalogItem(
+                catalog_id=new_catalog.id,
+                metric_id=metric.metric_number,
+                name=metric.name,
+                description=metric.description,
+                formula=metric.formula,
+                direction=metric.direction,
+                target_value=metric.target_value,
+                target_units=metric.target_units,
+                tolerance_low=metric.tolerance_low,
+                tolerance_high=metric.tolerance_high,
+                current_value=None if request.clear_current_values else metric.current_value,
+                current_label=None if request.clear_current_values else metric.current_label,
+                priority_rank=metric.priority_rank,
+                weight=metric.weight,
+                owner_function=metric.owner_function,
+                data_source=metric.data_source,
+                collection_frequency=metric.collection_frequency,
+                risk_definition=metric.risk_definition,
+                business_impact=metric.business_impact,
+                import_notes=f"Cloned from default metric {metric.metric_number}"
+            )
+            db.add(catalog_item)
+            db.flush()  # Get the item ID
+            items_cloned += 1
+
+            # Create CSF mapping if the metric has CSF data
+            if metric.csf_function:
+                csf_mapping = MetricCatalogCSFMapping(
+                    catalog_id=new_catalog.id,
+                    catalog_item_id=catalog_item.id,
+                    csf_function=metric.csf_function,
+                    csf_category_code=metric.csf_category_code,
+                    csf_category_name=metric.csf_category_name,
+                    csf_subcategory_code=metric.csf_subcategory_code,
+                    csf_subcategory_outcome=metric.csf_subcategory_outcome,
+                    function_id=metric.function_id,
+                    category_id=metric.category_id,
+                    subcategory_id=metric.subcategory_id,
+                    confidence_score=1.0,
+                    mapping_method=MappingMethod.default_catalog,
+                    mapping_notes="Copied from default catalog"
+                )
+                db.add(csf_mapping)
+                mappings_cloned += 1
+
+        db.commit()
+
+        return CatalogCloneResponse(
+            catalog_id=new_catalog.id,
+            name=new_catalog.name,
+            items_cloned=items_cloned,
+            mappings_cloned=mappings_cloned,
+            message=f"Successfully cloned {items_cloned} metrics from default catalog"
+        )
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"Database error cloning default catalog: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error cloning default catalog: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clone catalog: {str(e)}")
+
+
+@router.post("/{catalog_id}/clone", response_model=CatalogCloneResponse)
+async def clone_catalog(
+    catalog_id: UUID,
+    request: CatalogCloneRequest,
+    db: Session = Depends(get_db)
+):
+    """Clone an existing custom catalog into a new catalog.
+
+    Creates a deep copy of all items and mappings from the source catalog.
+    Current values and audit history are optionally cleared in the new catalog.
+    """
+    # Find source catalog
+    source_catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
+    if not source_catalog:
+        raise HTTPException(status_code=404, detail="Source catalog not found")
+
+    try:
+        # Create new catalog
+        new_catalog = MetricCatalog(
+            name=request.new_name,
+            description=request.description or f"Cloned from {source_catalog.name}",
+            owner=request.owner,
+            active=False,  # Start inactive
+            is_default=False,
+            file_format="clone",
+            original_filename=source_catalog.name
+        )
+        db.add(new_catalog)
+        db.flush()
+
+        # Fetch all items from source catalog
+        source_items = db.query(MetricCatalogItem).filter(
+            MetricCatalogItem.catalog_id == catalog_id
+        ).all()
+
+        items_cloned = 0
+        mappings_cloned = 0
+
+        # Create a mapping from old item IDs to new item IDs
+        item_id_map = {}
+
+        for source_item in source_items:
+            # Create new catalog item
+            new_item = MetricCatalogItem(
+                catalog_id=new_catalog.id,
+                metric_id=source_item.metric_id,
+                name=source_item.name,
+                description=source_item.description,
+                formula=source_item.formula,
+                direction=source_item.direction,
+                target_value=source_item.target_value,
+                target_units=source_item.target_units,
+                tolerance_low=source_item.tolerance_low,
+                tolerance_high=source_item.tolerance_high,
+                current_value=None if request.clear_current_values else source_item.current_value,
+                current_label=None if request.clear_current_values else source_item.current_label,
+                priority_rank=source_item.priority_rank,
+                weight=source_item.weight,
+                owner_function=source_item.owner_function,
+                data_source=source_item.data_source,
+                collection_frequency=source_item.collection_frequency,
+                risk_definition=source_item.risk_definition,
+                business_impact=source_item.business_impact,
+                original_row_data=source_item.original_row_data,
+                import_notes=f"Cloned from {source_catalog.name}"
+            )
+            db.add(new_item)
+            db.flush()
+
+            item_id_map[source_item.id] = new_item.id
+            items_cloned += 1
+
+        # Clone all mappings
+        source_mappings = db.query(MetricCatalogCSFMapping).filter(
+            MetricCatalogCSFMapping.catalog_id == catalog_id
+        ).all()
+
+        for source_mapping in source_mappings:
+            new_item_id = item_id_map.get(source_mapping.catalog_item_id)
+            if new_item_id:
+                new_mapping = MetricCatalogCSFMapping(
+                    catalog_id=new_catalog.id,
+                    catalog_item_id=new_item_id,
+                    csf_function=source_mapping.csf_function,
+                    csf_category_code=source_mapping.csf_category_code,
+                    csf_category_name=source_mapping.csf_category_name,
+                    csf_subcategory_code=source_mapping.csf_subcategory_code,
+                    csf_subcategory_outcome=source_mapping.csf_subcategory_outcome,
+                    function_id=source_mapping.function_id,
+                    category_id=source_mapping.category_id,
+                    subcategory_id=source_mapping.subcategory_id,
+                    confidence_score=source_mapping.confidence_score,
+                    mapping_method=source_mapping.mapping_method,
+                    mapping_notes=f"Cloned from {source_catalog.name}"
+                )
+                db.add(new_mapping)
+                mappings_cloned += 1
+
+        db.commit()
+
+        return CatalogCloneResponse(
+            catalog_id=new_catalog.id,
+            name=new_catalog.name,
+            items_cloned=items_cloned,
+            mappings_cloned=mappings_cloned,
+            message=f"Successfully cloned {items_cloned} metrics from {source_catalog.name}"
+        )
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"Database error cloning catalog: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error cloning catalog: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clone catalog: {str(e)}")

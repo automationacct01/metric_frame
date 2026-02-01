@@ -174,7 +174,11 @@ export default function CategoryDetail() {
   const [recentChanges, setRecentChanges] = useState<RecentChange[]>([]);
   const [loadingChanges, setLoadingChanges] = useState(false);
 
-  // When data loads, if we have a search param, also filter the trend chart to that metric
+  // Audit log filters
+  const [auditMetricFilter, setAuditMetricFilter] = useState<string>('');
+  const [auditDateFilter, setAuditDateFilter] = useState<'all' | '7d' | '30d' | '90d'>('all');
+
+  // When data loads, if we have a search param, also filter the trend chart and audit log to that metric
   useEffect(() => {
     if (initialSearch && categoryData?.metrics?.length) {
       // Find the metric that matches the search query
@@ -183,6 +187,7 @@ export default function CategoryDetail() {
       );
       if (matchingMetric) {
         setTrendMetricFilter(matchingMetric.id);
+        setAuditMetricFilter(matchingMetric.id);
       }
     }
   }, [categoryData, initialSearch]);
@@ -194,12 +199,14 @@ export default function CategoryDetail() {
     setPriorityFilter('');
     setTrendViewMode('both');
     setSelectedTimeframe(30);
+    setAuditMetricFilter('');
+    setAuditDateFilter('all');
     // Clear URL search param
     navigate(`/app/functions/${functionCode}/categories/${categoryCode}`, { replace: true });
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchQuery !== '' || trendMetricFilter !== '' || priorityFilter !== '';
+  const hasActiveFilters = searchQuery !== '' || trendMetricFilter !== '' || priorityFilter !== '' || auditMetricFilter !== '' || auditDateFilter !== 'all';
 
   // Fetch version history for all metrics in the category
   useEffect(() => {
@@ -634,23 +641,20 @@ export default function CategoryDetail() {
               </Box>
 
               {/* Reset Button */}
-              <Tooltip title="Reset to defaults" arrow>
-                <IconButton
+              {(trendViewMode !== 'both' || trendMetricFilter !== '' || selectedTimeframe !== 30) && (
+                <Button
                   size="small"
+                  variant="outlined"
+                  startIcon={<RefreshIcon />}
                   onClick={() => {
                     setTrendViewMode('both');
                     setTrendMetricFilter('');
                     setSelectedTimeframe(30);
                   }}
-                  sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    '&:hover': { backgroundColor: 'action.hover' }
-                  }}
                 >
-                  <RefreshIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+                  Reset
+                </Button>
+              )}
             </Box>
           </Box>
 
@@ -755,7 +759,7 @@ export default function CategoryDetail() {
           </Typography>
 
           {/* Filters */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
             <TextField
               size="small"
               placeholder="Search metrics..."
@@ -783,6 +787,19 @@ export default function CategoryDetail() {
                 <MenuItem value={3}>Low</MenuItem>
               </Select>
             </FormControl>
+            {(searchQuery !== '' || priorityFilter !== '') && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={() => {
+                  setSearchQuery('');
+                  setPriorityFilter('');
+                }}
+              >
+                Reset
+              </Button>
+            )}
           </Box>
 
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
@@ -969,6 +986,57 @@ export default function CategoryDetail() {
             {loadingChanges && <CircularProgress size={16} sx={{ ml: 1 }} />}
           </Typography>
 
+          {/* Audit Log Filters */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by Metric</InputLabel>
+              <Select
+                value={auditMetricFilter}
+                label="Filter by Metric"
+                onChange={(e) => setAuditMetricFilter(e.target.value)}
+              >
+                <MenuItem value="">All Metrics</MenuItem>
+                {categoryData.metrics.map((m) => (
+                  <MenuItem key={m.id} value={m.id}>
+                    <Tooltip title={m.name.length > 30 ? m.name : ''} placement="right" arrow>
+                      <Box component="span" sx={{ width: '100%', display: 'block' }}>
+                        {m.name.length > 30 ? m.name.substring(0, 30) + '...' : m.name}
+                      </Box>
+                    </Tooltip>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Date Range</InputLabel>
+              <Select
+                value={auditDateFilter}
+                label="Date Range"
+                onChange={(e) => setAuditDateFilter(e.target.value as 'all' | '7d' | '30d' | '90d')}
+              >
+                <MenuItem value="all">All Time</MenuItem>
+                <MenuItem value="7d">Last 7 Days</MenuItem>
+                <MenuItem value="30d">Last 30 Days</MenuItem>
+                <MenuItem value="90d">Last 90 Days</MenuItem>
+              </Select>
+            </FormControl>
+
+            {(auditMetricFilter !== '' || auditDateFilter !== 'all') && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={() => {
+                  setAuditMetricFilter('');
+                  setAuditDateFilter('all');
+                }}
+              >
+                Reset
+              </Button>
+            )}
+          </Box>
+
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -982,70 +1050,97 @@ export default function CategoryDetail() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {recentChanges.length > 0 ? (
-                  recentChanges.map((change, index) => (
-                    <TableRow key={`${change.metricId}-${change.timestamp}-${index}`} hover>
-                      <TableCell>
-                        <Tooltip title={new Date(change.timestamp).toLocaleString()} arrow>
-                          <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                            {new Date(change.timestamp).toLocaleDateString()} {new Date(change.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {(() => {
+                  // Filter the recent changes
+                  const filteredChanges = recentChanges.filter((change) => {
+                    // Filter by metric
+                    if (auditMetricFilter && change.metricId !== auditMetricFilter) {
+                      return false;
+                    }
+                    // Filter by date
+                    if (auditDateFilter !== 'all') {
+                      const changeDate = new Date(change.timestamp);
+                      const now = new Date();
+                      const daysAgo = auditDateFilter === '7d' ? 7 : auditDateFilter === '30d' ? 30 : 90;
+                      const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+                      if (changeDate < cutoffDate) {
+                        return false;
+                      }
+                    }
+                    return true;
+                  });
+
+                  if (filteredChanges.length > 0) {
+                    return filteredChanges.map((change, index) => (
+                      <TableRow key={`${change.metricId}-${change.timestamp}-${index}`} hover>
+                        <TableCell>
+                          <Tooltip title={new Date(change.timestamp).toLocaleString()} arrow>
+                            <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+                              {new Date(change.timestamp).toLocaleDateString()} {new Date(change.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={change.metricName} arrow>
+                            <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {change.metricName}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={change.fieldChanged}
+                            size="small"
+                            variant="outlined"
+                            sx={{ textTransform: 'capitalize' }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {change.oldValue}
                           </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={change.metricName} arrow>
-                          <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {change.metricName}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {change.newValue}
                           </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={change.fieldChanged}
-                          size="small"
-                          variant="outlined"
-                          sx={{ textTransform: 'capitalize' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {change.oldValue}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {change.newValue}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={change.changeSource} arrow>
-                          <Typography variant="body2">
-                            {change.changedBy}
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={change.changeSource} arrow>
+                            <Typography variant="body2">
+                              {change.changedBy}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  }
+
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        {loadingChanges ? (
+                          <Typography variant="body2" color="text.secondary">
+                            Loading audit trail...
                           </Typography>
-                        </Tooltip>
+                        ) : auditMetricFilter || auditDateFilter !== 'all' ? (
+                          <Typography variant="body2" color="text.secondary">
+                            No changes found matching your filters.
+                          </Typography>
+                        ) : (
+                          <>
+                            <Typography variant="body2" color="text.secondary">
+                              No recent changes found for metrics in this category.
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                              Version tracking captures all changes to metric values, targets, and configurations.
+                            </Typography>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                      {loadingChanges ? (
-                        <Typography variant="body2" color="text.secondary">
-                          Loading audit trail...
-                        </Typography>
-                      ) : (
-                        <>
-                          <Typography variant="body2" color="text.secondary">
-                            No recent changes found for metrics in this category.
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                            Version tracking captures all changes to metric values, targets, and configurations.
-                          </Typography>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )}
+                  );
+                })()}
               </TableBody>
             </Table>
           </TableContainer>

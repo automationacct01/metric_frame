@@ -433,6 +433,23 @@ class CatalogActivationRequest(BaseModel):
     activate: bool = True
 
 
+class CatalogCloneRequest(BaseModel):
+    """Schema for cloning a catalog."""
+    new_name: str = Field(..., min_length=1, max_length=255, description="Name for the cloned catalog")
+    description: Optional[str] = Field(None, description="Description for the cloned catalog")
+    clear_current_values: bool = Field(True, description="Clear current values in the cloned catalog")
+    owner: str = Field("admin", description="Owner of the new catalog")
+
+
+class CatalogCloneResponse(BaseModel):
+    """Schema for catalog clone response."""
+    catalog_id: UUID
+    name: str
+    items_cloned: int
+    mappings_cloned: int
+    message: str
+
+
 # Health check schema
 class HealthResponse(BaseModel):
     """Health check response."""

@@ -45,6 +45,7 @@ import { FrameworkSelector } from './FrameworkSelector';
 import { useFramework } from '../contexts/FrameworkContext';
 import CSFCoverageView from './dashboard/CSFCoverageView';
 import { DashboardSummary, RISK_RATING_COLORS, CSF_FUNCTION_NAMES, AI_RMF_FUNCTION_NAMES, HealthResponse, FrameworkScoresResponse } from '../types';
+import { formatTime } from '../utils/dateFormat';
 
 interface DetailedError {
   message: string;
@@ -455,8 +456,7 @@ export default function Dashboard() {
                   const timestamp = frameworkScores?.last_updated || dashboard?.last_updated;
                   if (!timestamp) return '';
                   const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-                  const date = new Date(utcTimestamp);
-                  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  return formatTime(utcTimestamp);
                 })()}
               </Typography>
             </Tooltip>
