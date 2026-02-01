@@ -382,8 +382,7 @@ export default function FunctionDetail() {
                     },
                   }}
                   onClick={() => {
-                    // Future: Navigate to category detail
-                    console.log(`Navigate to category ${category.category_code}`);
+                    navigate(`/app/functions/${functionCode}/categories/${category.category_code}`);
                   }}
                 >
                   <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

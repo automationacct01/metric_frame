@@ -14,6 +14,7 @@ import MetricsGrid from './components/MetricsGrid';
 import AIChat from './components/AIChat';
 import Settings from './components/Settings';
 import FunctionDetail from './components/FunctionDetail';
+import CategoryDetail from './components/CategoryDetail';
 import CatalogWizard from './components/CatalogWizard';
 import CatalogManager from './components/CatalogManager';
 import Documentation from './components/Documentation';
@@ -162,6 +163,7 @@ function AppContent() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/functions/:functionCode" element={<FunctionDetail />} />
+          <Route path="/functions/:functionCode/categories/:categoryCode" element={<CategoryDetail />} />
           <Route path="/metrics" element={<MetricsGrid />} />
           <Route path="/catalog-wizard" element={<CatalogWizard />} />
           <Route path="/catalog-manager" element={<CatalogManager />} />

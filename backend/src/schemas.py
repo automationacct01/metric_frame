@@ -51,6 +51,12 @@ class RiskRating(str, Enum):
     VERY_HIGH = "very_high"
 
 
+class UpdateType(str, Enum):
+    """Type of metric value update."""
+    ADJUSTMENT = "adjustment"  # Correction/fix - audit log only, no trend data
+    PERIOD_UPDATE = "period_update"  # New period value - both history and audit log
+
+
 # Base schemas
 class MetricBase(BaseModel):
     """Base metric schema."""
@@ -143,6 +149,11 @@ class MetricUpdate(BaseModel):
     risk_definition: Optional[str] = None
     business_impact: Optional[str] = None
     active: Optional[bool] = None
+    # Update type for current_value changes
+    update_type: Optional[UpdateType] = Field(
+        None,
+        description="Type of update: 'adjustment' (audit only) or 'period_update' (trend data + audit)"
+    )
 
 
 class MetricResponse(MetricBase):

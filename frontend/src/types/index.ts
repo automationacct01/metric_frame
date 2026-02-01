@@ -172,6 +172,11 @@ export enum RiskRating {
   VERY_HIGH = 'very_high'
 }
 
+export enum UpdateType {
+  ADJUSTMENT = 'adjustment',  // Correction/fix - audit log only, no trend data
+  PERIOD_UPDATE = 'period_update'  // New period value - both history and audit log
+}
+
 export interface Metric {
   id: string;
   metric_number?: string;
@@ -269,12 +274,20 @@ export interface CategoryDetailScore extends CategoryScore {
 export interface CategoryMetric {
   id: string;
   name: string;
+  metric_number?: string;
   score_pct?: number;
   gap_to_target_pct?: number;
   current_value?: number;
   target_value?: number;
   priority_rank: number;
   owner_function?: string;
+  direction?: string;
+  data_source?: string;
+  risk_definition?: string;
+  business_impact?: string;
+  formula?: string;
+  collection_frequency?: string;
+  last_collected_at?: string;
 }
 
 export interface CategoryScoresResponse {

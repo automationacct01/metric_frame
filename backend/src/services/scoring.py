@@ -385,15 +385,16 @@ def compute_category_score(db: Session, category_code: str) -> Optional[Dict]:
     """
     # Initialize CSF reference service for category descriptions
     csf_service = CSFReferenceService()
-    
-    # Get all active metrics for this category
+
+    # Get all active metrics for this category by joining with FrameworkCategory
     metrics = (
         db.query(Metric)
-        .filter(Metric.csf_category_code == category_code)
+        .join(FrameworkCategory, Metric.category_id == FrameworkCategory.id)
+        .filter(FrameworkCategory.code == category_code)
         .filter(Metric.active == True)
         .all()
     )
-    
+
     if not metrics:
         return None
     
@@ -409,16 +410,24 @@ def compute_category_score(db: Session, category_code: str) -> Optional[Dict]:
         score = compute_metric_score(metric)
         gap = compute_gap_to_target(metric)
         
-        # Add to metrics details list
+        # Add to metrics details list with extended fields for category detail view
         metrics_details.append({
             'id': str(metric.id),
             'name': metric.name,
+            'metric_number': metric.metric_number,
             'score_pct': score * 100 if score is not None else None,
             'gap_to_target_pct': gap,
             'current_value': float(metric.current_value) if metric.current_value else None,
             'target_value': float(metric.target_value) if metric.target_value else None,
             'priority_rank': metric.priority_rank,
             'owner_function': metric.owner_function,
+            'direction': metric.direction.value if metric.direction else None,
+            'data_source': metric.data_source,
+            'risk_definition': metric.risk_definition,
+            'business_impact': metric.business_impact,
+            'formula': metric.formula,
+            'collection_frequency': metric.collection_frequency.value if metric.collection_frequency else None,
+            'last_collected_at': metric.last_collected_at.isoformat() if metric.last_collected_at else None,
         })
         
         if score is not None:
