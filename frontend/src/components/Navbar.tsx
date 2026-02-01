@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
   Drawer,
   List,
@@ -13,6 +14,16 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Alert,
+  CircularProgress,
+  InputAdornment,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -26,15 +37,24 @@ import {
   ChevronRight as ChevronRightIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  Logout as LogoutIcon,
+  Key as KeyIcon,
+  Visibility,
+  VisibilityOff,
 } from '@mui/icons-material';
 import { useThemeMode } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 import { NavItem } from '../types';
 
 export const drawerWidthExpanded = 240;
 export const drawerWidthCollapsed = 64;
 
-const navItems: NavItem[] = [
+interface ExtendedNavItem extends NavItem {
+  adminOnly?: boolean;
+}
+
+const navItems: ExtendedNavItem[] = [
   {
     label: 'Dashboard',
     path: '/app/dashboard',
@@ -69,6 +89,7 @@ const navItems: NavItem[] = [
     label: 'Settings',
     path: '/app/settings',
     icon: SettingsIcon,
+    adminOnly: true,
   },
 ];
 
@@ -78,10 +99,110 @@ interface NavbarProps {
   onToggleCollapse: () => void;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useThemeMode();
+  const { user, logout, isAdmin, token } = useAuth();
+
+  // Filter nav items based on user role
+  const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+
+  // Change password dialog state
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPasswordError('New password must be at least 4 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/v1/auth/change-password?token=${token}&current_password=${encodeURIComponent(currentPassword)}&new_password=${encodeURIComponent(newPassword)}`,
+        { method: 'POST' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to change password');
+      }
+
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setChangePasswordOpen(false);
+        resetPasswordForm();
+      }, 1500);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const resetPasswordForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setPasswordError(null);
+    setPasswordSuccess(false);
+  };
+
+  const handleClosePasswordDialog = () => {
+    setChangePasswordOpen(false);
+    resetPasswordForm();
+  };
+
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Get role color
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'error';
+      case 'editor':
+        return 'primary';
+      default:
+        return 'default';
+    }
+  };
 
   const drawerWidth = collapsed ? drawerWidthCollapsed : drawerWidthExpanded;
 
@@ -150,7 +271,7 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
       )}
 
       <List sx={{ flexGrow: 1 }}>
-        {navItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const isSelected = location.pathname === item.path ||
             (item.path === '/dashboard' && location.pathname === '/');
 
@@ -237,16 +358,197 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
         )}
       </Box>
 
-      {!collapsed && (
-        <Box sx={{ p: 2, pt: 0 }}>
-          <Typography variant="caption" color="text.secondary" display="block">
-            Powered by NIST CSF 2.0
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block">
-            & NIST AI RMF
-          </Typography>
+      <Divider />
+
+      {/* User Info & Logout */}
+      {user && (
+        <Box sx={{ p: collapsed ? 1 : 2 }}>
+          {collapsed ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              <Tooltip title={`${user.name} (${user.role})`} placement="right">
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    fontSize: '0.75rem',
+                    bgcolor: user.role === 'admin' ? 'error.main' : user.role === 'editor' ? 'primary.main' : 'grey.500',
+                  }}
+                >
+                  {getInitials(user.name)}
+                </Avatar>
+              </Tooltip>
+              <Tooltip title="Change password" placement="right">
+                <IconButton
+                  onClick={() => setChangePasswordOpen(true)}
+                  size="small"
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <KeyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Sign out" placement="right">
+                <IconButton
+                  onClick={handleLogout}
+                  size="small"
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <LogoutIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ) : (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                <Avatar
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    fontSize: '0.875rem',
+                    bgcolor: user.role === 'admin' ? 'error.main' : user.role === 'editor' ? 'primary.main' : 'grey.500',
+                  }}
+                >
+                  {getInitials(user.name)}
+                </Avatar>
+                <Box sx={{ overflow: 'hidden' }}>
+                  <Typography variant="body2" fontWeight="medium" noWrap>
+                    {user.name}
+                  </Typography>
+                  <Chip
+                    label={user.role}
+                    size="small"
+                    color={getRoleColor(user.role) as any}
+                    sx={{ height: 18, fontSize: '0.65rem' }}
+                  />
+                </Box>
+              </Box>
+              <Box
+                onClick={() => setChangePasswordOpen(true)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  cursor: 'pointer',
+                  color: 'text.secondary',
+                  '&:hover': { color: 'primary.main' },
+                  py: 0.5,
+                }}
+              >
+                <KeyIcon fontSize="small" />
+                <Typography variant="caption">Change password</Typography>
+              </Box>
+              <Box
+                onClick={handleLogout}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  cursor: 'pointer',
+                  color: 'text.secondary',
+                  '&:hover': { color: 'error.main' },
+                  py: 0.5,
+                }}
+              >
+                <LogoutIcon fontSize="small" />
+                <Typography variant="caption">Sign out</Typography>
+              </Box>
+            </Box>
+          )}
         </Box>
       )}
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordOpen} onClose={handleClosePasswordDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent>
+          {passwordSuccess ? (
+            <Alert severity="success" sx={{ mt: 1 }}>
+              Password changed successfully!
+            </Alert>
+          ) : (
+            <>
+              {passwordError && (
+                <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
+                  {passwordError}
+                </Alert>
+              )}
+              <TextField
+                fullWidth
+                label="Current Password"
+                type={showCurrentPassword ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                margin="normal"
+                disabled={passwordLoading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                fullWidth
+                label="New Password"
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                margin="normal"
+                disabled={passwordLoading}
+                helperText="Minimum 4 characters"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Confirm New Password"
+                type={showNewPassword ? 'text' : 'password'}
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                margin="normal"
+                disabled={passwordLoading}
+                error={confirmNewPassword !== '' && newPassword !== confirmNewPassword}
+                helperText={
+                  confirmNewPassword !== '' && newPassword !== confirmNewPassword
+                    ? 'Passwords do not match'
+                    : ''
+                }
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePasswordDialog} disabled={passwordLoading}>
+            {passwordSuccess ? 'Close' : 'Cancel'}
+          </Button>
+          {!passwordSuccess && (
+            <Button
+              variant="contained"
+              onClick={handleChangePassword}
+              disabled={passwordLoading || !currentPassword || !newPassword || !confirmNewPassword}
+            >
+              {passwordLoading ? <CircularProgress size={20} /> : 'Change Password'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 

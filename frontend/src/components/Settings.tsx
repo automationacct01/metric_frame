@@ -31,16 +31,18 @@ import {
   Info as InfoIcon,
   SmartToy as AIIcon,
   Tune as TuneIcon,
-  Person as PersonIcon,
   AdminPanelSettings as AdminIcon,
   Edit as EditorIcon,
   Visibility as ViewerIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { RISK_RATING_COLORS, RiskRating } from '../types';
 import AIProviderSettings from './settings/AIProviderSettings';
+import UserManagement from './settings/UserManagement';
 import { useThemeMode } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 interface RiskThresholds {
@@ -211,22 +213,10 @@ function ThresholdInputs({
   );
 }
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  active: boolean;
-}
-
 export default function Settings() {
   const [activeTab, setActiveTab] = useState(0);
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>(() =>
-    localStorage.getItem('userEmail') || 'admin@example.com'
-  );
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const { darkMode, setDarkMode } = useThemeMode();
+  const { user: authUser, isAdmin } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update current time every second for the timezone preview
@@ -257,34 +247,6 @@ export default function Settings() {
       snackbarOpen: true,
     }));
   };
-
-  // Load available users
-  const loadUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const userList = await apiClient.getUsers();
-      setUsers(userList.filter((u: User) => u.active));
-    } catch (error) {
-      console.error('Failed to load users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  // Handle user switch
-  const handleUserSwitch = (email: string) => {
-    setCurrentUserEmail(email);
-    localStorage.setItem('userEmail', email);
-    apiClient.setCurrentUserEmail(email);
-    showSnackbar(`Switched to ${email}`, 'success');
-    // Reload the page to refresh all data with new user context
-    setTimeout(() => window.location.reload(), 500);
-  };
-
-  // Load users on mount
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   const loadSettings = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -441,6 +403,7 @@ export default function Settings() {
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
           <Tab icon={<TuneIcon />} iconPosition="start" label="General" />
           <Tab icon={<AIIcon />} iconPosition="start" label="AI Configuration" />
+          {isAdmin && <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />}
         </Tabs>
       </Box>
 
@@ -453,112 +416,40 @@ export default function Settings() {
         )}
 
         <Grid container spacing={3}>
-          {/* Current User */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardHeader
-                avatar={<PersonIcon color="primary" />}
-                title="Current User"
-                subheader="Switch between users to test different permission levels"
-              />
-              <CardContent>
-                {loadingUsers ? (
-                  <Typography color="text.secondary">Loading users...</Typography>
-                ) : (
-                  <>
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel>Active User</InputLabel>
-                      <Select
-                        value={currentUserEmail}
-                        label="Active User"
-                        onChange={(e) => handleUserSwitch(e.target.value)}
-                      >
-                        {users.map((user) => (
-                          <MenuItem key={user.id} value={user.email}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {user.role === 'admin' ? (
-                                <AdminIcon fontSize="small" color="error" />
-                              ) : user.role === 'editor' ? (
-                                <EditorIcon fontSize="small" color="primary" />
-                              ) : (
-                                <ViewerIcon fontSize="small" color="action" />
-                              )}
-                              <Box>
-                                <Typography variant="body2">{user.name}</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {user.email} ({user.role})
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    {users.find(u => u.email === currentUserEmail) && (
-                      <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          Current Role: {users.find(u => u.email === currentUserEmail)?.role.toUpperCase()}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
-                          {users.find(u => u.email === currentUserEmail)?.role === 'admin' && (
-                            'Full access: Can create, edit, delete catalogs and manage users'
-                          )}
-                          {users.find(u => u.email === currentUserEmail)?.role === 'editor' && (
-                            'Editor access: Can create and edit catalogs, but cannot delete'
-                          )}
-                          {users.find(u => u.email === currentUserEmail)?.role === 'viewer' && (
-                            'View only: Can view dashboards and reports'
-                          )}
-                        </Typography>
-                      </Box>
+          {/* Current Session Info */}
+          {authUser && (
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {authUser.role === 'admin' ? (
+                      <AdminIcon color="error" sx={{ fontSize: 32 }} />
+                    ) : authUser.role === 'editor' ? (
+                      <EditorIcon color="primary" sx={{ fontSize: 32 }} />
+                    ) : (
+                      <ViewerIcon color="action" sx={{ fontSize: 32 }} />
                     )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Quick Info Card */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardHeader
-                title="User Roles"
-                subheader="Permission levels in the application"
-              />
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AdminIcon color="error" />
                     <Box>
-                      <Typography variant="body2" fontWeight="medium">Admin</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Full access to all features including user management and catalog deletion
+                      <Typography variant="h6">{authUser.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {authUser.email}
                       </Typography>
                     </Box>
+                    <Chip
+                      label={authUser.role.toUpperCase()}
+                      color={authUser.role === 'admin' ? 'error' : authUser.role === 'editor' ? 'primary' : 'default'}
+                      sx={{ ml: 'auto' }}
+                    />
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EditorIcon color="primary" />
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">Editor</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Can create and edit catalogs, metrics, and configurations
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ViewerIcon color="action" />
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">Viewer</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Read-only access to dashboards, reports, and metrics
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    {authUser.role === 'admin' && 'Full access: Can create, edit, delete catalogs and manage users'}
+                    {authUser.role === 'editor' && 'Editor access: Can create and edit catalogs, but cannot delete'}
+                    {authUser.role === 'viewer' && 'View only: Can view dashboards and reports'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
 
           {/* Risk Thresholds */}
         <Grid item xs={12}>
@@ -890,6 +781,13 @@ export default function Settings() {
       <TabPanel value={activeTab} index={1}>
         <AIProviderSettings userId="admin" />
       </TabPanel>
+
+      {/* Users Tab - Admin only */}
+      {isAdmin && (
+        <TabPanel value={activeTab} index={2}>
+          <UserManagement />
+        </TabPanel>
+      )}
 
       {/* Snackbar for notifications */}
       <Snackbar
