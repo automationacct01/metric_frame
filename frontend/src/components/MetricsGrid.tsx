@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -39,6 +40,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   AutoAwesome as AIIcon,
+  Assessment as DashboardIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -244,6 +246,7 @@ export default function MetricsGrid() {
   // Get the selected framework from context
   const { selectedFramework, isLoadingFrameworks } = useFramework();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
+  const navigate = useNavigate();
 
   const [state, setState] = useState<MetricsGridState>({
     metrics: [],
@@ -1157,6 +1160,46 @@ export default function MetricsGrid() {
               ) : (
                 <LockIcon fontSize="small" sx={{ color: '#9e9e9e' }} />
               )}
+            </IconButton>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: 'viewDashboard',
+      headerName: '',
+      width: 50,
+      sortable: false,
+      cellClassName: 'sticky-dashboard-cell',
+      headerClassName: 'sticky-dashboard-header',
+      renderHeader: () => (
+        <Tooltip title="View metric in category dashboard" arrow placement="top">
+          <Box component="span" sx={{ cursor: 'help', display: 'inline-flex', alignItems: 'center' }}>
+            📊
+          </Box>
+        </Tooltip>
+      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const metric = params.row as Metric;
+        // Get function code and category code for navigation
+        const functionCode = metric.csf_function || metric.ai_rmf_function;
+        const categoryCode = metric.csf_category_code || metric.ai_rmf_category_code;
+
+        // Only show button if we have category info
+        if (!functionCode || !categoryCode) {
+          return null;
+        }
+
+        // Build URL with metric name as search filter
+        const searchParam = encodeURIComponent(metric.name);
+        return (
+          <Tooltip title={`View ${categoryCode} dashboard for this metric`}>
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/app/functions/${functionCode}/categories/${categoryCode}?search=${searchParam}`)}
+              sx={{ padding: '4px' }}
+            >
+              <DashboardIcon fontSize="small" sx={{ color: '#1976d2' }} />
             </IconButton>
           </Tooltip>
         );

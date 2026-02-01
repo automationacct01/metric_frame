@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
@@ -131,12 +131,16 @@ function ExpandedMetricRow({ metric }: ExpandedRowProps) {
 export default function CategoryDetail() {
   const { functionCode, categoryCode } = useParams<{ functionCode: string; categoryCode: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { selectedFramework } = useFramework();
+
+  // Get initial search query from URL (for direct metric navigation from catalog)
+  const initialSearch = searchParams.get('search') || '';
 
   // State for table controls
   const [sortField, setSortField] = useState<SortField>('priority_rank');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [priorityFilter, setPriorityFilter] = useState<number | ''>('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedTimeframe, setSelectedTimeframe] = useState<7 | 30 | 90>(30);
@@ -169,6 +173,33 @@ export default function CategoryDetail() {
   }
   const [recentChanges, setRecentChanges] = useState<RecentChange[]>([]);
   const [loadingChanges, setLoadingChanges] = useState(false);
+
+  // When data loads, if we have a search param, also filter the trend chart to that metric
+  useEffect(() => {
+    if (initialSearch && categoryData?.metrics?.length) {
+      // Find the metric that matches the search query
+      const matchingMetric = categoryData.metrics.find(
+        m => m.name.toLowerCase().includes(initialSearch.toLowerCase())
+      );
+      if (matchingMetric) {
+        setTrendMetricFilter(matchingMetric.id);
+      }
+    }
+  }, [categoryData, initialSearch]);
+
+  // Reset all filters function
+  const handleResetAllFilters = () => {
+    setSearchQuery('');
+    setTrendMetricFilter('');
+    setPriorityFilter('');
+    setTrendViewMode('both');
+    setSelectedTimeframe(30);
+    // Clear URL search param
+    navigate(`/app/functions/${functionCode}/categories/${categoryCode}`, { replace: true });
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchQuery !== '' || trendMetricFilter !== '' || priorityFilter !== '';
 
   // Fetch version history for all metrics in the category
   useEffect(() => {
@@ -412,13 +443,25 @@ export default function CategoryDetail() {
           )}
         </Box>
 
-        <Button
-          variant="outlined"
-          startIcon={<FileDownloadIcon />}
-          onClick={handleExportCSV}
-        >
-          Export CSV
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {hasActiveFilters && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<RefreshIcon />}
+              onClick={handleResetAllFilters}
+            >
+              Reset Filters
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={handleExportCSV}
+          >
+            Export CSV
+          </Button>
+        </Box>
       </Box>
 
       {/* Section A: Category Score Summary */}
