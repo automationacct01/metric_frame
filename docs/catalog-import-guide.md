@@ -2,13 +2,22 @@
 
 ## Overview
 
-The NIST CSF 2.0 Metrics Dashboard supports importing custom cybersecurity metrics catalogs, allowing organizations to use their own metrics while maintaining compatibility with NIST Cybersecurity Framework 2.0 scoring and visualization.
+MetricFrame supports importing custom metrics catalogs and mapping them to either **NIST Cybersecurity Framework 2.0** or **NIST AI Risk Management Framework 1.0**. This allows organizations to use their own metrics while maintaining compatibility with NIST framework scoring and visualization.
+
+## Supported Frameworks
+
+| Framework | Functions | Use Case |
+|-----------|-----------|----------|
+| **NIST CSF 2.0** | Govern, Identify, Protect, Detect, Respond, Recover | Cybersecurity risk metrics |
+| **NIST AI RMF 1.0** | Govern, Map, Measure, Manage | AI/ML risk metrics |
 
 ## Features
 
+- **Multi-Framework Support**: Map metrics to CSF 2.0 or AI RMF 1.0
 - **File Import**: Upload CSV or JSON files containing your metrics
-- **AI-Powered Mapping**: Automatic suggestions for mapping your metrics to NIST CSF 2.0 functions
-- **Manual Override**: Edit and customize CSF mappings as needed
+- **AI-Powered Mapping**: Automatic suggestions for mapping your metrics to framework functions
+- **Framework-Specific IDs**: Automatic metric ID generation (e.g., `CSF-PR-001`, `AIRMF-GOVERN-001`)
+- **Manual Override**: Edit and customize mappings as needed
 - **Seamless Integration**: Switch between catalogs without losing dashboard functionality
 - **Audit Trail**: Track changes and mapping decisions
 
@@ -47,22 +56,32 @@ SEC-002,Mean Time to Detect Critical Incidents,Average time to detect high-sever
    - Click "Import Catalog" in the navigation menu
    - Or visit `/catalog-wizard` directly
 
-2. **Upload File**
-   - Drag and drop your CSV/JSON file
-   - Provide a catalog name and description
+2. **Upload File (Step 1)**
+   - **Select Target Framework**: Choose NIST CSF 2.0 or NIST AI RMF 1.0
+   - **Catalog Name**: Provide a descriptive name
+   - **Description**: Optional description of your metrics
+   - **Upload File**: Drag and drop your CSV/JSON file
    - Click "Next" to process the file
 
-3. **Map Fields** (if needed)
+3. **Map Fields (Step 2)** - Optional
    - Map your file columns to standard metric fields
    - Required fields must be mapped to proceed
+   - Skip this step if your columns match the expected names
 
-4. **Map to CSF Functions**
-   - Review AI-generated mapping suggestions
+4. **Map to Framework Functions (Step 3)**
+   - Review AI-generated mapping suggestions for your selected framework
+   - For CSF 2.0: Maps to Govern, Identify, Protect, Detect, Respond, Recover
+   - For AI RMF: Maps to Govern, Map, Measure, Manage
    - Edit mappings manually if needed
-   - Confirm mappings for metrics you want to include
+   - Click "Accept All" or confirm individual mappings
+   - **Note**: Metric IDs are automatically generated based on the framework (e.g., `CSF-PR-001`, `AIRMF-GOVERN-001`)
 
-5. **Activate Catalog**
-   - Review the summary
+5. **Enhance Metrics (Step 4)** - Optional
+   - Review AI-powered enhancement suggestions
+   - Accept suggestions to improve metric descriptions, priorities, and targets
+
+6. **Confirm & Activate (Step 5)**
+   - Review the summary of imported metrics
    - Click "Activate Catalog" to make it the active metrics source
 
 ### 3. Managing Catalogs
@@ -75,8 +94,9 @@ SEC-002,Mean Time to Detect Critical Incidents,Average time to detect high-sever
 
 #### Returning to Default Metrics
 
-- Select "Default NIST CSF 2.0 Metrics" in the catalog selector
+- Select "Default Metrics" in the catalog selector for the active framework
 - Or deactivate your custom catalog in "Manage Catalogs"
+- Default catalogs are available for both CSF 2.0 (276 metrics) and AI RMF (80 metrics)
 
 ## Best Practices
 
@@ -92,12 +112,17 @@ SEC-002,Mean Time to Detect Critical Incidents,Average time to detect high-sever
 3. **Realistic Targets**: Set achievable but challenging target values
 4. **Consistent Units**: Use standard units (%, hours, days, count)
 
-### CSF Mapping
+### Framework Mapping
 
-1. **Primary Function**: Map each metric to its primary CSF function
-2. **Specific Categories**: Use specific CSF categories when known (e.g., PR.AA, ID.AM)
-3. **Review AI Suggestions**: AI mappings are generally accurate but review for your context
-4. **Document Rationale**: Add mapping notes to explain your decisions
+1. **Choose the Right Framework**:
+   - Use CSF 2.0 for cybersecurity metrics (vulnerability management, access control, incident response)
+   - Use AI RMF for AI/ML metrics (model governance, bias detection, AI risk assessment)
+2. **Primary Function**: Map each metric to its primary framework function
+3. **Specific Categories**: Use specific categories when known:
+   - CSF 2.0: PR.AA, ID.AM, DE.CM, etc.
+   - AI RMF: GOVERN-1, MAP-2, MEASURE-3, MANAGE-4, etc.
+4. **Review AI Suggestions**: AI mappings are generally accurate but review for your context
+5. **Document Rationale**: Add mapping notes to explain your decisions
 
 ### File Organization
 
@@ -118,9 +143,9 @@ SEC-002,Mean Time to Detect Critical Incidents,Average time to detect high-sever
 - Ensure 'name' and 'direction' columns are mapped
 - Check that your file has headers in the first row
 
-**"No metrics mapped to CSF" warning**
-- At least one metric must have a CSF mapping to generate scores
-- Review and confirm mappings in step 3
+**"No metrics mapped to framework" warning**
+- At least one metric must have a framework mapping to generate scores
+- Review and confirm mappings in Step 3 (Map to Framework Functions)
 
 ### Performance Considerations
 
