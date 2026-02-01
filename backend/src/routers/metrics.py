@@ -225,6 +225,36 @@ async def get_metric(
     return _add_scores_to_response(metric)
 
 
+def _validate_metric_value(current_value: float, target_value: float | None, direction: str | None, target_units: str | None) -> tuple[bool, str]:
+    """Validate that current_value is within reasonable bounds relative to target.
+
+    Returns (is_valid, error_message).
+    """
+    if current_value is None:
+        return True, ""
+
+    # Rule 1: current_value must be non-negative
+    if current_value < 0:
+        return False, "Current value cannot be negative"
+
+    # If no target, allow any non-negative value
+    if target_value is None or target_value == 0:
+        return True, ""
+
+    # Rule 2: For percentage metrics (target ~= 100 or units = "%"), cap at 150%
+    is_percentage = (target_units == "%" or (target_value >= 95 and target_value <= 105))
+    if is_percentage and current_value > 150:
+        return False, f"Value {current_value} exceeds maximum of 150 for percentage metrics"
+
+    # Rule 3: For all metrics, current_value shouldn't exceed 10x target (catches typos like 605 instead of 60.5)
+    max_multiplier = 10.0
+    max_allowed = target_value * max_multiplier
+    if current_value > max_allowed:
+        return False, f"Value {current_value} exceeds maximum allowed ({max_allowed:.1f} = {max_multiplier}x target of {target_value})"
+
+    return True, ""
+
+
 @router.put("/{metric_id}", response_model=MetricResponse)
 async def update_metric(
     metric_id: UUID,
@@ -232,11 +262,33 @@ async def update_metric(
     db: Session = Depends(get_db),
     _editor: User = Depends(require_role(["editor", "admin"])),
 ):
-    """Update a metric (full update). Auto-creates version snapshot and history entry."""
+    """Update a metric (full update). Auto-creates version snapshot and optionally history entry.
+
+    When updating current_value, use update_type to control history creation:
+    - 'period_update': Creates MetricHistory entry (for trend data) AND MetricVersion (audit)
+    - 'adjustment': Creates only MetricVersion (audit) - no trend data
+    - If not specified and current_value changes, defaults to 'period_update' for backward compatibility
+    """
 
     metric = db.query(Metric).filter(Metric.id == metric_id).first()
     if not metric:
         raise HTTPException(status_code=404, detail="Metric not found")
+
+    # Validate current_value against target if being updated
+    if metric_update.current_value is not None:
+        # Use update's target_value if provided, otherwise use existing metric's target
+        target = metric_update.target_value if metric_update.target_value is not None else metric.target_value
+        target_units = metric.target_units
+        direction = metric.direction.value if hasattr(metric.direction, 'value') else str(metric.direction) if metric.direction else None
+
+        is_valid, error_msg = _validate_metric_value(
+            metric_update.current_value,
+            float(target) if target is not None else None,
+            direction,
+            target_units
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
 
     # Check for duplicate name if updating name
     if metric_update.name and metric_update.name != metric.name:
@@ -249,8 +301,55 @@ async def update_metric(
                 detail=f"Metric with name '{metric_update.name}' already exists"
             )
 
-    # Detect which fields are actually changing
+    # Extract update_type before processing (don't include in metric fields)
     update_data = metric_update.model_dump(exclude_unset=True)
+    update_type = update_data.pop('update_type', None)
+
+    # Convert enum string values back to enum members (Pydantic model_dump returns strings)
+    if 'direction' in update_data and isinstance(update_data['direction'], str):
+        from src.models import MetricDirection as ModelMetricDirection
+        direction_map = {
+            'higher_is_better': ModelMetricDirection.HIGHER_IS_BETTER,
+            'lower_is_better': ModelMetricDirection.LOWER_IS_BETTER,
+            'target_range': ModelMetricDirection.TARGET_RANGE,
+            'binary': ModelMetricDirection.BINARY,
+        }
+        update_data['direction'] = direction_map.get(update_data['direction'], ModelMetricDirection.HIGHER_IS_BETTER)
+
+    if 'collection_frequency' in update_data and isinstance(update_data['collection_frequency'], str):
+        from src.models import CollectionFrequency as ModelCollectionFrequency
+        freq_map = {
+            'daily': ModelCollectionFrequency.DAILY,
+            'weekly': ModelCollectionFrequency.WEEKLY,
+            'monthly': ModelCollectionFrequency.MONTHLY,
+            'quarterly': ModelCollectionFrequency.QUARTERLY,
+            'ad_hoc': ModelCollectionFrequency.AD_HOC,
+        }
+        update_data['collection_frequency'] = freq_map.get(update_data['collection_frequency'])
+
+    if 'csf_function' in update_data and isinstance(update_data['csf_function'], str):
+        from src.models import CSFFunction as ModelCSFFunction
+        csf_map = {
+            'gv': ModelCSFFunction.GOVERN,
+            'id': ModelCSFFunction.IDENTIFY,
+            'pr': ModelCSFFunction.PROTECT,
+            'de': ModelCSFFunction.DETECT,
+            'rs': ModelCSFFunction.RESPOND,
+            'rc': ModelCSFFunction.RECOVER,
+        }
+        update_data['csf_function'] = csf_map.get(update_data['csf_function'])
+
+    if 'ai_rmf_function' in update_data and isinstance(update_data['ai_rmf_function'], str):
+        from src.models import AIRMFFunction as ModelAIRMFFunction
+        ai_rmf_map = {
+            'govern': ModelAIRMFFunction.GOVERN,
+            'map': ModelAIRMFFunction.MAP,
+            'measure': ModelAIRMFFunction.MEASURE,
+            'manage': ModelAIRMFFunction.MANAGE,
+        }
+        update_data['ai_rmf_function'] = ai_rmf_map.get(update_data['ai_rmf_function'])
+
+    # Detect which fields are actually changing
     changed_fields = []
     for field, new_value in update_data.items():
         current_value = getattr(metric, field, None)
@@ -263,7 +362,13 @@ async def update_metric(
         elif current_comparable != new_comparable:
             changed_fields.append(field)
 
+    # Determine change source based on update_type
+    change_source = "api"
+    if update_type:
+        change_source = f"api_{update_type}"  # e.g., "api_adjustment" or "api_period_update"
+
     # Create version snapshot BEFORE applying changes (only if something actually changed)
+    # This is the AUDIT LOG - always created regardless of update_type
     if changed_fields:
         try:
             create_version_snapshot(
@@ -271,7 +376,7 @@ async def update_metric(
                 metric=metric,
                 changed_fields=changed_fields,
                 changed_by="system",
-                source="api",
+                source=change_source,
             )
         except Exception:
             # Don't fail the update if versioning fails
@@ -296,13 +401,22 @@ async def update_metric(
         )
 
     # Auto-create MetricHistory entry when current_value changes
-    if current_value_changing and metric.current_value is not None:
+    # ONLY if update_type is 'period_update' or not specified (backward compatibility)
+    # Adjustments skip history to avoid polluting trend data
+    should_create_history = (
+        current_value_changing
+        and metric.current_value is not None
+        and update_type != "adjustment"  # Skip history for adjustments
+    )
+
+    if should_create_history:
         from datetime import datetime as dt
+        source_ref = "api_period_update" if update_type == "period_update" else "api_update"
         history_entry = MetricHistory(
             metric_id=metric.id,
             collected_at=dt.now(tz=None),
             normalized_value=metric.current_value,
-            source_ref="api_update",
+            source_ref=source_ref,
         )
         db.add(history_entry)
 

@@ -17,7 +17,7 @@ def load_users(db: Session) -> int:
 
     Creates users with different roles for testing and initial setup:
     - admin@example.com: Full admin access
-    - analyst@example.com: Editor role for security analysts
+    - analyst@example.com: Editor role for analysts
     - viewer@example.com: Read-only access
 
     Returns the number of users created.
@@ -30,7 +30,7 @@ def load_users(db: Session) -> int:
             active=True
         ),
         User(
-            name='Security Analyst',
+            name='Analyst',
             email='analyst@example.com',
             role='editor',
             active=True
