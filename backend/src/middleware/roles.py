@@ -59,17 +59,21 @@ def require_role(allowed_roles: List[str]):
         x_user_email: str = Header(..., alias="X-User-Email"),
         db: Session = Depends(get_db),
     ) -> User:
+        logger.info(f"🔐 Auth check: email={x_user_email!r}, required_roles={allowed_roles}")
         user = (
             db.query(User)
             .filter(User.email == x_user_email, User.active == True)
             .first()
         )
         if not user:
+            logger.warning(f"🔐 User not found: {x_user_email!r}")
             raise HTTPException(
                 status_code=401,
                 detail="User not found or inactive",
             )
+        logger.info(f"🔐 User found: {user.email!r}, role={user.role!r}")
         if user.role not in allowed_roles:
+            logger.warning(f"🔐 Permission denied: user role {user.role!r} not in {allowed_roles}")
             raise HTTPException(
                 status_code=403,
                 detail=f"Insufficient permissions. Required role: {allowed_roles}",

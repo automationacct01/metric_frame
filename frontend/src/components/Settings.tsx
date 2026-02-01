@@ -32,6 +32,10 @@ import {
   SmartToy as AIIcon,
   Tune as TuneIcon,
   Support as SupportIcon,
+  Person as PersonIcon,
+  AdminPanelSettings as AdminIcon,
+  Edit as EditorIcon,
+  Visibility as ViewerIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -206,8 +210,21 @@ function ThresholdInputs({
   );
 }
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  active: boolean;
+}
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState(0);
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>(() =>
+    localStorage.getItem('userEmail') || 'admin@example.com'
+  );
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [state, setState] = useState<SettingsState>({
     settings: DEFAULT_SETTINGS,
     originalSettings: DEFAULT_SETTINGS,
@@ -228,6 +245,34 @@ export default function Settings() {
       snackbarOpen: true,
     }));
   };
+
+  // Load available users
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const userList = await apiClient.getUsers();
+      setUsers(userList.filter((u: User) => u.active));
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Handle user switch
+  const handleUserSwitch = (email: string) => {
+    setCurrentUserEmail(email);
+    localStorage.setItem('userEmail', email);
+    apiClient.setCurrentUserEmail(email);
+    showSnackbar(`Switched to ${email}`, 'success');
+    // Reload the page to refresh all data with new user context
+    setTimeout(() => window.location.reload(), 500);
+  };
+
+  // Load users on mount
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const loadSettings = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -396,6 +441,113 @@ export default function Settings() {
         )}
 
         <Grid container spacing={3}>
+          {/* Current User */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardHeader
+                avatar={<PersonIcon color="primary" />}
+                title="Current User"
+                subheader="Switch between users to test different permission levels"
+              />
+              <CardContent>
+                {loadingUsers ? (
+                  <Typography color="text.secondary">Loading users...</Typography>
+                ) : (
+                  <>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Active User</InputLabel>
+                      <Select
+                        value={currentUserEmail}
+                        label="Active User"
+                        onChange={(e) => handleUserSwitch(e.target.value)}
+                      >
+                        {users.map((user) => (
+                          <MenuItem key={user.id} value={user.email}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {user.role === 'admin' ? (
+                                <AdminIcon fontSize="small" color="error" />
+                              ) : user.role === 'editor' ? (
+                                <EditorIcon fontSize="small" color="primary" />
+                              ) : (
+                                <ViewerIcon fontSize="small" color="action" />
+                              )}
+                              <Box>
+                                <Typography variant="body2">{user.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {user.email} ({user.role})
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {users.find(u => u.email === currentUserEmail) && (
+                      <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          Current Role: {users.find(u => u.email === currentUserEmail)?.role.toUpperCase()}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+                          {users.find(u => u.email === currentUserEmail)?.role === 'admin' && (
+                            'Full access: Can create, edit, delete catalogs and manage users'
+                          )}
+                          {users.find(u => u.email === currentUserEmail)?.role === 'editor' && (
+                            'Editor access: Can create and edit catalogs, but cannot delete'
+                          )}
+                          {users.find(u => u.email === currentUserEmail)?.role === 'viewer' && (
+                            'View only: Can view dashboards and reports'
+                          )}
+                        </Typography>
+                      </Box>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Quick Info Card */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title="User Roles"
+                subheader="Permission levels in the application"
+              />
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AdminIcon color="error" />
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">Admin</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Full access to all features including user management and catalog deletion
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EditorIcon color="primary" />
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">Editor</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Can create and edit catalogs, metrics, and configurations
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ViewerIcon color="action" />
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">Viewer</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Read-only access to dashboards, reports, and metrics
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
           {/* Risk Thresholds */}
         <Grid item xs={12}>
           <Card>

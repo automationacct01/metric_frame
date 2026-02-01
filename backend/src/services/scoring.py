@@ -33,7 +33,7 @@ def compute_metric_score(metric: Metric) -> Optional[float]:
         return None
     
     current = float(metric.current_value)
-    target = float(metric.target_value) if metric.target_value else None
+    target = float(metric.target_value) if metric.target_value is not None else None
     
     if metric.direction == MetricDirection.BINARY:
         # Binary metrics: 1 if true/met, 0 otherwise
@@ -54,7 +54,7 @@ def compute_metric_score(metric: Metric) -> Optional[float]:
         if current == 0:
             score = 1.0  # At or below target (0 is best possible)
         elif target == 0:
-            score = 0.01  # Target is 0 but we have some value - minimal score
+            score = 0.0  # Target is 0 but we have some value - complete failure to meet goal
         else:
             score = min(1.0, target / current)
             

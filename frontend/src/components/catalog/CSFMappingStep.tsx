@@ -44,6 +44,7 @@ interface CSFMappingStepProps {
   frameworkCode?: string;
 }
 
+// NIST CSF 2.0 functions
 const csfFunctions = [
   { code: 'gv', name: 'Govern', color: 'purple' },
   { code: 'id', name: 'Identify', color: 'blue' },
@@ -51,6 +52,14 @@ const csfFunctions = [
   { code: 'de', name: 'Detect', color: 'orange' },
   { code: 'rs', name: 'Respond', color: 'red' },
   { code: 'rc', name: 'Recover', color: 'teal' },
+];
+
+// NIST AI RMF 1.0 functions
+const aiRmfFunctions = [
+  { code: 'govern', name: 'Govern', color: 'purple' },
+  { code: 'map', name: 'Map', color: 'blue' },
+  { code: 'measure', name: 'Measure', color: 'green' },
+  { code: 'manage', name: 'Manage', color: 'orange' },
 ];
 
 const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, frameworkCode = 'csf_2_0' }) => {
@@ -63,6 +72,10 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
   const [estimatedTime, setEstimatedTime] = useState<string>('');
   const loadingRef = React.useRef(false);
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // Select the appropriate functions based on framework
+  const isAiRmf = frameworkCode === 'ai_rmf';
+  const frameworkFunctions = isAiRmf ? aiRmfFunctions : csfFunctions;
 
   // Use actual suggestions from the wizard state (populated during upload)
   const suggestions = state.suggestedMappings || [];
@@ -164,6 +177,7 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
       catalog_item_id: suggestion.catalog_item_id,
       csf_function: suggestion.suggested_function,
       csf_category_code: suggestion.suggested_category,
+      csf_subcategory_code: suggestion.suggested_subcategory,
       confidence_score: suggestion.confidence_score,
       mapping_method: 'auto',
       mapping_notes: suggestion.reasoning,
@@ -223,7 +237,11 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
   };
 
   const getFunctionInfo = (code: string) => {
-    return csfFunctions.find(f => f.code === code) || { name: code, color: 'default' };
+    // Search in both function lists to handle any framework
+    const found = frameworkFunctions.find(f => f.code === code) ||
+                  csfFunctions.find(f => f.code === code) ||
+                  aiRmfFunctions.find(f => f.code === code);
+    return found || { name: code, color: 'default' };
   };
 
   const getConfidenceColor = (score: number) => {
@@ -335,11 +353,12 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
                   catalog_item_id: s.catalog_item_id,
                   csf_function: s.suggested_function,
                   csf_category_code: s.suggested_category,
+                  csf_subcategory_code: s.suggested_subcategory,
                   confidence_score: s.confidence_score,
                   mapping_method: 'auto',
                   mapping_notes: s.reasoning,
                 }));
-              
+
               updateState({
                 confirmedMappings: [...(state.confirmedMappings || []), ...newMappings]
               });
@@ -471,11 +490,12 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
                   catalog_item_id: s.catalog_item_id,
                   csf_function: s.suggested_function,
                   csf_category_code: s.suggested_category,
+                  csf_subcategory_code: s.suggested_subcategory,
                   confidence_score: s.confidence_score,
                   mapping_method: 'auto',
                   mapping_notes: s.reasoning,
                 }));
-              
+
               updateState({
                 confirmedMappings: [...(state.confirmedMappings || []), ...newMappings]
               });
@@ -485,7 +505,7 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
             Accept All
           </Button>
         )}
-        
+
         {(suggestions.length === 0 && !loadingMappings) && (
           <>
             <Button
@@ -510,20 +530,20 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
 
       {/* Edit Mapping Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit {frameworkCode === 'ai_rmf' ? 'AI RMF' : 'CSF'} Mapping</DialogTitle>
+        <DialogTitle>Edit {isAiRmf ? 'AI RMF' : 'CSF'} Mapping</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Manually adjust the {frameworkCode === 'ai_rmf' ? 'AI RMF' : 'CSF'} mapping for: <strong>{editingMapping?.metric_name}</strong>
+            Manually adjust the {isAiRmf ? 'AI RMF' : 'CSF'} mapping for: <strong>{editingMapping?.metric_name}</strong>
           </Typography>
 
           <FormControl fullWidth margin="normal">
-            <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
+            <InputLabel>{isAiRmf ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
             <Select
               value={editingMapping?.csf_function || ''}
-              label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
+              label={isAiRmf ? 'AI RMF Function' : 'CSF Function'}
               onChange={(e) => setEditingMapping((prev: any) => ({ ...prev, csf_function: e.target.value }))}
             >
-              {csfFunctions.map((func) => (
+              {frameworkFunctions.map((func) => (
                 <MenuItem key={func.code} value={func.code}>
                   {func.name} ({func.code.toUpperCase()})
                 </MenuItem>

@@ -603,6 +603,10 @@ class MetricCatalogItem(Base):
     original_row_data = Column(JSON)  # Store original import data
     import_notes = Column(Text)
 
+    # AI-enhanced fields (populated during enhancement step)
+    risk_definition = Column(Text)  # What cybersecurity risk this metric measures
+    business_impact = Column(Text)  # Business consequence of poor performance
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -649,6 +653,37 @@ class MetricCatalogFrameworkMapping(Base):
 
     def __repr__(self) -> str:
         return f"<MetricCatalogFrameworkMapping(catalog_item_id={self.catalog_item_id}, function_id={self.function_id})>"
+
+    # Backward compatibility properties for CSF-style responses
+    @property
+    def csf_function(self):
+        """Returns CSFFunction enum from function relationship."""
+        if self.function:
+            try:
+                return CSFFunction(self.function.code)
+            except ValueError:
+                return None
+        return None
+
+    @property
+    def csf_category_code(self):
+        """Returns category code string."""
+        return self.category.code if self.category else None
+
+    @property
+    def csf_subcategory_code(self):
+        """Returns subcategory code string."""
+        return self.subcategory.code if self.subcategory else None
+
+    @property
+    def csf_category_name(self):
+        """Returns category name string."""
+        return self.category.name if self.category else None
+
+    @property
+    def csf_subcategory_outcome(self):
+        """Returns subcategory outcome text."""
+        return self.subcategory.outcome if self.subcategory else None
 
 
 # ==============================================================================

@@ -9,6 +9,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiClient } from '../api/client';
 
 // Framework types
 export interface Framework {
@@ -120,6 +121,24 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
     const storedApiKeyConfigured = localStorage.getItem(STORAGE_KEYS.API_KEY_CONFIGURED);
     if (storedApiKeyConfigured === 'true') {
       setApiKeyConfiguredState(true);
+    }
+  }, []);
+
+  // Initialize user email for API authentication
+  useEffect(() => {
+    const storedEmail = localStorage.getItem('userEmail');
+    const defaultEmail = storedEmail || 'admin@example.com';
+
+    console.log('🔐 Auth initialization:', {
+      storedEmail,
+      usingEmail: defaultEmail,
+      isAdmin: defaultEmail === 'admin@example.com'
+    });
+
+    apiClient.setCurrentUserEmail(defaultEmail);
+
+    if (!storedEmail) {
+      localStorage.setItem('userEmail', defaultEmail);
     }
   }, []);
 

@@ -18,6 +18,8 @@ from ..models import Base
 from .load_frameworks import load_all_frameworks, clear_all_frameworks, get_framework_stats
 from .load_metrics import load_all_metrics, clear_all_metrics, get_metrics_summary
 from .load_ai_providers import load_ai_providers, clear_ai_providers, get_ai_provider_summary
+from .populate_business_impact import populate_business_impact, clear_business_impact
+from .load_users import load_users, clear_users
 
 
 def create_tables():
@@ -56,9 +58,21 @@ def seed_all(clear: bool = False):
         metrics = load_all_metrics(db)
 
         print("\n" + "=" * 60)
+        print("Populating business impact data...")
+        print("=" * 60)
+        business_impact_count = populate_business_impact(db)
+        print(f"Populated business_impact for {business_impact_count} metrics")
+
+        print("\n" + "=" * 60)
         print("Loading AI provider data...")
         print("=" * 60)
         ai_providers = load_ai_providers(db)
+
+        print("\n" + "=" * 60)
+        print("Loading default users...")
+        print("=" * 60)
+        users_created = load_users(db)
+        print(f"Created {users_created} default users")
 
         db.commit()
 
@@ -129,6 +143,13 @@ def print_summary(db=None):
         for provider in ai_providers:
             model_count = db.query(AIModel).filter(AIModel.provider_id == provider.id).count()
             print(f"  {provider.name}: {model_count} models")
+
+        # User summary
+        from ..models import User
+        users = db.query(User).all()
+        print(f"\nUsers: {len(users)}")
+        for user in users:
+            print(f"  {user.email} ({user.role})")
 
     finally:
         if should_close:
