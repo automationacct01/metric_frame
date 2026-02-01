@@ -31,7 +31,6 @@ import {
   Info as InfoIcon,
   SmartToy as AIIcon,
   Tune as TuneIcon,
-  Support as SupportIcon,
   Person as PersonIcon,
   AdminPanelSettings as AdminIcon,
   Edit as EditorIcon,
@@ -41,6 +40,8 @@ import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { RISK_RATING_COLORS, RiskRating } from '../types';
 import AIProviderSettings from './settings/AIProviderSettings';
+import { useThemeMode } from '../contexts/ThemeContext';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 interface RiskThresholds {
   very_low: number;
@@ -225,6 +226,17 @@ export default function Settings() {
     localStorage.getItem('userEmail') || 'admin@example.com'
   );
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const { darkMode, setDarkMode } = useThemeMode();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for the timezone preview
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [state, setState] = useState<SettingsState>({
     settings: DEFAULT_SETTINGS,
     originalSettings: DEFAULT_SETTINGS,
@@ -651,6 +663,19 @@ export default function Settings() {
                   These examples show how different scores map to risk levels with your current thresholds
                 </Typography>
               </Box>
+
+              {/* Save button for this section */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SaveIcon />}
+                  onClick={saveSettings}
+                  disabled={state.saving || !state.hasChanges}
+                >
+                  {state.saving ? 'Saving...' : 'Save'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
@@ -719,6 +744,19 @@ export default function Settings() {
                 }
                 label="Show notifications"
               />
+
+              {/* Save button for this section */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SaveIcon />}
+                  onClick={saveSettings}
+                  disabled={state.saving || !state.hasChanges}
+                >
+                  {state.saving ? 'Saving...' : 'Save'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
@@ -732,29 +770,12 @@ export default function Settings() {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={state.settings.darkMode}
-                      onChange={(e) => handleSettingChange('darkMode', e.target.checked)}
+                      checked={darkMode}
+                      onChange={(e) => setDarkMode(e.target.checked)}
                     />
                   }
-                  label="Dark mode (Coming soon)"
-                  disabled
+                  label={darkMode ? "Dark mode" : "Light mode"}
                 />
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Language</InputLabel>
-                  <Select
-                    value={state.settings.language}
-                    label="Language"
-                    onChange={(e) => handleSettingChange('language', e.target.value)}
-                    disabled
-                  >
-                    <MenuItem value="en">English</MenuItem>
-                    <MenuItem value="es">Spanish</MenuItem>
-                    <MenuItem value="fr">French</MenuItem>
-                  </Select>
-                </FormControl>
               </Box>
 
               <FormControl fullWidth>
@@ -763,49 +784,70 @@ export default function Settings() {
                   value={state.settings.timezone}
                   label="Timezone"
                   onChange={(e) => handleSettingChange('timezone', e.target.value)}
-                  disabled
                 >
                   <MenuItem value="UTC">UTC</MenuItem>
-                  <MenuItem value="America/New_York">Eastern Time</MenuItem>
-                  <MenuItem value="America/Chicago">Central Time</MenuItem>
-                  <MenuItem value="America/Denver">Mountain Time</MenuItem>
-                  <MenuItem value="America/Los_Angeles">Pacific Time</MenuItem>
+                  <MenuItem value="America/New_York">Eastern Time (ET)</MenuItem>
+                  <MenuItem value="America/Chicago">Central Time (CT)</MenuItem>
+                  <MenuItem value="America/Denver">Mountain Time (MT)</MenuItem>
+                  <MenuItem value="America/Los_Angeles">Pacific Time (PT)</MenuItem>
+                  <MenuItem value="America/Anchorage">Alaska Time (AKT)</MenuItem>
+                  <MenuItem value="Pacific/Honolulu">Hawaii Time (HST)</MenuItem>
+                  <MenuItem value="Europe/London">London (GMT/BST)</MenuItem>
+                  <MenuItem value="Europe/Paris">Central European (CET)</MenuItem>
+                  <MenuItem value="Europe/Berlin">Berlin (CET)</MenuItem>
+                  <MenuItem value="Asia/Tokyo">Tokyo (JST)</MenuItem>
+                  <MenuItem value="Asia/Shanghai">China (CST)</MenuItem>
+                  <MenuItem value="Asia/Singapore">Singapore (SGT)</MenuItem>
+                  <MenuItem value="Australia/Sydney">Sydney (AEST)</MenuItem>
                 </Select>
               </FormControl>
+
+              {/* Live clock showing current time in selected timezone */}
+              <Box sx={{
+                mt: 2,
+                p: 2,
+                bgcolor: 'action.hover',
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <AccessTimeIcon color="primary" />
+                <Box>
+                  <Typography variant="body2" fontWeight="medium">
+                    {currentTime.toLocaleString('en-US', {
+                      timeZone: state.settings.timezone,
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: true,
+                    })}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Current time in {state.settings.timezone}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Save button for this section */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SaveIcon />}
+                  onClick={saveSettings}
+                  disabled={state.saving || !state.hasChanges}
+                >
+                  {state.saving ? 'Saving...' : 'Save'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Professional Services */}
-        <Grid item xs={12}>
-          <Card sx={{ backgroundColor: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
-            <CardHeader
-              avatar={<SupportIcon sx={{ color: 'primary.main' }} />}
-              title="Professional Services"
-              subheader="Need help with implementation, customization, or enterprise support?"
-            />
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Our team offers professional services to help you get the most out of MetricFrame:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3, mb: 2, color: 'text.secondary' }}>
-                <li>Implementation and onboarding support</li>
-                <li>Custom metric catalog development</li>
-                <li>Enterprise integrations (SIEM, GRC tools)</li>
-                <li>Training and workshops</li>
-              </Box>
-              <Button
-                variant="contained"
-                color="primary"
-                href="mailto:services@metricframe.com"
-                target="_blank"
-                sx={{ textTransform: 'none' }}
-              >
-                Contact Us for Services
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Action Buttons */}

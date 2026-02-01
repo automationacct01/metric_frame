@@ -24,7 +24,10 @@ import {
   MenuBook as DocsIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
+import { useThemeMode } from '../contexts/ThemeContext';
 
 import { NavItem } from '../types';
 
@@ -78,6 +81,7 @@ interface NavbarProps {
 export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useThemeMode();
 
   const drawerWidth = collapsed ? drawerWidthCollapsed : drawerWidthExpanded;
 
@@ -205,8 +209,36 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
 
       <Divider />
 
+      {/* Dark Mode Toggle */}
+      <Box sx={{ p: collapsed ? 1 : 2, display: 'flex', justifyContent: 'center' }}>
+        <Tooltip title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} placement="right">
+          <IconButton
+            onClick={toggleDarkMode}
+            size="small"
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                color: 'primary.main',
+              },
+            }}
+          >
+            {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+        </Tooltip>
+        {!collapsed && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ ml: 1, alignSelf: 'center', cursor: 'pointer' }}
+            onClick={toggleDarkMode}
+          >
+            {darkMode ? 'Light Mode' : 'Dark Mode'}
+          </Typography>
+        )}
+      </Box>
+
       {!collapsed && (
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, pt: 0 }}>
           <Typography variant="caption" color="text.secondary" display="block">
             Powered by NIST CSF 2.0
           </Typography>
