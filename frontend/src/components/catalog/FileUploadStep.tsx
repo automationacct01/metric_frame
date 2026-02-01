@@ -12,6 +12,11 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
@@ -20,6 +25,20 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
+
+// Available frameworks for catalog mapping
+const AVAILABLE_FRAMEWORKS = [
+  {
+    code: 'csf_2_0',
+    name: 'NIST Cybersecurity Framework 2.0',
+    description: 'Map metrics to CSF 2.0 functions: Govern, Identify, Protect, Detect, Respond, Recover'
+  },
+  {
+    code: 'ai_rmf',
+    name: 'NIST AI Risk Management Framework 1.0',
+    description: 'Map metrics to AI RMF functions: Govern, Map, Measure, Manage'
+  },
+];
 
 interface FileUploadStepProps {
   state: any;
@@ -31,7 +50,7 @@ const FileUploadStep: React.FC<FileUploadStepProps> = ({ state, updateState }) =
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      updateState({ 
+      updateState({
         uploadedFile: file,
         catalogName: state.catalogName || file.name.replace(/\.[^/.]+$/, "")
       });
@@ -48,24 +67,75 @@ const FileUploadStep: React.FC<FileUploadStepProps> = ({ state, updateState }) =
     multiple: false,
   });
 
+  const handleFrameworkChange = (event: SelectChangeEvent<string>) => {
+    updateState({ targetFramework: event.target.value });
+  };
+
+  const selectedFramework = AVAILABLE_FRAMEWORKS.find(f => f.code === state.targetFramework) || AVAILABLE_FRAMEWORKS[0];
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
         Upload Your Metrics Catalog
       </Typography>
-      
+
       <Typography variant="body2" color="text.secondary" paragraph>
-        Upload a CSV or JSON file containing your cybersecurity metrics. 
-        We'll help you map them to the NIST CSF 2.0 framework.
+        Upload a CSV or JSON file containing your metrics.
+        Select a target framework to map your metrics.
       </Typography>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          {/* File Upload Area */}
+          {/* Framework Selector - First */}
+          <FormControl fullWidth>
+            <InputLabel id="framework-select-label">Target Framework</InputLabel>
+            <Select
+              labelId="framework-select-label"
+              id="framework-select"
+              value={state.targetFramework || 'csf_2_0'}
+              label="Target Framework"
+              onChange={handleFrameworkChange}
+            >
+              {AVAILABLE_FRAMEWORKS.map((fw) => (
+                <MenuItem key={fw.code} value={fw.code}>
+                  {fw.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, mb: 2, display: 'block' }}>
+            {selectedFramework.description}
+          </Typography>
+
+          {/* Catalog Name */}
+          <TextField
+            fullWidth
+            label="Catalog Name"
+            value={state.catalogName}
+            onChange={(e) => updateState({ catalogName: e.target.value })}
+            margin="normal"
+            required
+            helperText="A descriptive name for your metrics catalog"
+          />
+
+          {/* Description */}
+          <TextField
+            fullWidth
+            label="Description"
+            value={state.description}
+            onChange={(e) => updateState({ description: e.target.value })}
+            margin="normal"
+            multiline
+            rows={2}
+            helperText="Optional description of your metrics and their purpose"
+          />
+
+          {/* File Upload Area - Last */}
           <Paper
             {...getRootProps()}
             sx={{
               p: 4,
+              mt: 2,
               textAlign: 'center',
               cursor: 'pointer',
               border: '2px dashed',
@@ -80,7 +150,7 @@ const FileUploadStep: React.FC<FileUploadStepProps> = ({ state, updateState }) =
           >
             <input {...getInputProps()} />
             <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-            
+
             {state.uploadedFile ? (
               <Box>
                 <Typography variant="h6" color="primary" gutterBottom>
@@ -111,30 +181,6 @@ const FileUploadStep: React.FC<FileUploadStepProps> = ({ state, updateState }) =
               </Box>
             )}
           </Paper>
-
-          {/* Catalog Details */}
-          <Box sx={{ mt: 3 }}>
-            <TextField
-              fullWidth
-              label="Catalog Name"
-              value={state.catalogName}
-              onChange={(e) => updateState({ catalogName: e.target.value })}
-              margin="normal"
-              required
-              helperText="A descriptive name for your metrics catalog"
-            />
-            
-            <TextField
-              fullWidth
-              label="Description"
-              value={state.description}
-              onChange={(e) => updateState({ description: e.target.value })}
-              margin="normal"
-              multiline
-              rows={3}
-              helperText="Optional description of your metrics and their purpose"
-            />
-          </Box>
         </Grid>
 
         <Grid item xs={12} md={6}>

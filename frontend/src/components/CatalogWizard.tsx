@@ -17,7 +17,6 @@ import {
 import { ContentFrame } from './layout';
 import { apiClient } from '../api/client';
 import { parseCSVFile, ParsedCSVData } from '../utils/csvParser';
-import { useFramework } from '../contexts/FrameworkContext';
 
 // Step components
 import FileUploadStep from './catalog/FileUploadStep';
@@ -28,11 +27,18 @@ import ConfirmActivateStep from './catalog/ConfirmActivateStep';
 
 const steps = [
   'Upload File',
-  'Map Fields', 
-  'Map to CSF',
+  'Map Fields',
+  'Map to Framework',
   'Enhance Metrics',
   'Confirm & Activate'
 ];
+
+// Framework display names
+const FRAMEWORK_NAMES: Record<string, string> = {
+  'csf_2_0': 'NIST CSF 2.0',
+  'ai_rmf': 'NIST AI RMF 1.0',
+  'cyber_ai_profile': 'NIST Cyber AI Profile',
+};
 
 interface CatalogWizardState {
   // Upload step
@@ -42,6 +48,7 @@ interface CatalogWizardState {
   catalogId: string | null;
   uploadErrors: string[];
   itemsImported: number;
+  targetFramework: string;  // Framework to map catalog to
   
   // Field mapping step
   parsedData: ParsedCSVData | null;
@@ -63,8 +70,6 @@ interface CatalogWizardState {
 
 const CatalogWizard: React.FC = () => {
   const theme = useTheme();
-  const { selectedFramework } = useFramework();
-  const frameworkCode = selectedFramework?.code || 'csf_2_0';
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -77,6 +82,7 @@ const CatalogWizard: React.FC = () => {
     catalogId: null,
     uploadErrors: [],
     itemsImported: 0,
+    targetFramework: 'csf_2_0',  // Default to NIST CSF 2.0
     parsedData: null,
     fieldMappings: {},
     suggestedMappings: [],
@@ -105,6 +111,7 @@ const CatalogWizard: React.FC = () => {
       catalogId: null,
       uploadErrors: [],
       itemsImported: 0,
+      targetFramework: 'csf_2_0',
       parsedData: null,
       fieldMappings: {},
       suggestedMappings: [],
@@ -146,12 +153,13 @@ const CatalogWizard: React.FC = () => {
           }
           
           // Upload file and parse
+          const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
           const uploadResult = await apiClient.uploadCatalog(
             wizardState.uploadedFile,
             wizardState.catalogName,
             wizardState.description,
-            'admin', // TODO: Get from user context
-            frameworkCode
+            currentUserEmail,
+            wizardState.targetFramework  // Use wizard's selected framework
           );
           
           updateWizardState({
@@ -198,6 +206,14 @@ const CatalogWizard: React.FC = () => {
             setError('Please accept at least one metric enhancement or proceed without enhancements.');
             return false;
           }
+
+          // Save accepted enhancements to database
+          if (wizardState.catalogId && wizardState.acceptedEnhancements.length > 0) {
+            await apiClient.applyEnhancements(
+              wizardState.catalogId,
+              wizardState.acceptedEnhancements
+            );
+          }
           return true;
 
         case 4: // Activation step
@@ -215,7 +231,19 @@ const CatalogWizard: React.FC = () => {
           return true;
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'An error occurred');
+      // Handle FastAPI validation error format: {detail: [{type, loc, msg, input}]}
+      const detail = err.response?.data?.detail;
+      let errorMessage = 'An error occurred';
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        errorMessage = detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail?.msg) {
+        errorMessage = detail.msg;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
       return false;
     } finally {
       setLoading(false);
@@ -246,7 +274,7 @@ const CatalogWizard: React.FC = () => {
             state={wizardState}
             updateState={updateWizardState}
             error={error}
-            frameworkCode={frameworkCode}
+            frameworkCode={wizardState.targetFramework}
           />
         );
       case 3:
@@ -255,7 +283,7 @@ const CatalogWizard: React.FC = () => {
             state={wizardState}
             updateState={updateWizardState}
             error={error}
-            frameworkCode={frameworkCode}
+            frameworkCode={wizardState.targetFramework}
           />
         );
       case 4:
@@ -295,10 +323,12 @@ const CatalogWizard: React.FC = () => {
     }
   };
 
+  const targetFrameworkName = FRAMEWORK_NAMES[wizardState.targetFramework] || 'NIST CSF 2.0';
+
   return (
     <ContentFrame
       title="Bring Your Own Catalog"
-      subtitle={`Import your custom cybersecurity metrics and map them to ${selectedFramework?.name || 'NIST CSF 2.0'}`}
+      subtitle={`Import your custom metrics and map them to a NIST framework`}
     >
       <Container maxWidth="lg">
         <Paper 

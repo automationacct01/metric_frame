@@ -302,7 +302,7 @@ class APIClient {
     return response.data;
   }
 
-  async getActiveCatalogMetrics(filters?: MetricFilters, owner = 'admin'): Promise<MetricListResponse> {
+  async getActiveCatalogMetrics(filters?: MetricFilters, owner = 'admin@example.com'): Promise<MetricListResponse> {
     const params = new URLSearchParams();
     params.append('owner', owner);
     
@@ -687,6 +687,11 @@ class APIClient {
 
   async saveCatalogMappings(catalogId: string, mappings: any[]): Promise<any> {
     const response = await this.client.post(`/catalogs/${catalogId}/mappings`, mappings);
+    return response.data;
+  }
+
+  async applyEnhancements(catalogId: string, enhancements: any[]): Promise<any> {
+    const response = await this.client.post(`/catalogs/${catalogId}/enhancements/apply`, enhancements);
     return response.data;
   }
 

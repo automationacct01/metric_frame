@@ -20,7 +20,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..db import get_db
-from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, User as UserModel
+from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, User as UserModel, MappingMethod
 from ..middleware.roles import require_role
 from ..schemas import (
     MetricCatalogResponse,
@@ -64,7 +64,7 @@ def _compute_catalog_item_score(current_value, target_value, direction, toleranc
         if current == 0:
             score = 1.0  # At or below target (0 is best possible)
         elif target == 0:
-            score = 0.01  # Target is 0 but we have some value - minimal score
+            score = 0.0  # Target is 0 but we have some value - complete failure to meet goal
         else:
             score = min(1.0, target / current)
     elif dir_value == 'target_range':
@@ -146,6 +146,26 @@ async def list_catalogs(
     return catalogs
 
 
+def clean_row_for_json(row_dict: dict) -> dict:
+    """Replace NaN/inf/pandas special values with None for JSON serialization.
+
+    This is needed because pandas NaN values cannot be serialized to JSON,
+    and PostgreSQL JSON columns will reject them.
+    """
+    import math
+    import pandas as pd
+
+    cleaned = {}
+    for k, v in row_dict.items():
+        if pd.isna(v):
+            cleaned[k] = None
+        elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            cleaned[k] = None
+        else:
+            cleaned[k] = v
+    return cleaned
+
+
 @router.post("/upload", response_model=CatalogImportResponse)
 async def upload_catalog(
     file: UploadFile = File(...),
@@ -193,21 +213,24 @@ async def upload_catalog(
         else:  # json
             df = pd.read_json(temp_file_path)
 
-        # Get framework ID if not CSF 2.0
-        framework_id = None
-        if framework != "csf_2_0":
-            fw = db.query(Framework).filter(
-                Framework.code == framework,
-                Framework.active == True
-            ).first()
-            if fw:
-                framework_id = fw.id
+        # Get framework ID (required for all frameworks)
+        fw = db.query(Framework).filter(
+            Framework.code == framework,
+            Framework.active == True
+        ).first()
+        if not fw:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Framework '{framework}' not found or inactive"
+            )
+        framework_id = fw.id
 
         # Create catalog record
         catalog = MetricCatalog(
             name=catalog_name,
             description=description,
-            owner=owner,
+            owner=owner or _editor.email,  # Default to current user's email
+            framework_id=framework_id,
             file_format=file_ext,
             original_filename=file.filename,
             active=False  # Starts inactive until mapping is complete
@@ -254,7 +277,7 @@ async def upload_catalog(
                     formula=row.get('formula'),
                     direction=direction,
                     target_value=pd.to_numeric(row.get('target_value'), errors='coerce'),
-                    target_units=row.get('target_units'),
+                    target_units=row.get('target_units') or row.get('unit'),
                     tolerance_low=pd.to_numeric(row.get('tolerance_low'), errors='coerce'),
                     tolerance_high=pd.to_numeric(row.get('tolerance_high'), errors='coerce'),
                     priority_rank=int(row.get('priority_rank', 2)),
@@ -263,7 +286,7 @@ async def upload_catalog(
                     data_source=row.get('data_source'),
                     current_value=pd.to_numeric(row.get('current_value'), errors='coerce'),
                     current_label=row.get('current_label'),
-                    original_row_data=row.to_dict(),
+                    original_row_data=clean_row_for_json(row.to_dict()),
                     import_notes=f"Imported from {file.filename}"
                 )
                 
@@ -287,24 +310,32 @@ async def upload_catalog(
         
         # Generate AI-powered framework mapping suggestions
         suggested_mappings = []
+        ai_mapping_status = "skipped"
+        ai_mapping_error = None
+
         try:
             if items_imported > 0:
                 # Use Claude client for multi-framework mapping
                 suggestions = await claude_client.generate_framework_mappings(catalog.id, framework, db)
                 suggested_mappings = [s.model_dump() for s in suggestions]
+                ai_mapping_status = "success" if suggested_mappings else "no_mappings"
         except Exception as e:
+            ai_mapping_status = "failed"
+            ai_mapping_error = str(e)
             import_errors.append(f"AI mapping generation failed: {str(e)}")
-        
+
         db.commit()
-        
+
         # Clean up temp file
         os.unlink(temp_file_path)
-        
+
         return CatalogImportResponse(
             catalog_id=catalog.id,
             items_imported=items_imported,
             import_errors=import_errors,
-            suggested_mappings=suggested_mappings
+            suggested_mappings=suggested_mappings,
+            ai_mapping_status=ai_mapping_status,
+            ai_mapping_error=ai_mapping_error
         )
         
     except Exception as e:
@@ -370,6 +401,76 @@ async def get_catalog_enhancements(
         raise HTTPException(status_code=500, detail=f"Failed to generate enhancements: {str(e)}")
 
 
+@router.post("/{catalog_id}/enhancements/apply")
+async def apply_catalog_enhancements(
+    catalog_id: UUID,
+    enhancements: List[dict],
+    db: Session = Depends(get_db),
+    _editor: UserModel = Depends(require_role(["editor", "admin"])),
+):
+    """
+    Apply accepted enhancements to catalog items.
+
+    Each enhancement should contain:
+    - catalog_item_id: UUID of the item to update
+    - suggested_priority: int (1, 2, or 3)
+    - suggested_owner_function: str
+    - suggested_data_source: str
+    - suggested_collection_frequency: str
+    - suggested_formula: str (optional)
+    - suggested_risk_definition: str (optional)
+    - suggested_business_impact: str (optional)
+    """
+    catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+
+    try:
+        updated_count = 0
+        for enhancement in enhancements:
+            item_id = enhancement.get("catalog_item_id")
+            if not item_id:
+                continue
+
+            item = db.query(MetricCatalogItem).filter(
+                MetricCatalogItem.id == item_id,
+                MetricCatalogItem.catalog_id == catalog_id
+            ).first()
+
+            if not item:
+                continue
+
+            # Apply enhancements
+            if "suggested_priority" in enhancement:
+                item.priority_rank = enhancement["suggested_priority"]
+            if "suggested_owner_function" in enhancement:
+                item.owner_function = enhancement["suggested_owner_function"]
+            if "suggested_data_source" in enhancement:
+                item.data_source = enhancement["suggested_data_source"]
+            if "suggested_collection_frequency" in enhancement:
+                freq_value = enhancement["suggested_collection_frequency"]
+                if freq_value:
+                    try:
+                        item.collection_frequency = CollectionFrequency(freq_value)
+                    except (ValueError, KeyError):
+                        pass  # Ignore invalid frequency values
+            if "suggested_formula" in enhancement and enhancement["suggested_formula"]:
+                item.formula = enhancement["suggested_formula"]
+            if "suggested_risk_definition" in enhancement and enhancement["suggested_risk_definition"]:
+                item.risk_definition = enhancement["suggested_risk_definition"]
+            if "suggested_business_impact" in enhancement and enhancement["suggested_business_impact"]:
+                item.business_impact = enhancement["suggested_business_impact"]
+
+            updated_count += 1
+
+        db.commit()
+        return {"message": f"Applied enhancements to {updated_count} metrics", "updated_count": updated_count}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to apply enhancements: {str(e)}")
+
+
 @router.post("/{catalog_id}/mappings", response_model=List[MetricCatalogCSFMappingResponse])
 async def save_catalog_mappings(
     catalog_id: UUID,
@@ -387,36 +488,114 @@ async def save_catalog_mappings(
         db.query(MetricCatalogCSFMapping).filter(
             MetricCatalogCSFMapping.catalog_id == catalog_id
         ).delete()
-        
+
         # Create new mappings
         saved_mappings = []
         for mapping_data in mappings:
-            # Convert mapping data with explicit enum handling
-            mapping_dict = mapping_data.model_dump()
-            
-            # Ensure CSF function is properly converted to enum
-            if 'csf_function' in mapping_dict:
-                csf_func_str = mapping_dict['csf_function']
-                if isinstance(csf_func_str, str):
-                    mapping_dict['csf_function'] = CSFFunction(csf_func_str)
-            
+            # Look up function_id from csf_function enum
+            csf_func = mapping_data.csf_function
+            func_code = csf_func.value if hasattr(csf_func, 'value') else str(csf_func)
+
+            # Find the framework function by code (e.g., 'de' for DETECT)
+            framework_func = db.query(FrameworkFunction).filter(
+                FrameworkFunction.code == func_code.lower()
+            ).first()
+
+            if not framework_func:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Framework function '{func_code}' not found"
+                )
+
+            # Look up category_id from csf_category_code if provided
+            category_id = None
+            if mapping_data.csf_category_code:
+                category = db.query(FrameworkCategory).filter(
+                    FrameworkCategory.code == mapping_data.csf_category_code,
+                    FrameworkCategory.function_id == framework_func.id
+                ).first()
+                if category:
+                    category_id = category.id
+
+            # Look up subcategory_id from csf_subcategory_code if provided
+            subcategory_id = None
+            if mapping_data.csf_subcategory_code and category_id:
+                subcategory = db.query(FrameworkSubcategory).filter(
+                    FrameworkSubcategory.code == mapping_data.csf_subcategory_code,
+                    FrameworkSubcategory.category_id == category_id
+                ).first()
+                if subcategory:
+                    subcategory_id = subcategory.id
+
+            # Convert mapping_method string to enum (handle case insensitivity)
+            method_value = mapping_data.mapping_method
+            if isinstance(method_value, str):
+                # Map string to MappingMethod enum
+                method_map = {
+                    'auto': MappingMethod.AUTO,
+                    'manual': MappingMethod.MANUAL,
+                    'suggested': MappingMethod.SUGGESTED,
+                }
+                method_value = method_map.get(method_value.lower(), MappingMethod.AUTO)
+
+            # Create mapping with proper FK IDs
             mapping = MetricCatalogCSFMapping(
                 catalog_id=catalog_id,
-                **mapping_dict
+                catalog_item_id=mapping_data.catalog_item_id,
+                function_id=framework_func.id,
+                category_id=category_id,
+                subcategory_id=subcategory_id,
+                confidence_score=mapping_data.confidence_score,
+                mapping_method=method_value,
+                mapping_notes=mapping_data.mapping_notes
             )
             db.add(mapping)
             saved_mappings.append(mapping)
         
         db.commit()
-        
+
+        # Generate framework-appropriate metric IDs based on the mappings
+        # Determine prefix based on catalog's framework
+        framework = db.query(Framework).filter(Framework.id == catalog.framework_id).first()
+        if framework and framework.code == 'ai_rmf':
+            id_prefix = "AIRMF"
+        else:
+            id_prefix = "CSF"
+
+        # Group mappings by function to assign sequential numbers
+        from collections import defaultdict
+        function_items = defaultdict(list)
+
+        for mapping in saved_mappings:
+            # Get the function code from the framework function
+            if mapping.function_id:
+                func = db.query(FrameworkFunction).filter(
+                    FrameworkFunction.id == mapping.function_id
+                ).first()
+                if func:
+                    function_code = func.code.upper()  # e.g., 'pr', 'de' -> 'PR', 'DE'
+                    function_items[function_code].append(mapping.catalog_item_id)
+
+        # Update catalog items with new framework-style metric IDs
+        for function_code, item_ids in function_items.items():
+            for idx, item_id in enumerate(item_ids, start=1):
+                new_metric_id = f"{id_prefix}-{function_code}-{idx:03d}"
+                catalog_item = db.query(MetricCatalogItem).filter(
+                    MetricCatalogItem.id == item_id
+                ).first()
+                if catalog_item:
+                    catalog_item.metric_id = new_metric_id
+
+        db.commit()
+
         # Refresh to get IDs and timestamps
         response_mappings = []
         for mapping in saved_mappings:
             db.refresh(mapping)
             response_mappings.append(MetricCatalogCSFMappingResponse.model_validate(mapping))
-        
+
         return response_mappings
-        
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save mappings: {str(e)}")
@@ -527,8 +706,8 @@ def safe_float(value) -> float | None:
 def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatalogCSFMapping = None) -> dict:
     """Convert a catalog item to metric format for API response."""
 
-    # Generate a synthetic metric number if not available
-    metric_number = f"C{str(item.id)[:8]}"
+    # Use user's metric_id if available, otherwise generate synthetic number
+    metric_number = item.metric_id if item.metric_id else f"C{str(item.id)[:8]}"
 
     current_val = safe_float(item.current_value)
     target_val = safe_float(item.target_value)
@@ -543,6 +722,13 @@ def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatal
         current_val, target_val, item.direction
     ) if item.direction else None
 
+    # Get CSF function as lowercase string for API response
+    csf_func = None
+    if mapping and mapping.csf_function:
+        csf_func_val = mapping.csf_function
+        # Handle both enum and string values
+        csf_func = csf_func_val.value if hasattr(csf_func_val, 'value') else str(csf_func_val).lower()
+
     metric_data = {
         "id": item.id,
         "metric_number": metric_number,
@@ -550,11 +736,25 @@ def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatal
         "description": item.description,
         "formula": item.formula,
         "calc_expr_json": None,
-        "csf_function": mapping.csf_function if mapping else None,
+        "csf_function": csf_func,
         "csf_category_code": mapping.csf_category_code if mapping else None,
         "csf_subcategory_code": mapping.csf_subcategory_code if mapping else None,
         "csf_category_name": mapping.csf_category_name if mapping else None,
         "csf_subcategory_outcome": mapping.csf_subcategory_outcome if mapping else None,
+        # AI RMF fields - not yet populated from catalog imports
+        "ai_rmf_function": None,
+        "ai_rmf_function_name": None,
+        "ai_rmf_category_code": None,
+        "ai_rmf_category_name": None,
+        "ai_rmf_subcategory_code": None,
+        "ai_rmf_subcategory_outcome": None,
+        "trustworthiness_characteristic": None,
+        # Framework FK IDs
+        "framework_id": None,
+        "function_id": mapping.function_id if mapping else None,
+        "category_id": mapping.category_id if mapping else None,
+        "subcategory_id": mapping.subcategory_id if mapping else None,
+        # Core metric fields
         "priority_rank": item.priority_rank,
         "weight": safe_float(item.weight) or 1.0,
         "direction": item.direction,
@@ -569,9 +769,17 @@ def convert_catalog_item_to_metric(item: MetricCatalogItem, mapping: MetricCatal
         "current_value": current_val,
         "current_label": item.current_label,
         "notes": item.import_notes,
+        # Additional fields (populated during enhancement step)
+        "risk_definition": item.risk_definition,
+        "business_impact": item.business_impact,
         "active": True,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
+        # Lock fields
+        "locked": False,
+        "locked_by": None,
+        "locked_at": None,
+        # Calculated scores
         "metric_score": metric_score,
         "gap_to_target": gap_to_target
     }

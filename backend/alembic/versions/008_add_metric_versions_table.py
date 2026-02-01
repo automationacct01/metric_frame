@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers, used by Alembic.
 revision = '008_add_metric_versions'
-down_revision = '007_add_subscriptions'
+down_revision = '006_merge_heads'
 branch_labels = None
 depends_on = None
 

@@ -1,18 +1,13 @@
 """
-Script to populate business_impact field for all existing metrics based on their category codes.
-"""
-import sys
-import os
+Populate business_impact field for all metrics based on their category codes.
 
-# Add the backend src directory to path
-backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-src_dir = os.path.join(backend_dir, 'src')
-sys.path.insert(0, backend_dir)
-sys.path.insert(0, src_dir)
+This module is called automatically during the seed process to ensure
+all metrics have appropriate business impact descriptions.
+"""
 
 from sqlalchemy.orm import Session
-from src.db import SessionLocal
-from src.models import Metric, FrameworkCategory
+from ..models import Metric, FrameworkCategory
+
 
 # Category code to business impact mapping
 CATEGORY_BUSINESS_IMPACT = {
@@ -94,6 +89,7 @@ CATEGORY_BUSINESS_IMPACT = {
     'MANAGE-4': 'Uncontrolled AI risk communication, stakeholder confusion, trust damage.',
 }
 
+
 def get_category_code_from_metric(db: Session, metric: Metric) -> str | None:
     """Get the category code for a metric."""
     if metric.category_id:
@@ -102,52 +98,52 @@ def get_category_code_from_metric(db: Session, metric: Metric) -> str | None:
             return category.code
     return None
 
-def populate_business_impact():
-    """Populate business_impact for all metrics based on their category."""
-    db = SessionLocal()
-    try:
-        # Get all metrics
-        metrics = db.query(Metric).all()
-        updated_count = 0
-        skipped_count = 0
 
-        for metric in metrics:
-            # Get category code
-            category_code = get_category_code_from_metric(db, metric)
+def populate_business_impact(db: Session) -> int:
+    """Populate business_impact for all metrics based on their category.
 
-            if category_code and category_code in CATEGORY_BUSINESS_IMPACT:
-                business_impact = CATEGORY_BUSINESS_IMPACT[category_code]
+    Args:
+        db: Database session
 
-                # Only update if business_impact is not already set
-                if not metric.business_impact:
-                    metric.business_impact = business_impact
+    Returns:
+        Number of metrics updated
+    """
+    metrics = db.query(Metric).all()
+    updated_count = 0
+
+    for metric in metrics:
+        # Skip if already has business_impact
+        if metric.business_impact:
+            continue
+
+        # Get category code
+        category_code = get_category_code_from_metric(db, metric)
+
+        if category_code and category_code in CATEGORY_BUSINESS_IMPACT:
+            metric.business_impact = CATEGORY_BUSINESS_IMPACT[category_code]
+            updated_count += 1
+        else:
+            # Try to find a matching category code pattern (base code)
+            if category_code:
+                base_code = category_code.rsplit('-', 1)[0] if '-' in category_code else category_code
+                if base_code in CATEGORY_BUSINESS_IMPACT:
+                    metric.business_impact = CATEGORY_BUSINESS_IMPACT[base_code]
                     updated_count += 1
-                    print(f"Updated: {metric.name[:50]}... -> {category_code}")
-                else:
-                    skipped_count += 1
-            else:
-                # Try to find a matching category code pattern
-                if category_code:
-                    # Try base category (e.g., GV.OC from GV.OC-01)
-                    base_code = category_code.rsplit('-', 1)[0] if '-' in category_code else category_code
-                    if base_code in CATEGORY_BUSINESS_IMPACT:
-                        if not metric.business_impact:
-                            metric.business_impact = CATEGORY_BUSINESS_IMPACT[base_code]
-                            updated_count += 1
-                            print(f"Updated (base match): {metric.name[:50]}... -> {base_code}")
-                        else:
-                            skipped_count += 1
-                    else:
-                        print(f"No mapping for category: {category_code} (metric: {metric.name[:40]}...)")
-                else:
-                    print(f"No category for metric: {metric.name[:40]}...")
 
-        db.commit()
-        print(f"\n✓ Updated {updated_count} metrics")
-        print(f"✓ Skipped {skipped_count} metrics (already had business_impact)")
+    return updated_count
 
-    finally:
-        db.close()
 
-if __name__ == "__main__":
-    populate_business_impact()
+def clear_business_impact(db: Session) -> int:
+    """Clear business_impact for all metrics.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Number of metrics cleared
+    """
+    result = db.query(Metric).filter(Metric.business_impact.isnot(None)).update(
+        {Metric.business_impact: None},
+        synchronize_session=False
+    )
+    return result

@@ -112,6 +112,7 @@ const CSF_COLUMN_TOOLTIPS: Record<string, string> = {
   target_value: 'Goal or threshold value the organization aims to achieve',
   metric_score: 'Gap-to-target performance score (0-100%). Higher is better.',
   owner_function: 'Team or department responsible for this metric',
+  data_source: 'Tool, system, or process that provides the metric data',
   collection_frequency: 'How often the metric data is collected (Daily, Weekly, Monthly, etc.)',
   active: 'Whether this metric is actively tracked and included in scoring',
   actions: 'Edit, delete, or manage metric settings',
@@ -135,6 +136,7 @@ const AI_RMF_COLUMN_TOOLTIPS: Record<string, string> = {
   target_value: 'Goal or threshold value the organization aims to achieve',
   metric_score: 'Gap-to-target performance score (0-100%). Higher is better.',
   owner_function: 'Team or department responsible for this metric',
+  data_source: 'Tool, system, or process that provides the metric data',
   collection_frequency: 'How often the metric data is collected (Daily, Weekly, Monthly, etc.)',
   active: 'Whether this metric is actively tracked and included in scoring',
   actions: 'Edit, delete, or manage metric settings',
@@ -236,18 +238,19 @@ export default function MetricsGrid() {
 
   const loadActiveCatalog = useCallback(async () => {
     setState(prev => ({ ...prev, catalogLoading: true }));
-    
+
     try {
+      const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
       // First, try to get only active catalogs
-      const activeCatalogs = await apiClient.getCatalogs('admin', true);
-      
+      const activeCatalogs = await apiClient.getCatalogs(currentUserEmail, true);
+
       // Look for a non-default active catalog first
       let activeCatalog = activeCatalogs.find(c => c.active && !c.is_default);
-      
+
       // If no custom active catalog found, check if default catalog is being used
       if (!activeCatalog && activeCatalogs.length === 0) {
         // No active catalogs found, fall back to checking all catalogs
-        const allCatalogs = await apiClient.getCatalogs('admin', false);
+        const allCatalogs = await apiClient.getCatalogs(currentUserEmail, false);
         activeCatalog = allCatalogs.find(c => c.active);
       }
       
@@ -286,8 +289,9 @@ export default function MetricsGrid() {
         offset: 0,
       };
 
+      const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
       const response = state.activeCatalog
-        ? await apiClient.getActiveCatalogMetrics(allMetricsFilters, 'admin')
+        ? await apiClient.getActiveCatalogMetrics(allMetricsFilters, currentUserEmail)
         : await apiClient.getMetrics(allMetricsFilters);
 
       // Apply metric type filter to summary stats as well
@@ -326,8 +330,9 @@ export default function MetricsGrid() {
       };
 
       // Choose data source based on active catalog
+      const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
       const response = state.activeCatalog
-        ? await apiClient.getActiveCatalogMetrics(filtersWithFramework, 'admin')
+        ? await apiClient.getActiveCatalogMetrics(filtersWithFramework, currentUserEmail)
         : await apiClient.getMetrics(filtersWithFramework);
 
       // Apply client-side metric type filter (Cyber vs AI Profile)
@@ -762,8 +767,9 @@ export default function MetricsGrid() {
       };
 
       // Use appropriate export endpoint based on active catalog
+      const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
       const blob = state.activeCatalog
-        ? await apiClient.exportActiveCatalogMetricsCSV(filtersWithFramework, 'admin')
+        ? await apiClient.exportActiveCatalogMetricsCSV(filtersWithFramework, currentUserEmail)
         : await apiClient.exportMetricsCSV(filtersWithFramework);
       
       // Extract filename from Content-Disposition header or generate one
@@ -1128,9 +1134,9 @@ export default function MetricsGrid() {
     {
       field: 'business_impact',
       headerName: 'Business Impact',
-      width: 350,
-      minWidth: 200,
-      flex: 1,
+      width: 450,
+      minWidth: 350,
+      flex: 1.5,
       renderHeader: renderHeaderWithTooltipMap('business_impact', 'Business Impact', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const impact = params.row.business_impact;
@@ -1150,7 +1156,7 @@ export default function MetricsGrid() {
             lineHeight: '1.3',
             padding: '4px 0',
             fontSize: '0.85rem',
-            color: '#c62828',  // Red-ish to emphasize business impact
+            color: 'inherit',  // Use default text color
           }}>
             {impact}
           </div>
@@ -1174,11 +1180,9 @@ export default function MetricsGrid() {
           }
 
           return (
-            <Chip
-              label={funcName}
-              size="small"
-              sx={{ backgroundColor: '#00897b', color: 'white' }}
-            />
+            <Typography variant="body2">
+              {funcName}
+            </Typography>
           );
         },
       },
@@ -1196,26 +1200,10 @@ export default function MetricsGrid() {
 
           if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
 
-          const displayText = categoryName || categoryCode;
-
           return (
-            <Chip
-              label={displayText}
-              size="small"
-              sx={{
-                backgroundColor: '#26a69a',
-                color: 'white',
-                height: 'auto',
-                '& .MuiChip-label': {
-                  whiteSpace: 'normal',
-                  padding: '6px 10px',
-                  lineHeight: '1.3',
-                },
-                '&:hover': {
-                  backgroundColor: '#00897b'
-                }
-              }}
-            />
+            <Typography variant="body2" sx={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
+              {categoryName || categoryCode}
+            </Typography>
           );
         },
       },
@@ -1235,16 +1223,9 @@ export default function MetricsGrid() {
           }
 
           return (
-            <Chip
-              label={subcategoryCode}
-              size="small"
-              sx={{
-                backgroundColor: '#e0f2f1',
-                color: '#00695c',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-              }}
-            />
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {subcategoryCode}
+            </Typography>
           );
         },
       },
@@ -1345,11 +1326,9 @@ export default function MetricsGrid() {
           }
 
           return (
-            <Chip
-              label={CSF_FUNCTION_NAMES[params.value as CSFFunction]}
-              size="small"
-              color="primary"
-            />
+            <Typography variant="body2">
+              {CSF_FUNCTION_NAMES[params.value as CSFFunction] || '-'}
+            </Typography>
           );
         },
       },
@@ -1366,26 +1345,10 @@ export default function MetricsGrid() {
 
           if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
 
-          const displayText = categoryName || categoryCode;
-
           return (
-            <Chip
-              label={displayText}
-              size="small"
-              sx={{
-                backgroundColor: '#8a73ff',
-                color: 'white',
-                height: 'auto',
-                '& .MuiChip-label': {
-                  whiteSpace: 'normal',
-                  padding: '6px 10px',
-                  lineHeight: '1.3',
-                },
-                '&:hover': {
-                  backgroundColor: '#7c4dff'
-                }
-              }}
-            />
+            <Typography variant="body2" sx={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
+              {categoryName || categoryCode}
+            </Typography>
           );
         },
       },
@@ -1404,16 +1367,9 @@ export default function MetricsGrid() {
           }
 
           return (
-            <Chip
-              label={subcategoryCode}
-              size="small"
-              sx={{
-                backgroundColor: '#e3f2fd',
-                color: '#1565c0',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-              }}
-            />
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {subcategoryCode}
+            </Typography>
           );
         },
       },
@@ -1601,6 +1557,31 @@ export default function MetricsGrid() {
       renderHeader: renderHeaderWithTooltipMap('owner_function', 'Owner', CSF_COLUMN_TOOLTIPS),
     },
     {
+      field: 'data_source',
+      headerName: 'Data Source',
+      width: 220,
+      minWidth: 180,
+      renderHeader: renderHeaderWithTooltipMap('data_source', 'Data Source', CSF_COLUMN_TOOLTIPS),
+      renderCell: (params: GridRenderCellParams) => {
+        const dataSource = params.value;
+        if (!dataSource) {
+          return <span style={{ color: '#9e9e9e' }}>-</span>;
+        }
+        return (
+          <Typography
+            variant="body2"
+            sx={{
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
+              lineHeight: 1.4,
+            }}
+          >
+            {dataSource}
+          </Typography>
+        );
+      },
+    },
+    {
       field: 'collection_frequency',
       headerName: 'Frequency',
       width: 100,
@@ -1713,27 +1694,24 @@ export default function MetricsGrid() {
 
   return (
     <ContentFrame maxWidth={false}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Box>
-          <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
             Metrics Catalog
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <FrameworkSelector size="small" />
-            {state.activeCatalog && (
-              <Tooltip title={`${state.activeCatalog.items_count || state.summaryStats.totalMetrics} metrics`}>
-                <Chip
-                  size="small"
-                  label={state.activeCatalog.name}
-                  variant="outlined"
-                  sx={{ fontWeight: 400 }}
-                />
-              </Tooltip>
-            )}
-            {state.catalogLoading && (
-              <CircularProgress size={18} />
-            )}
-          </Box>
+          {state.activeCatalog && (
+            <Chip
+              label={`Active: ${state.activeCatalog.name}`}
+              color="primary"
+              size="small"
+            />
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FrameworkSelector size="small" />
+          {state.catalogLoading && (
+            <CircularProgress size={24} />
+          )}
         </Box>
       </Box>
 
@@ -1955,11 +1933,16 @@ export default function MetricsGrid() {
           sx={{
             '& .MuiDataGrid-cell': {
               display: 'flex',
-              alignItems: 'flex-start',
-              py: 1,
+              alignItems: 'center',
+              py: 0.5,
             },
             '& .MuiDataGrid-row': {
-              minHeight: '52px !important',
+              minHeight: '44px !important',
+            },
+            '& .MuiDataGrid-virtualScrollerContent': {
+              '& .MuiDataGrid-row:first-of-type': {
+                marginTop: 0,
+              },
             },
           }}
         />

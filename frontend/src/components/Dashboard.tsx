@@ -78,7 +78,8 @@ export default function Dashboard() {
     queryKey: ['active-catalog'],
     queryFn: async () => {
       try {
-        const catalogs = await apiClient.getCatalogs('admin', true); // Get active catalogs only
+        const currentUserEmail = localStorage.getItem('userEmail') || 'admin@example.com';
+        const catalogs = await apiClient.getCatalogs(currentUserEmail, true); // Get active catalogs only
         return catalogs.find(catalog => catalog.active) || {
           name: 'Default System Metrics',
           items_count: 356,

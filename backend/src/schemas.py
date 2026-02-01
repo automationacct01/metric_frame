@@ -402,6 +402,8 @@ class CatalogImportResponse(BaseModel):
     items_imported: int
     import_errors: List[str] = []
     suggested_mappings: List[Dict[str, Any]] = []
+    ai_mapping_status: str = "success"  # "success", "failed", "no_mappings", "skipped"
+    ai_mapping_error: Optional[str] = None
 
 
 class CatalogMappingSuggestion(BaseModel):
