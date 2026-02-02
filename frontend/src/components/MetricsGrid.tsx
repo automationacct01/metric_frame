@@ -46,6 +46,7 @@ import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { FrameworkSelector } from './FrameworkSelector';
 import { useFramework } from '../contexts/FrameworkContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Metric,
   MetricFilters,
@@ -247,6 +248,7 @@ export default function MetricsGrid() {
   const { selectedFramework, isLoadingFrameworks } = useFramework();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
   const navigate = useNavigate();
+  const { isEditor } = useAuth();
 
   const [state, setState] = useState<MetricsGridState>({
     metrics: [],
@@ -1847,13 +1849,25 @@ export default function MetricsGrid() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 180,
+      width: isEditor ? 180 : 80,
       sortable: false,
       renderHeader: renderHeaderWithTooltipMap('actions', 'Actions', CSF_COLUMN_TOOLTIPS),
       renderCell: (params: GridRenderCellParams) => {
         const metric = params.row as Metric;
         const editing = isEditing(metric.id);
         const saving = state.savingMetric === metric.id;
+
+        // Viewers only see read-only indicator
+        if (!isEditor) {
+          return (
+            <Chip
+              label="View Only"
+              size="small"
+              variant="outlined"
+              color="default"
+            />
+          );
+        }
 
         return (
           <Box display="flex" gap={0.5}>
@@ -2088,34 +2102,39 @@ export default function MetricsGrid() {
           )}
           <Grid item xs={12} md={frameworkCode === 'csf_2_0' ? 3 : 4.5}>
             <Box display="flex" gap={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
-              <Tooltip title="Add a new metric - AI will auto-fill details from the name">
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<AIIcon />}
-                  onClick={handleOpenAddDialog}
-                >
-                  AI Add
-                </Button>
-              </Tooltip>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LockIcon />}
-                onClick={handleLockAll}
-                disabled={state.loading || state.metrics.filter(m => !m.locked).length === 0}
-              >
-                Lock All
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LockOpenIcon />}
-                onClick={handleUnlockAll}
-                disabled={state.loading || state.metrics.filter(m => m.locked).length === 0}
-              >
-                Unlock All
-              </Button>
+              {/* Edit buttons - only visible to editors and admins */}
+              {isEditor && (
+                <>
+                  <Tooltip title="Add a new metric - AI will auto-fill details from the name">
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<AIIcon />}
+                      onClick={handleOpenAddDialog}
+                    >
+                      AI Add
+                    </Button>
+                  </Tooltip>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<LockIcon />}
+                    onClick={handleLockAll}
+                    disabled={state.loading || state.metrics.filter(m => !m.locked).length === 0}
+                  >
+                    Lock All
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<LockOpenIcon />}
+                    onClick={handleUnlockAll}
+                    disabled={state.loading || state.metrics.filter(m => m.locked).length === 0}
+                  >
+                    Unlock All
+                  </Button>
+                </>
+              )}
               <Tooltip title="Refresh">
                 <IconButton onClick={loadMetrics} size="small">
                   <RefreshIcon />

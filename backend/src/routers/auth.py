@@ -105,6 +105,78 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# =============================================================================
+# DEPENDENCY FUNCTIONS FOR ROUTE PROTECTION
+# =============================================================================
+
+async def get_current_user(token: str, db: Session = Depends(get_db)) -> User:
+    """Get the current authenticated user from a token.
+
+    Use as a dependency in protected routes:
+        current_user: User = Depends(get_current_user)
+    """
+    if token not in _sessions:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+
+    email = _sessions[token]
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user or not user.active:
+        # Clean up invalid session
+        _sessions.pop(token, None)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or deactivated"
+        )
+
+    return user
+
+
+async def require_editor(token: str, db: Session = Depends(get_db)) -> User:
+    """Require editor or admin role for the current user.
+
+    Use as a dependency in routes that require edit permissions:
+        current_user: User = Depends(require_editor)
+
+    Raises 403 Forbidden if user is a viewer.
+    """
+    user = await get_current_user(token, db)
+
+    if user.role == "viewer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires Editor or Admin permissions"
+        )
+
+    return user
+
+
+async def require_admin(token: str, db: Session = Depends(get_db)) -> User:
+    """Require admin role for the current user.
+
+    Use as a dependency in admin-only routes:
+        current_user: User = Depends(require_admin)
+
+    Raises 403 Forbidden if user is not an admin.
+    """
+    user = await get_current_user(token, db)
+
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    return user
+
+
+# =============================================================================
+# PUBLIC ENDPOINTS
+# =============================================================================
+
 @router.get("/status", response_model=AuthStatusResponse)
 async def get_auth_status(db: Session = Depends(get_db)):
     """Check if any users exist in the system.

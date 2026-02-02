@@ -2970,22 +2970,22 @@ function UserManagementContent() {
             <thead>
               <tr>
                 <Box component="th" sx={{ fontWeight: 600 }}>Feature</Box>
-                <Box component="th" sx={{ fontWeight: 600 }}>Admin</Box>
-                <Box component="th" sx={{ fontWeight: 600 }}>Editor</Box>
-                <Box component="th" sx={{ fontWeight: 600 }}>Viewer</Box>
+                <Box component="th" sx={{ fontWeight: 600, textAlign: 'center' }}>Admin</Box>
+                <Box component="th" sx={{ fontWeight: 600, textAlign: 'center' }}>Editor</Box>
+                <Box component="th" sx={{ fontWeight: 600, textAlign: 'center' }}>Viewer</Box>
               </tr>
             </thead>
             <tbody>
-              <tr><td>View Dashboard</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-              <tr><td>View Metrics</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-              <tr><td>Export Data</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-              <tr><td>Edit Metrics</td><td>Yes</td><td>Yes</td><td>No</td></tr>
-              <tr><td>Manage Catalogs</td><td>Yes</td><td>Yes</td><td>No</td></tr>
-              <tr><td>Use AI Features</td><td>Yes</td><td>Yes</td><td>No</td></tr>
-              <tr><td>Invite Users</td><td>Yes</td><td>No</td><td>No</td></tr>
-              <tr><td>Manage Roles</td><td>Yes</td><td>No</td><td>No</td></tr>
-              <tr><td>Reset Passwords</td><td>Yes</td><td>No</td><td>No</td></tr>
-              <tr><td>Delete Users</td><td>Yes</td><td>No</td><td>No</td></tr>
+              <tr><td>View Dashboard</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box></tr>
+              <tr><td>View Metrics</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box></tr>
+              <tr><td>Export Data</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box></tr>
+              <tr><td>Edit Metrics</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Manage Catalogs</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Use AI Features</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Invite Users</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Manage Roles</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Reset Passwords</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
+              <tr><td>Delete Users</td><Box component="td" sx={{ textAlign: 'center' }}>✅</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box><Box component="td" sx={{ textAlign: 'center' }}>❌</Box></tr>
             </tbody>
           </Box>
         </SubSection>
