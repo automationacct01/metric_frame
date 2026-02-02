@@ -104,6 +104,13 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 - **Review Process**: Human approval required before applying changes
 - **6 AI Providers**: Anthropic, OpenAI, Together.ai, Azure, AWS Bedrock, GCP Vertex
 
+### User Management & Access Control
+- **Role-Based Access**: Three roles (Admin, Editor, Viewer) with granular permissions
+- **First-Time Setup**: First user becomes Admin with recovery key
+- **User Invitations**: Admins invite users via email with role assignment
+- **Password Recovery**: Dual recovery options (recovery key or security questions)
+- **Account Management**: Activate/deactivate users, change roles, reset passwords
+
 ## Architecture
 
 ```
@@ -180,6 +187,7 @@ RISK_THRESHOLD_HIGH=30.0
 
 ## Documentation
 
+- [Authentication & User Management](docs/AUTHENTICATION.md) - Roles, permissions, password recovery
 - [Frameworks Guide](docs/frameworks-guide.md) - Learn about NIST CSF 2.0 and AI RMF 1.0
 - [Scoring Methodology](docs/scoring-method.md) - How scores are calculated
 - [AI RMF Support](docs/ai-rmf-support.md) - AI Risk Management Framework details
@@ -189,7 +197,9 @@ RISK_THRESHOLD_HIGH=30.0
 ## Security
 
 - **100% Local**: No data ever leaves your infrastructure
+- **Role-Based Access Control**: Admin, Editor, and Viewer roles with enforced permissions
 - **Encrypted Credentials**: API keys stored with Fernet encryption
+- **Password Recovery**: Recovery key + security questions for account recovery
 - **Open Source**: Full code transparency - audit it yourself
 - **No Telemetry**: We don't track usage or collect any data
 

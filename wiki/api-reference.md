@@ -17,13 +17,19 @@ Production deployments should use HTTPS.
 
 ## Authentication
 
-API authentication via header:
+The API uses token-based authentication. Include the token in subsequent requests:
 
 ```http
-Authorization: Bearer <api_key>
+X-User-Email: user@example.com
 ```
 
-For local development, authentication may be disabled.
+Or use the Authorization header:
+
+```http
+Authorization: Bearer <session_token>
+```
+
+For detailed authentication documentation, see [User Management](user-management).
 
 ## Response Format
 
@@ -56,6 +62,283 @@ All responses follow a consistent JSON structure:
 ```
 
 ## Endpoints by Router
+
+---
+
+## Authentication Router
+
+Base path: `/api/v1/auth`
+
+### Check Auth Status
+
+```http
+GET /auth/status
+```
+
+Returns whether any users exist (determines login vs registration flow).
+
+**Response:**
+```json
+{
+  "has_users": true,
+  "message": "Users exist, please login"
+}
+```
+
+### Register User
+
+```http
+POST /auth/register
+Content-Type: application/json
+```
+
+**Request Body (First Admin):**
+```json
+{
+  "name": "Admin User",
+  "email": "admin@example.com",
+  "password": "securepassword123",
+  "security_question_1": "What was the name of your first pet?",
+  "security_answer_1": "Fluffy",
+  "security_question_2": "In what city were you born?",
+  "security_answer_2": "New York"
+}
+```
+
+**Request Body (Invited User):**
+```json
+{
+  "name": "Team Member",
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+
+**Response (First Admin):**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "role": "admin"
+  },
+  "token": "session_token_here",
+  "recovery_key": "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+}
+```
+
+### Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "name": "User Name",
+    "email": "user@example.com",
+    "role": "editor"
+  },
+  "token": "session_token_here"
+}
+```
+
+### Logout
+
+```http
+POST /auth/logout
+Authorization: Bearer <token>
+```
+
+**Response:** 200 OK
+
+### Validate Token
+
+```http
+GET /auth/validate?token={session_token}
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "user": {
+    "id": "uuid",
+    "name": "User Name",
+    "email": "user@example.com",
+    "role": "editor"
+  }
+}
+```
+
+### Password Recovery - Get Questions
+
+```http
+GET /auth/recovery-questions/{email}
+```
+
+**Response:**
+```json
+{
+  "question_1": "What was the name of your first pet?",
+  "question_2": "In what city were you born?"
+}
+```
+
+### Password Recovery - With Key
+
+```http
+POST /auth/recover-with-key
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "recovery_key": "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX",
+  "new_password": "newpassword123"
+}
+```
+
+### Password Recovery - With Questions
+
+```http
+POST /auth/recover-with-questions
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "answer_1": "Fluffy",
+  "answer_2": "New York",
+  "new_password": "newpassword123"
+}
+```
+
+### Change Password
+
+```http
+POST /auth/change-password
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "current_password": "oldpassword",
+  "new_password": "newpassword123"
+}
+```
+
+### Admin: Invite User
+
+```http
+POST /auth/invite
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "newuser@example.com",
+  "role": "editor"
+}
+```
+
+### Admin: List Users
+
+```http
+GET /auth/users
+Authorization: Bearer <admin_token>
+```
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "id": "uuid",
+      "name": "User Name",
+      "email": "user@example.com",
+      "role": "editor",
+      "active": true,
+      "last_login_at": "2026-02-02T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Admin: Update User Role
+
+```http
+PUT /auth/users/{user_id}/role
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "role": "admin"
+}
+```
+
+### Admin: Update User Status
+
+```http
+PUT /auth/users/{user_id}/active
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "active": false
+}
+```
+
+### Admin: Delete User
+
+```http
+DELETE /auth/users/{user_id}
+Authorization: Bearer <admin_token>
+```
+
+**Response:** 204 No Content
+
+### Admin: Reset User Password
+
+```http
+POST /auth/reset-password/{user_id}
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "new_password": "temporaryPassword123"
+}
+```
 
 ---
 

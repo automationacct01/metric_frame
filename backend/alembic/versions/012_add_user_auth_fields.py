@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '012_add_user_auth'
-down_revision = '011_add_catalog_item_enhancement_columns'
+down_revision = '011_catalog_enhance'
 branch_labels = None
 depends_on = None
 
