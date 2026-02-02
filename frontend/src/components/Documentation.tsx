@@ -20,6 +20,7 @@ import {
   Dashboard as DashboardIcon,
   TableChart as MetricsIcon,
   SmartToy as AIIcon,
+  ManageAccounts as UserManagementIcon,
   Calculate as ScoringIcon,
   AccountTree as FrameworkIcon,
   Api as ApiIcon,
@@ -44,6 +45,7 @@ const docSections: DocSection[] = [
   { id: 'dashboard', title: 'Dashboard', icon: DashboardIcon, category: 'User Guide' },
   { id: 'metrics-management', title: 'Metrics Management', icon: MetricsIcon, category: 'User Guide' },
   { id: 'ai-assistant', title: 'AI Assistant', icon: AIIcon, category: 'User Guide' },
+  { id: 'user-management', title: 'User Management', icon: UserManagementIcon, category: 'User Guide' },
   { id: 'scoring-methodology', title: 'Scoring Methodology', icon: ScoringIcon, category: 'Reference' },
   { id: 'frameworks-reference', title: 'Frameworks Reference', icon: FrameworkIcon, category: 'Reference' },
   { id: 'api-reference', title: 'API Reference', icon: ApiIcon, category: 'Reference' },
@@ -80,6 +82,8 @@ export default function Documentation() {
         return <MetricsManagementContent />;
       case 'ai-assistant':
         return <AIAssistantContent />;
+      case 'user-management':
+        return <UserManagementContent />;
       case 'scoring-methodology':
         return <ScoringMethodologyContent />;
       case 'frameworks-reference':
@@ -2926,6 +2930,214 @@ docker stats --no-stream`}
           <li>Steps to reproduce: Exact sequence of actions</li>
           <li>Logs: <code>docker compose logs &gt; logs.txt</code></li>
           <li>Screenshots of error messages or unexpected UI states</li>
+        </Box>
+      </Section>
+    </Box>
+  );
+}
+
+function UserManagementContent() {
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom fontWeight={600}>User Management & Authentication</Typography>
+      <Typography variant="body1" color="text.secondary" paragraph>
+        MetricFrame includes a complete role-based access control (RBAC) system for managing users and permissions.
+        This guide covers user roles, authentication, password recovery, and administrative functions.
+      </Typography>
+
+      <Section title="User Roles">
+        <Typography variant="body1" paragraph>
+          The system supports three user roles with different permission levels:
+        </Typography>
+
+        <Box component="table" sx={tableStyles}>
+          <thead>
+            <tr>
+              <Box component="th" sx={{ fontWeight: 600 }}>Role</Box>
+              <Box component="th" sx={{ fontWeight: 600 }}>Description</Box>
+              <Box component="th" sx={{ fontWeight: 600 }}>Access Level</Box>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Admin</strong></td><td>Full system access</td><td>Manage users, all Editor capabilities</td></tr>
+            <tr><td><strong>Editor</strong></td><td>Read/write access</td><td>Edit metrics, manage catalogs, use AI</td></tr>
+            <tr><td><strong>Viewer</strong></td><td>Read-only access</td><td>View dashboards and metrics</td></tr>
+          </tbody>
+        </Box>
+
+        <SubSection title="Permissions Matrix">
+          <Box component="table" sx={tableStyles}>
+            <thead>
+              <tr>
+                <Box component="th" sx={{ fontWeight: 600 }}>Feature</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Admin</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Editor</Box>
+                <Box component="th" sx={{ fontWeight: 600 }}>Viewer</Box>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>View Dashboard</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+              <tr><td>View Metrics</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+              <tr><td>Export Data</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+              <tr><td>Edit Metrics</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+              <tr><td>Manage Catalogs</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+              <tr><td>Use AI Features</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+              <tr><td>Invite Users</td><td>Yes</td><td>No</td><td>No</td></tr>
+              <tr><td>Manage Roles</td><td>Yes</td><td>No</td><td>No</td></tr>
+              <tr><td>Reset Passwords</td><td>Yes</td><td>No</td><td>No</td></tr>
+              <tr><td>Delete Users</td><td>Yes</td><td>No</td><td>No</td></tr>
+            </tbody>
+          </Box>
+        </SubSection>
+      </Section>
+
+      <Section title="First-Time Setup">
+        <Typography variant="body1" paragraph>
+          When no users exist, the first visitor sees a registration form. The first user automatically becomes an Admin.
+        </Typography>
+
+        <SubSection title="Register First Admin">
+          <Box component="ol" sx={{ pl: 3 }}>
+            <li>Navigate to the application</li>
+            <li>Fill in the registration form:
+              <Box component="ul" sx={{ pl: 3, mt: 1 }}>
+                <li><strong>Name</strong>: Your display name</li>
+                <li><strong>Email</strong>: Your email address</li>
+                <li><strong>Password</strong>: Create a strong password</li>
+                <li><strong>Security Questions</strong>: Select and answer 2 questions</li>
+              </Box>
+            </li>
+            <li>Click <strong>Register</strong></li>
+            <li><strong>Save Your Recovery Key</strong>: A 24-character key is displayed (format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX)</li>
+          </Box>
+
+          <Box sx={{ bgcolor: '#fff3cd', border: '1px solid #ffc107', p: 2, borderRadius: 1, mt: 2 }}>
+            <Typography variant="body2" sx={{ color: '#333' }}>
+              <Box component="span" sx={{ color: '#d32f2f', fontWeight: 700 }}>IMPORTANT:</Box> Save your recovery key immediately - it is only shown once!
+              This key can be used for password recovery if you forget your security question answers.
+            </Typography>
+          </Box>
+        </SubSection>
+      </Section>
+
+      <Section title="Inviting Users">
+        <Typography variant="body1" paragraph>
+          Only Admins can invite new users to the system.
+        </Typography>
+
+        <SubSection title="Send an Invitation">
+          <Box component="ol" sx={{ pl: 3 }}>
+            <li>Navigate to <strong>Settings &gt; User Management</strong></li>
+            <li>Click <strong>Invite User</strong></li>
+            <li>Enter the user's email address</li>
+            <li>Select their role:
+              <Box component="ul" sx={{ pl: 3, mt: 1 }}>
+                <li><strong>Viewer</strong> - for stakeholders who only need to view dashboards</li>
+                <li><strong>Editor</strong> - for team members who manage metrics</li>
+                <li><strong>Admin</strong> - for other administrators</li>
+              </Box>
+            </li>
+            <li>Click <strong>Send Invitation</strong></li>
+          </Box>
+        </SubSection>
+
+        <SubSection title="Accepting an Invitation">
+          <Typography variant="body1" paragraph>
+            When an invited user visits the app, they see a registration form with their email pre-filled.
+            They set their name and password, then gain access with their assigned role.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Note: Invited users do not set security questions - only the first admin does.
+          </Typography>
+        </SubSection>
+      </Section>
+
+      <Section title="Managing Users">
+        <Typography variant="body1" paragraph>
+          Navigate to <strong>Settings &gt; User Management</strong> to manage users.
+        </Typography>
+
+        <Box component="table" sx={tableStyles}>
+          <thead>
+            <tr>
+              <Box component="th" sx={{ fontWeight: 600 }}>Action</Box>
+              <Box component="th" sx={{ fontWeight: 600 }}>Steps</Box>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Change User Role</td><td>Click the Role dropdown, select new role, confirm</td></tr>
+            <tr><td>Deactivate User</td><td>Toggle the Active switch to Off (user can no longer log in)</td></tr>
+            <tr><td>Reactivate User</td><td>Toggle the Active switch back to On</td></tr>
+            <tr><td>Delete User</td><td>Click Delete button, confirm (permanent)</td></tr>
+            <tr><td>Reset Password</td><td>Click Reset Password, enter temporary password</td></tr>
+          </tbody>
+        </Box>
+      </Section>
+
+      <Section title="Password Recovery">
+        <Typography variant="body1" paragraph>
+          Two methods are available for password recovery:
+        </Typography>
+
+        <SubSection title="Method 1: Recovery Key">
+          <Box component="ol" sx={{ pl: 3 }}>
+            <li>Click <strong>Forgot Password</strong> on the login page</li>
+            <li>Select the <strong>Recovery Key</strong> tab</li>
+            <li>Enter your email address</li>
+            <li>Enter your 24-character recovery key</li>
+            <li>Set a new password</li>
+          </Box>
+        </SubSection>
+
+        <SubSection title="Method 2: Security Questions">
+          <Box component="ol" sx={{ pl: 3 }}>
+            <li>Click <strong>Forgot Password</strong> on the login page</li>
+            <li>Select the <strong>Security Questions</strong> tab</li>
+            <li>Enter your email address</li>
+            <li>Answer your two security questions</li>
+            <li>Set a new password</li>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Note: Answers are case-insensitive.
+          </Typography>
+        </SubSection>
+      </Section>
+
+      <Section title="Changing Your Password">
+        <Box component="ol" sx={{ pl: 3 }}>
+          <li>Navigate to <strong>Settings &gt; Account</strong></li>
+          <li>Enter your current password</li>
+          <li>Enter your new password</li>
+          <li>Confirm the new password</li>
+          <li>Click <strong>Update Password</strong></li>
+        </Box>
+      </Section>
+
+      <Section title="Security Best Practices">
+        <Box component="ul" sx={{ pl: 3 }}>
+          <li><strong>Save your recovery key</strong> in a secure location</li>
+          <li><strong>Choose strong passwords</strong> (mix of letters, numbers, symbols)</li>
+          <li><strong>Use unique passwords</strong> for this application</li>
+          <li><strong>Don't share credentials</strong> - invite additional users instead</li>
+          <li><strong>Review user list regularly</strong> and remove unused accounts</li>
+          <li><strong>Use minimal permissions</strong> - assign Viewer unless Edit access is needed</li>
+        </Box>
+      </Section>
+
+      <Section title="Troubleshooting">
+        <Box component="table" sx={tableStyles}>
+          <thead>
+            <tr>
+              <Box component="th" sx={{ fontWeight: 600 }}>Issue</Box>
+              <Box component="th" sx={{ fontWeight: 600 }}>Solution</Box>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Can't log in</td><td>Verify email, check if account is active, try password recovery</td></tr>
+            <tr><td>Recovery key not working</td><td>Ensure all 24 characters entered, check for typos (0 vs O)</td></tr>
+            <tr><td>Security questions not accepted</td><td>Answers are case-insensitive, check for extra spaces</td></tr>
+            <tr><td>Locked out completely</td><td>Another Admin can reset your password or delete/re-invite your account</td></tr>
+          </tbody>
         </Box>
       </Section>
     </Box>

@@ -4,14 +4,34 @@ import hashlib
 import secrets
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, BeforeValidator
+from email_validator import validate_email, EmailNotValidError
 
 from ..db import get_db
 from ..models import User
+
+
+def validate_email_syntax(value: str) -> str:
+    """Validate email syntax only - no DNS/SMTP checks.
+
+    This allows the app to work completely offline.
+    """
+    if not isinstance(value, str):
+        raise ValueError("Email must be a string")
+    try:
+        # check_deliverability=False disables DNS/SMTP verification
+        result = validate_email(value, check_deliverability=False)
+        return result.normalized
+    except EmailNotValidError as e:
+        raise ValueError(str(e))
+
+
+# Custom email type that only validates syntax (no network calls)
+EmailSyntax = Annotated[str, BeforeValidator(validate_email_syntax)]
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
@@ -24,14 +44,14 @@ _sessions: dict[str, str] = {}  # token -> email
 
 class LoginRequest(BaseModel):
     """Login request schema."""
-    email: EmailStr
+    email: EmailSyntax
     password: str
 
 
 class RegisterRequest(BaseModel):
     """Registration request schema - for claiming an invited account."""
     name: str = Field(..., min_length=1, max_length=255)
-    email: EmailStr
+    email: EmailSyntax
     password: str = Field(..., min_length=4, max_length=100)
     # Security questions (required for first admin, optional for others)
     security_question_1: Optional[str] = None
@@ -42,7 +62,7 @@ class RegisterRequest(BaseModel):
 
 class InviteUserRequest(BaseModel):
     """Admin request to invite a new user."""
-    email: EmailStr
+    email: EmailSyntax
     role: str = Field(default="viewer", pattern="^(admin|editor|viewer)$")
 
 
@@ -651,14 +671,14 @@ async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
 
 class RecoveryKeyRequest(BaseModel):
     """Request to recover password using recovery key."""
-    email: EmailStr
+    email: EmailSyntax
     recovery_key: str
     new_password: str = Field(..., min_length=4, max_length=100)
 
 
 class SecurityQuestionsRequest(BaseModel):
     """Request to recover password using security questions."""
-    email: EmailStr
+    email: EmailSyntax
     answer_1: str
     answer_2: str
     new_password: str = Field(..., min_length=4, max_length=100)
