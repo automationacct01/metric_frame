@@ -44,6 +44,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { useFramework } from '../../contexts/FrameworkContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ChatMessage {
   id: string;
@@ -78,8 +79,46 @@ const EXAMPLE_PROMPTS = [
 
 const ChatMetricCreator: React.FC = () => {
   const { selectedFramework } = useFramework();
+  const { isEditor } = useAuth();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
   const queryClient = useQueryClient();
+
+  // Viewers cannot create metrics - show restriction message
+  if (!isEditor) {
+    return (
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <PsychologyIcon sx={{ mr: 1, color: 'text.secondary' }} />
+            <Typography variant="h6" color="text.secondary">
+              Create Metrics with AI
+            </Typography>
+          </Box>
+        </Box>
+        <Paper
+          sx={{
+            flexGrow: 1,
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'grey.50',
+          }}
+        >
+          <LightbulbIcon sx={{ fontSize: 48, mb: 2, color: 'text.secondary', opacity: 0.5 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Editor Access Required
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            Metric creation requires Editor or Admin permissions.
+            <br />
+            Please contact an administrator if you need to create new metrics.
+          </Typography>
+        </Paper>
+      </Box>
+    );
+  }
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');

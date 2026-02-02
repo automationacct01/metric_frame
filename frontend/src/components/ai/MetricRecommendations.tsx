@@ -47,6 +47,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { useFramework } from '../../contexts/FrameworkContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { RecommendationsResponse, CoverageGaps } from '../../types';
 
 interface MetricRecommendation {
@@ -83,6 +84,7 @@ interface CategoryGap {
 
 const MetricRecommendations: React.FC = () => {
   const { selectedFramework } = useFramework();
+  const { isEditor } = useAuth();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
   const queryClient = useQueryClient();
 
@@ -574,15 +576,31 @@ const MetricRecommendations: React.FC = () => {
                         </CardContent>
 
                         <CardActions>
-                          <Button
-                            size="small"
-                            startIcon={<AddIcon />}
-                            onClick={() => handleCreateFromRecommendation(rec)}
-                            fullWidth
-                            variant="contained"
-                          >
-                            Create Metric
-                          </Button>
+                          {isEditor ? (
+                            <Button
+                              size="small"
+                              startIcon={<AddIcon />}
+                              onClick={() => handleCreateFromRecommendation(rec)}
+                              fullWidth
+                              variant="contained"
+                            >
+                              Create Metric
+                            </Button>
+                          ) : (
+                            <Tooltip title="Editor or Admin permissions required to create metrics">
+                              <span style={{ width: '100%' }}>
+                                <Button
+                                  size="small"
+                                  startIcon={<AddIcon />}
+                                  fullWidth
+                                  variant="outlined"
+                                  disabled
+                                >
+                                  Create Metric
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          )}
                         </CardActions>
                       </Card>
                     </Grid>

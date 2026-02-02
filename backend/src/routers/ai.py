@@ -25,7 +25,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Metric, AIChangeLog, UserAIConfiguration, AIProvider as AIProviderModel
+from ..models import Metric, AIChangeLog, UserAIConfiguration, AIProvider as AIProviderModel, User
+from .auth import require_editor
 from ..schemas import (
     AIChatRequest,
     AIResponse as AIResponseSchema,
@@ -440,11 +441,16 @@ async def ai_chat(
 @router.post("/actions/apply")
 async def apply_ai_actions(
     request: AIApplyRequest,
-    applied_by: str = "system",  # In future, get from auth
+    token: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_editor),
 ):
-    """Apply AI-generated actions after user confirmation."""
-    
+    """Apply AI-generated actions after user confirmation.
+
+    Requires Editor or Admin role. Viewers cannot apply AI actions.
+    """
+    applied_by = current_user.email
+
     if not request.user_confirmation:
         raise HTTPException(status_code=400, detail="User confirmation required")
     
@@ -811,10 +817,14 @@ async def get_metrics_distribution(
 async def generate_metric_from_name(
     metric_name: str = Query(..., description="The name of the metric to generate"),
     framework: str = Query("csf_2_0", description="Framework code (csf_2_0, ai_rmf)"),
+    token: str = Query(..., description="Authentication token"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_editor),
 ):
     """
     Generate a complete metric definition from just the metric name using AI.
+
+    Requires Editor or Admin role. Viewers cannot generate metrics.
 
     The AI will analyze the metric name and generate:
     - Description

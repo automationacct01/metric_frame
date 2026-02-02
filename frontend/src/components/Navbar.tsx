@@ -52,6 +52,7 @@ export const drawerWidthCollapsed = 64;
 
 interface ExtendedNavItem extends NavItem {
   adminOnly?: boolean;
+  editorOnly?: boolean; // Requires editor or admin role (hidden from viewers)
 }
 
 const navItems: ExtendedNavItem[] = [
@@ -69,16 +70,19 @@ const navItems: ExtendedNavItem[] = [
     label: 'AI Assistant',
     path: '/app/ai-assistant',
     icon: AIIcon,
+    // Accessible to viewers with limited functionality (read-only mode)
   },
   {
     label: 'Import Catalog',
     path: '/app/catalog-wizard',
     icon: UploadIcon,
+    editorOnly: true,
   },
   {
     label: 'Manage Catalogs',
     path: '/app/catalog-manager',
     icon: StorageIcon,
+    editorOnly: true,
   },
   {
     label: 'Documentation',
@@ -113,10 +117,16 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
   const location = useLocation();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useThemeMode();
-  const { user, logout, isAdmin, token } = useAuth();
+  const { user, logout, isAdmin, isEditor, token } = useAuth();
 
   // Filter nav items based on user role
-  const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  // - adminOnly items: only visible to admins
+  // - editorOnly items: visible to editors and admins (hidden from viewers)
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.editorOnly && !isEditor) return false;
+    return true;
+  });
 
   // Change password dialog state
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);

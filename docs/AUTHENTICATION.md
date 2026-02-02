@@ -26,8 +26,8 @@ The application uses a role-based access control (RBAC) system with three user r
 | Role | Description | Capabilities |
 |------|-------------|--------------|
 | **Admin** | Full system access | Invite users, manage roles, reset passwords, deactivate accounts, all Editor capabilities |
-| **Editor** | Read/write access | Create/edit metrics, manage catalogs, use AI features, all Viewer capabilities |
-| **Viewer** | Read-only access | View dashboards, view metrics, export data |
+| **Editor** | Read/write access | Create/edit metrics, manage catalogs, use all AI features, all Viewer capabilities |
+| **Viewer** | Read-only access | View dashboards, view metrics, export data, use AI Assistant in read-only mode (explanations, reports, gap analysis) |
 
 ### Role Permissions Matrix
 
@@ -39,12 +39,27 @@ The application uses a role-based access control (RBAC) system with three user r
 | Edit Metrics | ✅ | ✅ | ❌ |
 | Create Metrics | ✅ | ✅ | ❌ |
 | Manage Catalogs | ✅ | ✅ | ❌ |
-| Use AI Features | ✅ | ✅ | ❌ |
+| **AI Assistant - Full Access** | ✅ | ✅ | ❌ |
+| **AI Assistant - Read-Only** | ✅ | ✅ | ✅ |
 | Invite Users | ✅ | ❌ | ❌ |
 | Manage User Roles | ✅ | ❌ | ❌ |
 | Reset User Passwords | ✅ | ❌ | ❌ |
 | Deactivate Users | ✅ | ❌ | ❌ |
 | Delete Users | ✅ | ❌ | ❌ |
+
+### AI Assistant Permissions
+
+| AI Feature | Admin | Editor | Viewer |
+|------------|-------|--------|--------|
+| Access AI Assistant | ✅ | ✅ | ✅ |
+| Explain Mode (metric explanations) | ✅ | ✅ | ✅ |
+| Report Mode (executive reports) | ✅ | ✅ | ✅ |
+| View Gap Analysis | ✅ | ✅ | ✅ |
+| View Recommendations | ✅ | ✅ | ✅ |
+| Metrics Mode (create/edit/delete) | ✅ | ✅ | ❌ |
+| Create Metric View | ✅ | ✅ | ❌ |
+| Apply AI Actions | ✅ | ✅ | ❌ |
+| Create from Recommendations | ✅ | ✅ | ❌ |
 
 ## First-Time Setup
 
