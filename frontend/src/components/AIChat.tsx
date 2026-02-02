@@ -45,6 +45,7 @@ import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
 import { AIChatRequest, AIAction } from '../types';
 import { useFramework } from '../contexts/FrameworkContext';
+import { useAuth } from '../contexts/AuthContext';
 import { FrameworkSelector } from './FrameworkSelector';
 import MetricRecommendations from './ai/MetricRecommendations';
 import ChatMetricCreator from './ai/ChatMetricCreator';
@@ -80,12 +81,17 @@ interface AIChatState {
 
 export default function AIChat() {
   const { selectedFramework } = useFramework();
+  const { isEditor } = useAuth();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
+
+  // Viewers can only use read-only modes (explain, report)
+  // Editors/Admins can use all modes including metrics
+  const defaultMode = isEditor ? 'metrics' : 'explain';
 
   const [state, setState] = useState<AIChatState>({
     messages: [],
     currentMessage: '',
-    mode: 'metrics',
+    mode: defaultMode as 'metrics' | 'explain' | 'report',
     loading: false,
     error: null,
     snackbarOpen: false,
@@ -419,7 +425,7 @@ export default function AIChat() {
       </Box>
 
       {/* View Tabs */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 1.5 }}>
+      <Box sx={{ mb: 3, display: 'flex', gap: 1.5, alignItems: 'center' }}>
         <Button
           variant={state.activeView === 'chat' ? 'contained' : 'outlined'}
           color="primary"
@@ -464,28 +470,31 @@ export default function AIChat() {
         >
           Recommendations
         </Button>
-        <Button
-          variant={state.activeView === 'create' ? 'contained' : 'outlined'}
-          color="primary"
-          startIcon={<SendIcon />}
-          onClick={() => setActiveView('create')}
-          sx={{
-            px: 3,
-            py: 1,
-            borderRadius: 2,
-            fontWeight: 600,
-            boxShadow: state.activeView === 'create' ? 3 : 0,
-            borderWidth: 2,
-            '&:hover': {
-              boxShadow: 4,
+        {/* Create Metric tab - only visible to editors/admins */}
+        {isEditor && (
+          <Button
+            variant={state.activeView === 'create' ? 'contained' : 'outlined'}
+            color="primary"
+            startIcon={<SendIcon />}
+            onClick={() => setActiveView('create')}
+            sx={{
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              fontWeight: 600,
+              boxShadow: state.activeView === 'create' ? 3 : 0,
               borderWidth: 2,
-              transform: 'translateY(-1px)',
-            },
-            transition: 'all 0.2s ease',
-          }}
-        >
-          Create Metric
-        </Button>
+              '&:hover': {
+                boxShadow: 4,
+                borderWidth: 2,
+                transform: 'translateY(-1px)',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Create Metric
+          </Button>
+        )}
         <Button
           variant={state.activeView === 'gaps' ? 'contained' : 'outlined'}
           color="primary"
@@ -508,6 +517,16 @@ export default function AIChat() {
         >
           Gap Analysis
         </Button>
+        {/* View Only indicator for viewers */}
+        {!isEditor && (
+          <Chip
+            label="View Only"
+            size="small"
+            color="default"
+            variant="outlined"
+            sx={{ ml: 'auto' }}
+          />
+        )}
       </Box>
 
       {/* Recommendations View */}
@@ -578,7 +597,8 @@ export default function AIChat() {
                         mode: e.target.value as 'metrics' | 'explain' | 'report'
                       }))}
                     >
-                      <MenuItem value="metrics">Metrics Management</MenuItem>
+                      {/* Metrics mode only available to editors/admins */}
+                      {isEditor && <MenuItem value="metrics">Metrics Management</MenuItem>}
                       <MenuItem value="explain">Explanations</MenuItem>
                       <MenuItem value="report">Report Generation</MenuItem>
                     </Select>
@@ -824,10 +844,14 @@ export default function AIChat() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Confirm AI Actions</DialogTitle>
+        <DialogTitle>
+          {isEditor ? 'Confirm AI Actions' : 'AI Suggested Actions'}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body1" gutterBottom>
-            The AI wants to perform the following actions:
+            {isEditor
+              ? 'The AI wants to perform the following actions:'
+              : 'The AI suggested the following actions (view only):'}
           </Typography>
           <List>
             {state.pendingActions.map((action, index) => (
@@ -839,25 +863,33 @@ export default function AIChat() {
               </ListItem>
             ))}
           </List>
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            Please review these actions carefully before confirming.
-          </Alert>
+          {isEditor ? (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Please review these actions carefully before confirming.
+            </Alert>
+          ) : (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              These actions require Editor or Admin permissions to apply.
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setState(prev => ({ ...prev, actionDialogOpen: false, pendingActions: [] }))}
             startIcon={<CancelIcon />}
           >
-            Cancel
+            {isEditor ? 'Cancel' : 'Close'}
           </Button>
-          <Button
-            onClick={() => handleApplyActions(state.pendingActions, true)}
-            variant="contained"
-            color="primary"
-            startIcon={<CheckIcon />}
-          >
-            Confirm & Apply
-          </Button>
+          {isEditor && (
+            <Button
+              onClick={() => handleApplyActions(state.pendingActions, true)}
+              variant="contained"
+              color="primary"
+              startIcon={<CheckIcon />}
+            >
+              Confirm & Apply
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

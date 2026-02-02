@@ -103,6 +103,9 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 - **Context Awareness**: Understands existing metrics to avoid duplication
 - **Review Process**: Human approval required before applying changes
 - **6 AI Providers**: Anthropic, OpenAI, Together.ai, Azure, AWS Bedrock, GCP Vertex
+- **Role-Based AI Access**:
+  - **Editors/Admins**: Full access to all AI features including metric creation and modification
+  - **Viewers**: Read-only AI access for explanations, reports, and gap analysis visualization
 
 ### User Management & Access Control
 - **Role-Based Access**: Three roles (Admin, Editor, Viewer) with granular permissions
@@ -110,6 +113,7 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 - **User Invitations**: Admins invite users via email with role assignment
 - **Password Recovery**: Dual recovery options (recovery key or security questions)
 - **Account Management**: Activate/deactivate users, change roles, reset passwords
+- **AI Assistant Access**: All roles can access AI Assistant - Viewers get read-only mode for explanations and reports
 
 ## Architecture
 

@@ -355,13 +355,13 @@ Step 5: ACTIVATION      Step 4: ENHANCEMENT
 Map CSV columns to metric fields:
 
 | Metric Field | Required | Auto-Detect |
-|--------------|----------|-------------|
-| Name | Yes | "name", "metric_name" |
-| Current Value | Yes | "current", "value" |
-| Target Value | No | "target", "goal" |
-| Description | No | "description", "desc" |
-| Unit | No | "unit", "uom" |
-| Priority | No | "priority", "importance" |
+|--------------|:--------:|-------------|
+| Name | ✅ | "name", "metric_name" |
+| Current Value | ✅ | "current", "value" |
+| Target Value | ❌ | "target", "goal" |
+| Description | ❌ | "description", "desc" |
+| Unit | ❌ | "unit", "uom" |
+| Priority | ❌ | "priority", "importance" |
 
 #### Step 3: CSF Mapping
 AI analyzes each metric and suggests:
@@ -439,14 +439,14 @@ For comprehensive editing:
 ### Editable Fields
 
 | Field | Inline | Full Editor |
-|-------|--------|-------------|
-| Current Value | Yes | Yes |
-| Target Value | Yes | Yes |
-| Priority | Yes | Yes |
-| Name | No | Yes |
-| Description | No | Yes |
-| CSF Mapping | No | Yes |
-| Direction | No | Yes |
+|-------|:------:|:-----------:|
+| Current Value | ✅ | ✅ |
+| Target Value | ✅ | ✅ |
+| Priority | ✅ | ✅ |
+| Name | ❌ | ✅ |
+| Description | ❌ | ✅ |
+| CSF Mapping | ❌ | ✅ |
+| Direction | ❌ | ✅ |
 
 ## Metric History
 
