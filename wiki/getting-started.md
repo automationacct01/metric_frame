@@ -87,7 +87,18 @@ docker compose ps
 
 ## First Steps After Setup
 
-### 1. Explore the Dashboard
+### 1. Register Your Admin Account
+
+On first launch, you'll be prompted to create the admin account:
+
+1. Enter your **name**, **email**, and **password**
+2. Select and answer **two security questions** (for password recovery)
+3. Click **Register**
+4. **Important:** Save the displayed **Recovery Key** - it's shown only once!
+
+For details on user management, see [User Management](user-management).
+
+### 2. Explore the Dashboard
 
 Navigate to http://localhost:5175/app to see the executive dashboard:
 - View risk score cards for each CSF function

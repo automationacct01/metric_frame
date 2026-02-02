@@ -17,6 +17,9 @@
 - [Metrics Management](metrics-management)
   - [Value Validation](metrics-management#value-validation)
   - [Version History](metrics-management#metric-version-history)
+- [User Management](user-management)
+  - [Roles & Permissions](user-management#user-roles)
+  - [Password Recovery](user-management#password-recovery)
 - [AI Assistant](ai-assistant)
   - [Bring Your Own Model](ai-assistant#bring-your-own-model-byom)
 

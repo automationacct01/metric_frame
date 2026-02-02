@@ -99,7 +99,15 @@ interface NavbarProps {
   onToggleCollapse: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative path for Vite proxy in development
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl.replace(/\/api\/v1\/?$/, '');
+  }
+  return '';
+};
+const API_BASE = getApiBase();
 
 export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarProps) {
   const location = useLocation();
