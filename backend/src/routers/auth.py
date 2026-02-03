@@ -1,18 +1,25 @@
 """Authentication endpoints for login/logout/register."""
 
-import hashlib
 import secrets
 import logging
-from datetime import datetime
-from typing import Annotated, Optional
+import threading
+from datetime import datetime, timedelta
+from typing import Annotated, Optional, NamedTuple
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, BeforeValidator
 from email_validator import validate_email, EmailNotValidError
+import bcrypt
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ..db import get_db
 from ..models import User
+
+
+# Rate limiter for auth endpoints - stricter limits for sensitive operations
+limiter = Limiter(key_func=get_remote_address)
 
 
 def validate_email_syntax(value: str) -> str:
@@ -37,9 +44,87 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
 
 
-# Simple in-memory session store (for local app)
-# This is fine for a local desktop/docker application
-_sessions: dict[str, str] = {}  # token -> email
+# Session configuration
+SESSION_TTL_HOURS = 24  # Sessions expire after 24 hours of inactivity
+SESSION_CLEANUP_INTERVAL = 300  # Clean up expired sessions every 5 minutes
+
+
+class SessionData(NamedTuple):
+    """Session data with expiration tracking."""
+    email: str
+    created_at: datetime
+    last_accessed: datetime
+
+
+# In-memory session store with TTL support
+# Appropriate for local desktop/docker applications
+_sessions: dict[str, SessionData] = {}  # token -> SessionData
+_sessions_lock = threading.Lock()  # Thread-safe session access
+
+
+def _create_session(email: str) -> str:
+    """Create a new session with expiration tracking."""
+    token = secrets.token_urlsafe(32)
+    now = datetime.utcnow()
+    with _sessions_lock:
+        _sessions[token] = SessionData(
+            email=email,
+            created_at=now,
+            last_accessed=now
+        )
+    return token
+
+
+def _get_session(token: str) -> Optional[SessionData]:
+    """Get session data if valid (not expired), updating last accessed time."""
+    with _sessions_lock:
+        session = _sessions.get(token)
+        if not session:
+            return None
+
+        # Check if session has expired
+        now = datetime.utcnow()
+        if now - session.last_accessed > timedelta(hours=SESSION_TTL_HOURS):
+            # Session expired, remove it
+            _sessions.pop(token, None)
+            return None
+
+        # Update last accessed time
+        _sessions[token] = SessionData(
+            email=session.email,
+            created_at=session.created_at,
+            last_accessed=now
+        )
+        return _sessions[token]
+
+
+def _invalidate_session(token: str) -> Optional[str]:
+    """Invalidate a session, returning the email if found."""
+    with _sessions_lock:
+        session = _sessions.pop(token, None)
+        return session.email if session else None
+
+
+def _invalidate_user_sessions(email: str) -> int:
+    """Invalidate all sessions for a user, returning count removed."""
+    with _sessions_lock:
+        tokens_to_remove = [t for t, s in _sessions.items() if s.email == email]
+        for token in tokens_to_remove:
+            _sessions.pop(token, None)
+        return len(tokens_to_remove)
+
+
+def _cleanup_expired_sessions() -> int:
+    """Remove all expired sessions, returning count removed."""
+    now = datetime.utcnow()
+    with _sessions_lock:
+        expired = [
+            t for t, s in _sessions.items()
+            if now - s.last_accessed > timedelta(hours=SESSION_TTL_HOURS)
+        ]
+        for token in expired:
+            _sessions.pop(token, None)
+        return len(expired)
 
 
 class LoginRequest(BaseModel):
@@ -91,13 +176,48 @@ class AuthStatusResponse(BaseModel):
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using SHA-256 (simple approach for local app)."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash a password using bcrypt.
+
+    Bcrypt automatically generates a unique salt for each password
+    and is computationally expensive to resist brute-force attacks.
+    """
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
+
+def _is_legacy_sha256_hash(password_hash: str) -> bool:
+    """Check if the hash is a legacy SHA-256 hash (64 hex chars)."""
+    if len(password_hash) == 64:
+        try:
+            int(password_hash, 16)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def _verify_legacy_sha256(password: str, password_hash: str) -> bool:
+    """Verify a password against a legacy SHA-256 hash."""
+    import hashlib
+    return hashlib.sha256(password.encode()).hexdigest() == password_hash
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    """Verify a password against its hash."""
-    return hash_password(password) == password_hash
+    """Verify a password against its hash.
+
+    Supports both new bcrypt hashes and legacy SHA-256 hashes
+    for backward compatibility during migration.
+    """
+    if _is_legacy_sha256_hash(password_hash):
+        return _verify_legacy_sha256(password, password_hash)
+    # Bcrypt verification
+    try:
+        password_bytes = password.encode('utf-8')
+        hash_bytes = password_hash.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hash_bytes)
+    except Exception:
+        return False
 
 
 def generate_token() -> str:
@@ -109,24 +229,34 @@ def generate_token() -> str:
 # DEPENDENCY FUNCTIONS FOR ROUTE PROTECTION
 # =============================================================================
 
-async def get_current_user(token: str, db: Session = Depends(get_db)) -> User:
+async def get_current_user(
+    token: Optional[str] = None,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+) -> User:
     """Get the current authenticated user from a token.
+
+    Accepts token via:
+    - Authorization header (preferred): "Bearer <token>"
+    - Query parameter (deprecated): ?token=<token>
 
     Use as a dependency in protected routes:
         current_user: User = Depends(get_current_user)
     """
-    if token not in _sessions:
+    auth_token = get_token_from_header(authorization) or token
+
+    session = _get_session(auth_token) if auth_token else None
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    email = _sessions[token]
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == session.email).first()
 
     if not user or not user.active:
         # Clean up invalid session
-        _sessions.pop(token, None)
+        _invalidate_session(auth_token)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or deactivated"
@@ -135,7 +265,11 @@ async def get_current_user(token: str, db: Session = Depends(get_db)) -> User:
     return user
 
 
-async def require_editor(token: str, db: Session = Depends(get_db)) -> User:
+async def require_editor(
+    token: Optional[str] = None,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+) -> User:
     """Require editor or admin role for the current user.
 
     Use as a dependency in routes that require edit permissions:
@@ -143,7 +277,7 @@ async def require_editor(token: str, db: Session = Depends(get_db)) -> User:
 
     Raises 403 Forbidden if user is a viewer.
     """
-    user = await get_current_user(token, db)
+    user = await get_current_user(token, authorization, db)
 
     if user.role == "viewer":
         raise HTTPException(
@@ -154,7 +288,11 @@ async def require_editor(token: str, db: Session = Depends(get_db)) -> User:
     return user
 
 
-async def require_admin(token: str, db: Session = Depends(get_db)) -> User:
+async def require_admin(
+    token: Optional[str] = None,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+) -> User:
     """Require admin role for the current user.
 
     Use as a dependency in admin-only routes:
@@ -162,7 +300,7 @@ async def require_admin(token: str, db: Session = Depends(get_db)) -> User:
 
     Raises 403 Forbidden if user is not an admin.
     """
-    user = await get_current_user(token, db)
+    user = await get_current_user(token, authorization, db)
 
     if user.role != "admin":
         raise HTTPException(
@@ -197,14 +335,14 @@ async def invite_user(request: InviteUserRequest, token: str, db: Session = Depe
     Creates a pending user account that the user can claim by registering.
     """
     # Verify admin token
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -232,7 +370,7 @@ async def invite_user(request: InviteUserRequest, token: str, db: Session = Depe
     db.commit()
     db.refresh(new_user)
 
-    logger.info(f"Admin {admin_email} invited user {request.email} with role {request.role}")
+    logger.info(f"Admin {session.email} invited user {request.email} with role {request.role}")
 
     return {
         "message": f"User {request.email} invited as {request.role}",
@@ -246,18 +384,26 @@ async def invite_user(request: InviteUserRequest, token: str, db: Session = Depe
 
 
 def generate_recovery_key() -> str:
-    """Generate a human-readable recovery key."""
-    # Generate a 24-character key in groups of 4 for readability
-    key = secrets.token_hex(12).upper()  # 24 hex characters
-    return f"{key[:4]}-{key[4:8]}-{key[8:12]}-{key[12:16]}-{key[16:20]}-{key[20:24]}"
+    """Generate a human-readable recovery key with strong entropy.
+
+    Uses 32 bytes (256 bits) of entropy for cryptographic security,
+    formatted in groups of 4 for readability.
+    """
+    # Generate a 64-character key in groups of 4 for readability (32 bytes = 256 bits)
+    key = secrets.token_hex(32).upper()  # 64 hex characters
+    # Format as XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
+    return "-".join(key[i:i+4] for i in range(0, 32, 4))
 
 
 @router.post("/register")
-async def register(request: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+async def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)):
     """Register a new user account.
 
     For the first user: Creates admin account directly with recovery options.
     For subsequent users: Must be invited by admin first (claims pending account).
+
+    Rate limited to 3 attempts per minute per IP to prevent abuse.
     """
     user_count = db.query(User).count()
 
@@ -265,10 +411,10 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if user_count == 0:
         # Validate security questions for first admin
         if not all([
-            request.security_question_1,
-            request.security_answer_1,
-            request.security_question_2,
-            request.security_answer_2
+            body.security_question_1,
+            body.security_answer_1,
+            body.security_question_2,
+            body.security_answer_2
         ]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -279,25 +425,24 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         recovery_key = generate_recovery_key()
 
         new_user = User(
-            name=request.name,
-            email=request.email,
-            password_hash=hash_password(request.password),
+            name=body.name,
+            email=body.email,
+            password_hash=hash_password(body.password),
             role="admin",
             active=True,
             last_login_at=datetime.utcnow(),
             # Recovery options
             recovery_key_hash=hash_password(recovery_key),
-            security_question_1=request.security_question_1,
-            security_answer_1_hash=hash_password(request.security_answer_1.lower().strip()),
-            security_question_2=request.security_question_2,
-            security_answer_2_hash=hash_password(request.security_answer_2.lower().strip()),
+            security_question_1=body.security_question_1,
+            security_answer_1_hash=hash_password(body.security_answer_1.lower().strip()),
+            security_question_2=body.security_question_2,
+            security_answer_2_hash=hash_password(body.security_answer_2.lower().strip()),
         )
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
 
-        token = generate_token()
-        _sessions[token] = new_user.email
+        token = _create_session(new_user.email)
 
         logger.info(f"First user registered as admin: {new_user.email}")
 
@@ -315,7 +460,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         }
 
     # Subsequent users - must claim an invited account
-    existing_user = db.query(User).filter(User.email == request.email).first()
+    existing_user = db.query(User).filter(User.email == body.email).first()
 
     if not existing_user:
         raise HTTPException(
@@ -330,15 +475,14 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         )
 
     # Claim the invited account
-    existing_user.name = request.name
-    existing_user.password_hash = hash_password(request.password)
+    existing_user.name = body.name
+    existing_user.password_hash = hash_password(body.password)
     existing_user.last_login_at = datetime.utcnow()
     db.commit()
     db.refresh(existing_user)
 
     # Generate session token (auto-login after registration)
-    token = generate_token()
-    _sessions[token] = existing_user.email
+    token = _create_session(existing_user.email)
 
     logger.info(f"User {existing_user.email} completed registration with role {existing_user.role}")
 
@@ -356,11 +500,14 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate user and return session token."""
+@limiter.limit("5/minute")
+async def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    """Authenticate user and return session token.
 
+    Rate limited to 5 attempts per minute per IP to prevent brute force attacks.
+    """
     # Find user by email
-    user = db.query(User).filter(User.email == request.email).first()
+    user = db.query(User).filter(User.email == body.email).first()
 
     if not user:
         raise HTTPException(
@@ -377,23 +524,26 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Check password
     # If no password hash set, allow any password (for initial setup/demo)
     if user.password_hash:
-        if not verify_password(request.password, user.password_hash):
+        if not verify_password(body.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
             )
+        # Migrate legacy SHA-256 hash to bcrypt on successful login
+        if _is_legacy_sha256_hash(user.password_hash):
+            user.password_hash = hash_password(body.password)
+            logger.info(f"Migrated password hash to bcrypt for user {user.email}")
     else:
         # First login - set the password
-        user.password_hash = hash_password(request.password)
+        user.password_hash = hash_password(body.password)
         logger.info(f"Set initial password for user {user.email}")
 
     # Update last login
     user.last_login_at = datetime.utcnow()
     db.commit()
 
-    # Generate session token
-    token = generate_token()
-    _sessions[token] = user.email
+    # Generate session token with TTL
+    token = _create_session(user.email)
 
     logger.info(f"User {user.email} logged in successfully")
 
@@ -412,31 +562,54 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/logout")
 async def logout(request: LogoutRequest):
     """Invalidate session token."""
-
-    if request.token in _sessions:
-        email = _sessions.pop(request.token)
+    email = _invalidate_session(request.token)
+    if email:
         logger.info(f"User {email} logged out")
         return {"message": "Logged out successfully"}
 
     return {"message": "Session not found or already logged out"}
 
 
-@router.get("/validate")
-async def validate_token(token: str, db: Session = Depends(get_db)):
-    """Validate a session token and return user info."""
+def get_token_from_header(authorization: str = Header(None)) -> Optional[str]:
+    """Extract token from Authorization header (Bearer scheme)."""
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[7:]  # Remove "Bearer " prefix
+    return None
 
-    if token not in _sessions:
+
+@router.get("/validate")
+async def validate_token(
+    token: Optional[str] = None,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Validate a session token and return user info.
+
+    Accepts token via:
+    - Authorization header (preferred): "Bearer <token>"
+    - Query parameter (deprecated): ?token=<token>
+    """
+    # Prefer Authorization header, fall back to query param for backward compatibility
+    auth_token = get_token_from_header(authorization) or token
+
+    if not auth_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No token provided. Use Authorization: Bearer <token> header."
+        )
+
+    session = _get_session(auth_token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    email = _sessions[token]
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == session.email).first()
 
     if not user or not user.active:
         # Clean up invalid session
-        _sessions.pop(token, None)
+        _invalidate_session(auth_token)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or deactivated"
@@ -462,15 +635,14 @@ async def change_password(
     db: Session = Depends(get_db)
 ):
     """Change user's password."""
-
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    email = _sessions[token]
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == session.email).first()
 
     if not user:
         raise HTTPException(
@@ -489,29 +661,33 @@ async def change_password(
     user.password_hash = hash_password(new_password)
     db.commit()
 
-    logger.info(f"Password changed for user {email}")
+    logger.info(f"Password changed for user {session.email}")
     return {"message": "Password changed successfully"}
 
 
 # Admin endpoint to reset a user's password
 @router.post("/reset-password/{user_id}")
+@limiter.limit("10/minute")
 async def reset_user_password(
     user_id: str,
     new_password: str,
     token: str,
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    """Admin: Reset another user's password."""
+    """Admin: Reset another user's password.
 
-    if token not in _sessions:
+    Rate limited to 10 attempts per minute per IP.
+    """
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
     # Check if requester is admin
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -532,7 +708,7 @@ async def reset_user_password(
     target_user.password_hash = hash_password(new_password)
     db.commit()
 
-    logger.info(f"Admin {admin_email} reset password for user {target_user.email}")
+    logger.info(f"Admin {session.email} reset password for user {target_user.email}")
     return {"message": f"Password reset for {target_user.email}"}
 
 
@@ -541,14 +717,14 @@ async def reset_user_password(
 @router.get("/users")
 async def list_users(token: str, db: Session = Depends(get_db)):
     """Admin: List all users."""
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -588,14 +764,14 @@ async def update_user_role(
     db: Session = Depends(get_db)
 ):
     """Admin: Update a user's role."""
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -623,7 +799,7 @@ async def update_user_role(
     target_user.role = request.role
     db.commit()
 
-    logger.info(f"Admin {admin_email} changed role for {target_user.email}: {old_role} -> {request.role}")
+    logger.info(f"Admin {session.email} changed role for {target_user.email}: {old_role} -> {request.role}")
 
     return {
         "message": f"Role updated to {request.role}",
@@ -643,14 +819,14 @@ async def update_user_active(
     db: Session = Depends(get_db)
 ):
     """Admin: Activate or deactivate a user."""
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -677,11 +853,9 @@ async def update_user_active(
 
     # Invalidate sessions for deactivated user
     if not active:
-        tokens_to_remove = [t for t, email in _sessions.items() if email == target_user.email]
-        for t in tokens_to_remove:
-            _sessions.pop(t, None)
+        _invalidate_user_sessions(target_user.email)
 
-    logger.info(f"Admin {admin_email} {'activated' if active else 'deactivated'} user {target_user.email}")
+    logger.info(f"Admin {session.email} {'activated' if active else 'deactivated'} user {target_user.email}")
 
     return {
         "message": f"User {'activated' if active else 'deactivated'}",
@@ -696,14 +870,14 @@ async def update_user_active(
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
     """Admin: Delete a user."""
-    if token not in _sessions:
+    session = _get_session(token)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
 
-    admin_email = _sessions[token]
-    admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user = db.query(User).filter(User.email == session.email).first()
 
     if not admin_user or admin_user.role != "admin":
         raise HTTPException(
@@ -726,15 +900,13 @@ async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
         )
 
     # Invalidate sessions for deleted user
-    tokens_to_remove = [t for t, email in _sessions.items() if email == target_user.email]
-    for t in tokens_to_remove:
-        _sessions.pop(t, None)
+    _invalidate_user_sessions(target_user.email)
 
     email = target_user.email
     db.delete(target_user)
     db.commit()
 
-    logger.info(f"Admin {admin_email} deleted user {email}")
+    logger.info(f"Admin {session.email} deleted user {email}")
 
     return {"message": f"User {email} deleted"}
 
@@ -782,9 +954,13 @@ async def get_recovery_questions(email: str, db: Session = Depends(get_db)):
 
 
 @router.post("/recover-with-key")
-async def recover_with_key(request: RecoveryKeyRequest, db: Session = Depends(get_db)):
-    """Reset password using recovery key."""
-    user = db.query(User).filter(User.email == request.email).first()
+@limiter.limit("3/minute")
+async def recover_with_key(body: RecoveryKeyRequest, request: Request, db: Session = Depends(get_db)):
+    """Reset password using recovery key.
+
+    Rate limited to 3 attempts per minute per IP to prevent brute force attacks.
+    """
+    user = db.query(User).filter(User.email == body.email).first()
 
     if not user:
         raise HTTPException(
@@ -799,9 +975,14 @@ async def recover_with_key(request: RecoveryKeyRequest, db: Session = Depends(ge
         )
 
     # Normalize the recovery key (remove dashes, uppercase)
-    normalized_key = request.recovery_key.replace("-", "").upper()
-    # Recreate the formatted key for comparison
-    formatted_key = f"{normalized_key[:4]}-{normalized_key[4:8]}-{normalized_key[8:12]}-{normalized_key[12:16]}-{normalized_key[16:20]}-{normalized_key[20:24]}"
+    normalized_key = body.recovery_key.replace("-", "").upper()
+    # Recreate the formatted key for comparison (supports both 24-char and 32-char keys)
+    if len(normalized_key) == 24:
+        # Legacy 24-character key format
+        formatted_key = f"{normalized_key[:4]}-{normalized_key[4:8]}-{normalized_key[8:12]}-{normalized_key[12:16]}-{normalized_key[16:20]}-{normalized_key[20:24]}"
+    else:
+        # New 32-character key format
+        formatted_key = "-".join(normalized_key[i:i+4] for i in range(0, min(len(normalized_key), 32), 4))
 
     if not verify_password(formatted_key, user.recovery_key_hash):
         raise HTTPException(
@@ -810,13 +991,11 @@ async def recover_with_key(request: RecoveryKeyRequest, db: Session = Depends(ge
         )
 
     # Reset password
-    user.password_hash = hash_password(request.new_password)
+    user.password_hash = hash_password(body.new_password)
     db.commit()
 
     # Invalidate all existing sessions for this user
-    tokens_to_remove = [t for t, email in _sessions.items() if email == user.email]
-    for t in tokens_to_remove:
-        _sessions.pop(t, None)
+    _invalidate_user_sessions(user.email)
 
     logger.info(f"Password reset via recovery key for user {user.email}")
 
@@ -824,9 +1003,13 @@ async def recover_with_key(request: RecoveryKeyRequest, db: Session = Depends(ge
 
 
 @router.post("/recover-with-questions")
-async def recover_with_questions(request: SecurityQuestionsRequest, db: Session = Depends(get_db)):
-    """Reset password using security questions."""
-    user = db.query(User).filter(User.email == request.email).first()
+@limiter.limit("3/minute")
+async def recover_with_questions(body: SecurityQuestionsRequest, request: Request, db: Session = Depends(get_db)):
+    """Reset password using security questions.
+
+    Rate limited to 3 attempts per minute per IP to prevent brute force attacks.
+    """
+    user = db.query(User).filter(User.email == body.email).first()
 
     if not user:
         raise HTTPException(
@@ -841,8 +1024,8 @@ async def recover_with_questions(request: SecurityQuestionsRequest, db: Session 
         )
 
     # Verify answers (case-insensitive, trimmed)
-    answer_1_correct = verify_password(request.answer_1.lower().strip(), user.security_answer_1_hash)
-    answer_2_correct = verify_password(request.answer_2.lower().strip(), user.security_answer_2_hash)
+    answer_1_correct = verify_password(body.answer_1.lower().strip(), user.security_answer_1_hash)
+    answer_2_correct = verify_password(body.answer_2.lower().strip(), user.security_answer_2_hash)
 
     if not answer_1_correct or not answer_2_correct:
         raise HTTPException(
@@ -851,13 +1034,11 @@ async def recover_with_questions(request: SecurityQuestionsRequest, db: Session 
         )
 
     # Reset password
-    user.password_hash = hash_password(request.new_password)
+    user.password_hash = hash_password(body.new_password)
     db.commit()
 
     # Invalidate all existing sessions for this user
-    tokens_to_remove = [t for t, email in _sessions.items() if email == user.email]
-    for t in tokens_to_remove:
-        _sessions.pop(t, None)
+    _invalidate_user_sessions(user.email)
 
     logger.info(f"Password reset via security questions for user {user.email}")
 

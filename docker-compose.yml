@@ -1,13 +1,20 @@
+# MetricFrame Development Docker Compose
+# NOTE: This file is for LOCAL DEVELOPMENT ONLY.
+# For production deployments, use docker-compose.prod.yml instead.
+
 services:
   db:
     image: postgres:15-alpine
     environment:
+      # DEVELOPMENT ONLY: Use strong passwords in production
       POSTGRES_DB: nistmetrics
       POSTGRES_USER: nist
       POSTGRES_PASSWORD: nist
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # DEV ONLY: Port exposed for local debugging (pgAdmin, etc.)
+    # Remove this in production - use internal networking only
     ports:
       - "5434:5432"
     healthcheck:
