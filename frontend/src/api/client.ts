@@ -957,6 +957,18 @@ class APIClient {
       delete this.client.defaults.headers.common['X-User-Email'];
     }
   }
+
+  /**
+   * Set the authentication token for all subsequent requests.
+   * Uses the standard Authorization: Bearer scheme.
+   */
+  setAuthToken(token: string | null): void {
+    if (token) {
+      this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete this.client.defaults.headers.common['Authorization'];
+    }
+  }
 }
 
 // Create and export singleton instance

@@ -76,12 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
 
         if (storedToken && storedUser) {
-          const response = await fetch(`${API_BASE}/api/v1/auth/validate?token=${storedToken}`);
+          // Validate token using Authorization header (more secure than URL query)
+          const response = await fetch(`${API_BASE}/api/v1/auth/validate`, {
+            headers: {
+              'Authorization': `Bearer ${storedToken}`
+            }
+          });
 
           if (response.ok) {
             const data = await response.json();
             setUser(data.user);
             setToken(storedToken);
+            apiClient.setAuthToken(storedToken);
             apiClient.setCurrentUserEmail(data.user.email);
           } else {
             // Token invalid, clear storage
@@ -119,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
     setToken(data.token);
     setHasUsers(true);
+    apiClient.setAuthToken(data.token);
     apiClient.setCurrentUserEmail(data.user.email);
   };
 
@@ -157,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
     setToken(data.token);
     setHasUsers(true);
+    apiClient.setAuthToken(data.token);
     apiClient.setCurrentUserEmail(data.user.email);
 
     // Return recovery key if present (for first admin)
@@ -183,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('userEmail');
     setUser(null);
     setToken(null);
+    apiClient.setAuthToken(null);
     apiClient.setCurrentUserEmail(null);
   };
 

@@ -4,17 +4,13 @@ NOTE: For production/local desktop use, users should register themselves.
 The first user to register automatically becomes an admin.
 
 This seed file is mainly for development/testing purposes.
+Demo users are DISABLED by default (SEED_DEMO_USERS=false).
 """
 
-import hashlib
 import os
 from sqlalchemy.orm import Session
 from ..models import User
-
-
-def hash_password(password: str) -> str:
-    """Hash a password using SHA-256 (simple approach for local app)."""
-    return hashlib.sha256(password.encode()).hexdigest()
+from ..routers.auth import hash_password  # Use bcrypt-based hashing
 
 
 def clear_users(db: Session) -> int:
