@@ -5,18 +5,28 @@ Supports both PostgreSQL (Docker/server) and SQLite (desktop app).
 """
 
 import os
+import logging
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .db import engine, get_db, IS_SQLITE, IS_POSTGRESQL, get_database_info, init_db
 from .models import Base, Framework
 from .schemas import HealthResponse
 from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers, users, auth
+
+
+# Configure rate limiter
+# Uses client IP for identification
+limiter = Limiter(key_func=get_remote_address)
+rate_limit_logger = logging.getLogger("rate_limiter")
 
 
 load_dotenv()
@@ -98,6 +108,10 @@ Features:
     lifespan=lifespan,
     redirect_slashes=False,
 )
+
+# Add rate limiter to app state and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5175").split(",")

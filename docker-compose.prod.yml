@@ -1,6 +1,14 @@
 # MetricFrame Production Docker Compose
 # For server deployments and self-hosting
 #
+# SECURITY: Before deploying, create a .env file with:
+#   POSTGRES_USER=<random-username>
+#   POSTGRES_PASSWORD=<strong-random-password-32-chars>
+#   AI_CREDENTIALS_MASTER_KEY=<generate-with-fernet>
+#
+# Generate encryption key:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+#
 # Quick Start:
 #   docker compose -f docker-compose.prod.yml up -d
 #
@@ -41,6 +49,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-metricframe}:${POSTGRES_PASSWORD:-metricframe}@db:5432/${POSTGRES_DB:-metricframe}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80}
       API_PREFIX: /api/v1
+      # Encryption key for user AI credentials (REQUIRED - generate your own!)
+      AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
       # AI Provider keys (optional - users configure in app)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
