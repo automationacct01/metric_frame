@@ -267,7 +267,7 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
           />
         ) : (
           <img
-            src="/logo-metricframe.svg"
+            src={darkMode ? '/logo-metricframe-dark.svg' : '/logo-metricframe.svg'}
             alt="MetricFrame"
             style={{ height: 40, width: 'auto', maxWidth: '100%' }}
           />

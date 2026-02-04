@@ -44,7 +44,7 @@ echo ""
 # Download docker-compose.prod.yml if not exists
 if [ ! -f "docker-compose.yml" ]; then
     echo "Downloading configuration..."
-    curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/metricframe/main/docker-compose.prod.yml -o docker-compose.yml
+    curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/docker-compose.prod.yml -o docker-compose.yml
 fi
 
 # Create .env file if not exists
@@ -59,8 +59,8 @@ POSTGRES_USER=metricframe
 POSTGRES_PASSWORD=metricframe
 POSTGRES_DB=metricframe
 
-# Frontend port (default: 80)
-FRONTEND_PORT=80
+# Frontend port (default: 3000, industry standard for web apps)
+FRONTEND_PORT=3000
 
 # AI Provider API Keys (optional - can configure in app)
 # ANTHROPIC_API_KEY=your-key-here
@@ -82,7 +82,7 @@ echo "============================================"
 echo "  MetricFrame is starting!"
 echo "============================================"
 echo ""
-echo "  Open your browser to: http://localhost"
+echo "  Open your browser to: http://localhost:3000"
 echo ""
 echo "  First startup may take a few minutes"
 echo "  to initialize the database."

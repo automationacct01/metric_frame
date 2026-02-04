@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+// Use HashRouter for desktop (file:// protocol), BrowserRouter for web
+const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
 import { CssBaseline, Box, CircularProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -167,6 +170,21 @@ function AppContent() {
   );
 }
 
+// Determine if we should show landing page or go to login
+// Landing page is only for the public website, not desktop or Docker
+function RootRoute() {
+  const isDesktop = window.location.protocol === 'file:';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  // Desktop app or Docker/local dev → go to login
+  if (isDesktop || isLocalhost) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Public website → show landing page
+  return <LandingPage />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -175,8 +193,8 @@ function App() {
         <Router>
           <AuthProvider>
             <Routes>
-              {/* Landing page at root - marketing entry point */}
-              <Route path="/" element={<LandingPage />} />
+              {/* Root route - landing page for website, login for desktop/Docker */}
+              <Route path="/" element={<RootRoute />} />
 
               {/* Download page for Docker/Desktop options */}
               <Route path="/download" element={<DownloadPage />} />

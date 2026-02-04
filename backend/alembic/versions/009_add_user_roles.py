@@ -44,14 +44,9 @@ def upgrade() -> None:
     # 4. Add index on users.role for efficient role-based queries
     op.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);")
 
-    # 5. Insert default admin user (upsert: if email exists, set role to admin)
-    op.execute(
-        """
-        INSERT INTO users (id, name, email, role, active)
-        VALUES (gen_random_uuid(), 'Admin', 'admin@metricframe.com', 'admin', true)
-        ON CONFLICT (email) DO UPDATE SET role = 'admin'
-        """
-    )
+    # 5. Note: Do NOT seed admin user here - let users register via the app
+    # The first user to register becomes admin automatically
+    # Seeding a passwordless admin prevents proper registration flow
 
 
 def downgrade() -> None:

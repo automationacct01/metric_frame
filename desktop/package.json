@@ -8,23 +8,30 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "prebuild": "cp ../frontend/.env.desktop ../frontend/.env.production.local 2>/dev/null || true",
+    "prebuild:mac": "cp ../frontend/.env.desktop ../frontend/.env.production.local 2>/dev/null || true",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
+    "build:mac": "npm run prebuild:mac && electron-builder --mac",
+    "build:mac:signed": "CSC_LINK=$CSC_LINK CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD electron-builder --mac",
     "build:win": "electron-builder --win",
+    "build:win:signed": "CSC_LINK=$WIN_CSC_LINK CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD electron-builder --win",
     "build:linux": "electron-builder --linux",
-    "dist": "electron-builder --mac --win --linux"
+    "dist": "electron-builder --mac --win --linux",
+    "dist:signed": "electron-builder --mac --win --linux --publish never"
   },
   "dependencies": {
     "electron-store": "^8.1.0"
   },
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "@electron/notarize": "^2.2.0"
   },
   "build": {
     "appId": "com.metricframe.app",
     "productName": "MetricFrame",
     "copyright": "Copyright © 2024 MetricFrame",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -32,7 +39,14 @@
     "files": [
       "main.js",
       "preload.js",
-      "!node_modules/**/*"
+      "node_modules/electron-store/**/*",
+      "node_modules/conf/**/*",
+      "node_modules/atomically/**/*",
+      "node_modules/env-paths/**/*",
+      "node_modules/ajv/**/*",
+      "node_modules/ajv-formats/**/*",
+      "node_modules/json-schema-typed/**/*",
+      "node_modules/lodash.debounce/**/*"
     ],
     "extraResources": [
       {
@@ -58,7 +72,29 @@
       ],
       "icon": "build/icon.icns",
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false
+    },
+    "afterSign": "scripts/notarize.js",
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "win": {
       "target": [
@@ -71,7 +107,9 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "publisherName": "MetricFrame",
+      "verifyUpdateCodeSignature": false
     },
     "linux": {
       "target": [
@@ -85,13 +123,21 @@
         }
       ],
       "icon": "build/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "MetricFrame Team"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "automationacct01",
+      "repo": "metric_frame"
     }
   }
 }

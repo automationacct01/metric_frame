@@ -62,6 +62,11 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 
 ## Features
 
+### User Interface
+- **Light/Dark Mode**: Toggle between light and dark themes (light mode default)
+- **Theme-Aware Components**: All views optimized for both light and dark modes
+- **Responsive Design**: Works on desktop and tablet displays
+
 ### Executive Dashboard
 - **Function Scores**: Performance metrics for each framework function
 - **Risk Ratings**: Color-coded Low/Moderate/Elevated/High risk levels
@@ -161,6 +166,12 @@ cd frontend && npm install && npm run dev
 ```
 
 ### Access Points
+
+**Production (Docker):**
+- **Frontend**: http://localhost:3000
+- **API Documentation**: http://localhost:3000/api/v1/docs
+
+**Development:**
 - **Frontend**: http://localhost:5175
 - **API Documentation**: http://localhost:8002/docs
 - **Health Check**: http://localhost:8002/health
@@ -200,12 +211,39 @@ RISK_THRESHOLD_HIGH=30.0
 
 ## Security
 
-- **100% Local**: No data ever leaves your infrastructure
+### Network Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  YOUR COMPUTER (localhost)                                  │
+│                                                             │
+│  Browser ──HTTP──► Frontend ──HTTP──► Backend               │
+│  (localhost:3000)   (nginx)          (FastAPI)              │
+│                                           │                 │
+└───────────────────────────────────────────│─────────────────┘
+                                            │
+                                            ▼ HTTPS (TLS encrypted)
+                                    ┌───────────────────┐
+                                    │   AI APIs         │
+                                    │   (encrypted)     │
+                                    └───────────────────┘
+```
+
+**Key Security Points:**
+- **Local traffic stays local**: Browser-to-app communication never leaves your computer
+- **AI API calls are encrypted**: All outbound connections use HTTPS/TLS
+- **Port 3000**: Non-privileged port, industry standard for web apps
+
+### Data Protection
+
+- **100% Local**: No data ever leaves your infrastructure (except encrypted AI API calls)
 - **Role-Based Access Control**: Admin, Editor, and Viewer roles with enforced permissions
 - **Encrypted Credentials**: API keys stored with Fernet encryption
 - **Password Recovery**: Recovery key + security questions for account recovery
 - **Open Source**: Full code transparency - audit it yourself
 - **No Telemetry**: We don't track usage or collect any data
+
+See the [Security Documentation](wiki/security.md) for detailed architecture information.
 
 ## Contributing
 

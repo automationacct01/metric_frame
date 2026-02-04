@@ -1,6 +1,6 @@
 # Getting Started
 
-> **Last Updated:** January 2026
+> **Last Updated:** February 2026
 > **Status:** Active Development
 
 ---
@@ -80,10 +80,12 @@ docker compose ps
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Landing Page** | http://localhost:5175 | Marketing & entry point |
-| **Main App** | http://localhost:5175/app | Dashboard & full features |
-| **API Docs** | http://localhost:8002/docs | Swagger UI |
-| **Database** | localhost:5434 | PostgreSQL (user: nist) |
+| **Landing Page** | http://localhost:3000 | Marketing & entry point |
+| **Main App** | http://localhost:3000/app | Dashboard & full features |
+| **API Docs** | http://localhost:8002/docs | Swagger UI (dev mode) |
+| **Database** | localhost:5434 | PostgreSQL (dev mode only) |
+
+> **Note:** Port 3000 is used for production Docker deployment. Development mode uses port 5175. See [Security](security.md) for details on why these ports were chosen.
 
 ## First Steps After Setup
 
@@ -100,10 +102,11 @@ For details on user management, see [User Management](user-management).
 
 ### 2. Explore the Dashboard
 
-Navigate to http://localhost:5175/app to see the executive dashboard:
+Navigate to http://localhost:3000/app to see the executive dashboard:
 - View risk score cards for each CSF function
 - Explore the pre-loaded 356 metrics
 - Check framework coverage visualization
+- Toggle light/dark mode via Settings (light mode is the default)
 
 ### 3. Review Pre-Loaded Metrics
 

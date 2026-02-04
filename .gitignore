@@ -108,3 +108,10 @@ docs/_build/
 
 # License keys (NEVER commit these!)
 secrets/
+
+# Build artifacts and distributions
+backend-dist/
+desktop/release/
+*.dmg
+*.zip
+*.blockmap

@@ -47,7 +47,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-metricframe}:${POSTGRES_PASSWORD:-metricframe}@db:5432/${POSTGRES_DB:-metricframe}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000}
       API_PREFIX: /api/v1
       # Encryption key for user AI credentials (REQUIRED - generate your own!)
       AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
@@ -74,7 +74,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_PORT:-3000}:3000"
     networks:
       - metricframe
 

@@ -9,8 +9,9 @@
  */
 
 const { app, BrowserWindow, dialog, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const Store = require('electron-store');
 
@@ -26,12 +27,74 @@ const store = new Store({
 let mainWindow = null;
 let backendProcess = null;
 let isQuitting = false;
+let startupStatus = 'Initializing...';
 
 // Determine if running in development or production
 const isDev = process.argv.includes('--dev');
 const resourcesPath = isDev
   ? path.join(__dirname, '..')
   : process.resourcesPath;
+
+// Log file for debugging
+const logDir = path.join(app.getPath('userData'), 'logs');
+const logFile = path.join(logDir, 'metricframe.log');
+
+/**
+ * Initialize logging
+ */
+function initLogging() {
+  try {
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    // Clear old log on startup
+    const startMsg = `MetricFrame started at ${new Date().toISOString()}\n`;
+    fs.writeFileSync(logFile, startMsg);
+    console.log(`Logging initialized: ${logFile}`);
+  } catch (err) {
+    // If logging fails, write to stderr and continue
+    console.error('CRITICAL: Failed to init logging:', err);
+    console.error('Log directory:', logDir);
+    console.error('Log file:', logFile);
+    // Don't throw - continue without file logging
+  }
+}
+
+/**
+ * Check if a port is available
+ */
+function checkPortAvailable(port) {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const server = net.createServer();
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(false);
+      } else {
+        resolve(true); // Other errors, try anyway
+      }
+    });
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port, '127.0.0.1');
+  });
+}
+
+/**
+ * Log message to file and console
+ */
+function log(message, level = 'INFO') {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [${level}] ${message}`;
+  console.log(logMessage);
+  try {
+    fs.appendFileSync(logFile, logMessage + '\n');
+  } catch (err) {
+    // Ignore log write errors
+  }
+}
 
 /**
  * Get the path to the Python backend executable
@@ -79,56 +142,166 @@ function getFrontendPath() {
 }
 
 /**
+ * Remove macOS quarantine attribute from backend executable
+ * This is needed for unsigned apps downloaded from the internet
+ */
+function removeQuarantineAttribute(filePath) {
+  if (process.platform !== 'darwin') return true;
+
+  try {
+    log(`Removing quarantine attribute from: ${filePath}`);
+    execSync(`xattr -rd com.apple.quarantine "${filePath}" 2>/dev/null || true`, { stdio: 'ignore' });
+    return true;
+  } catch (err) {
+    log(`Warning: Could not remove quarantine attribute: ${err.message}`, 'WARN');
+    return false;
+  }
+}
+
+/**
+ * Verify backend executable exists and is executable
+ */
+function verifyBackendExecutable() {
+  const config = getBackendPath();
+
+  log(`Verifying backend executable: ${config.command}`);
+
+  if (!fs.existsSync(config.command)) {
+    throw new Error(`Backend executable not found at: ${config.command}`);
+  }
+
+  // Check if executable (Unix-like systems)
+  if (process.platform !== 'win32') {
+    try {
+      fs.accessSync(config.command, fs.constants.X_OK);
+    } catch (err) {
+      log(`Making backend executable: ${config.command}`);
+      try {
+        fs.chmodSync(config.command, 0o755);
+      } catch (chmodErr) {
+        throw new Error(`Cannot make backend executable: ${chmodErr.message}`);
+      }
+    }
+
+    // Remove quarantine attribute on macOS
+    removeQuarantineAttribute(config.command);
+  }
+
+  log('Backend executable verified');
+  return config;
+}
+
+/**
+ * Update the splash screen status
+ */
+function updateSplashStatus(status) {
+  startupStatus = status;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.executeJavaScript(`
+      if (document.getElementById('status')) {
+        document.getElementById('status').textContent = '${status}';
+      }
+    `).catch(() => {});
+  }
+}
+
+/**
  * Start the Python backend server
  */
 function startBackend() {
-  return new Promise((resolve, reject) => {
-    const config = getBackendPath();
-
-    console.log('Starting backend:', config.command, config.args.join(' '));
-
-    // Set environment variables
-    const env = {
-      ...process.env,
-      DATABASE_URL: `sqlite:///${path.join(app.getPath('userData'), 'metricframe.db')}`,
-      CORS_ORIGINS: 'http://localhost:8000,file://',
-    };
-
-    backendProcess = spawn(config.command, config.args, {
-      cwd: config.cwd,
-      env: env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend: ${data}`);
-    });
-
-    backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend error: ${data}`);
-    });
-
-    backendProcess.on('error', (err) => {
-      console.error('Failed to start backend:', err);
-      reject(err);
-    });
-
-    backendProcess.on('exit', (code, signal) => {
-      console.log(`Backend exited with code ${code}, signal ${signal}`);
-      if (!isQuitting) {
-        // Backend crashed unexpectedly
-        dialog.showErrorBox(
-          'Backend Error',
-          'The MetricFrame backend has stopped unexpectedly. The application will now close.'
-        );
-        app.quit();
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Check if port 8000 is available before starting
+      const portAvailable = await checkPortAvailable(8000);
+      if (!portAvailable) {
+        log('Port 8000 is already in use!', 'ERROR');
+        reject(new Error('Port 8000 is already in use. Please close any other MetricFrame instances or applications using this port.'));
+        return;
       }
-    });
+      log('Port 8000 is available');
 
-    // Wait for backend to be ready
-    waitForBackend(30000)
-      .then(resolve)
-      .catch(reject);
+      const config = verifyBackendExecutable();
+
+      log(`Starting backend: ${config.command} ${config.args.join(' ')}`);
+      updateSplashStatus('Starting backend server...');
+
+      // Set environment variables
+      const env = {
+        ...process.env,
+        // Set desktop mode and SQLite database path
+        METRICFRAME_DESKTOP_MODE: 'true',
+        DATABASE_URL: `sqlite:///${path.join(app.getPath('userData'), 'metricframe.db')}`,
+        CORS_ORIGINS: 'http://localhost:8000,http://127.0.0.1:8000,file://',
+        // Disable debug for production
+        DEBUG: 'false',
+      };
+
+      log(`Database path: ${env.DATABASE_URL}`);
+      log(`Working directory: ${config.cwd}`);
+
+      backendProcess = spawn(config.command, config.args, {
+        cwd: config.cwd,
+        env: env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // Detach on Windows to allow proper cleanup
+        detached: process.platform === 'win32',
+      });
+
+      if (!backendProcess.pid) {
+        throw new Error('Failed to spawn backend process');
+      }
+
+      log(`Backend process started with PID: ${backendProcess.pid}`);
+
+      backendProcess.stdout.on('data', (data) => {
+        const msg = data.toString().trim();
+        log(`Backend stdout: ${msg}`);
+      });
+
+      backendProcess.stderr.on('data', (data) => {
+        const msg = data.toString().trim();
+        log(`Backend stderr: ${msg}`, 'WARN');
+      });
+
+      backendProcess.on('error', (err) => {
+        log(`Backend process error: ${err.message}`, 'ERROR');
+        reject(new Error(`Failed to start backend: ${err.message}`));
+      });
+
+      backendProcess.on('exit', (code, signal) => {
+        log(`Backend exited with code ${code}, signal ${signal}`, code === 0 ? 'INFO' : 'ERROR');
+
+        if (!isQuitting && code !== 0) {
+          // Backend crashed unexpectedly
+          log('Backend may have crashed during startup. Check log file for stderr output.', 'ERROR');
+
+          const errorMsg = `The MetricFrame backend has stopped unexpectedly (exit code: ${code}).\n\n` +
+            `This may indicate:\n` +
+            `- A missing dependency in the PyInstaller bundle\n` +
+            `- A file permission issue\n` +
+            `- A database initialization error\n\n` +
+            `Please check the log file for details:\n${logFile}`;
+          dialog.showErrorBox('Backend Error', errorMsg);
+          app.quit();
+        }
+      });
+
+      // Wait for backend to be ready
+      updateSplashStatus('Waiting for backend to initialize...');
+      waitForBackend(45000) // Increased timeout for first-time database setup
+        .then(() => {
+          log('Backend is ready and responding');
+          resolve();
+        })
+        .catch((err) => {
+          log(`Backend startup failed: ${err.message}`, 'ERROR');
+          reject(err);
+        });
+
+    } catch (err) {
+      log(`Backend startup error: ${err.message}`, 'ERROR');
+      reject(err);
+    }
   });
 }
 
@@ -138,30 +311,53 @@ function startBackend() {
 function waitForBackend(timeout) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
+    let attempts = 0;
 
     const checkHealth = () => {
+      attempts++;
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      updateSplashStatus(`Connecting to backend... (${elapsed}s)`);
+
       const req = http.get('http://127.0.0.1:8000/health', (res) => {
-        if (res.statusCode === 200) {
-          console.log('Backend is ready!');
-          resolve();
-        } else {
-          retry();
-        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            log(`Backend health check passed after ${attempts} attempts`);
+            resolve();
+          } else {
+            log(`Backend health check returned status ${res.statusCode}`, 'WARN');
+            retry();
+          }
+        });
       });
 
-      req.on('error', retry);
-      req.setTimeout(1000);
+      req.on('error', (err) => {
+        if (attempts % 10 === 0) {
+          log(`Health check attempt ${attempts} failed: ${err.message}`, 'DEBUG');
+        }
+        retry();
+      });
+
+      req.setTimeout(2000, () => {
+        req.destroy();
+        retry();
+      });
     };
 
     const retry = () => {
       if (Date.now() - startTime > timeout) {
-        reject(new Error('Backend startup timeout'));
+        const errorMsg = `Backend failed to start within ${timeout/1000} seconds.\n` +
+          `Check if another instance is running on port 8000.\n` +
+          `Log file: ${logFile}`;
+        reject(new Error(errorMsg));
       } else {
         setTimeout(checkHealth, 500);
       }
     };
 
-    checkHealth();
+    // Give the process a moment to start
+    setTimeout(checkHealth, 1000);
   });
 }
 
@@ -170,20 +366,25 @@ function waitForBackend(timeout) {
  */
 function stopBackend() {
   if (backendProcess) {
-    console.log('Stopping backend...');
+    log('Stopping backend...');
 
-    // Try graceful shutdown first
-    if (process.platform === 'win32') {
-      spawn('taskkill', ['/pid', backendProcess.pid, '/f', '/t']);
-    } else {
-      backendProcess.kill('SIGTERM');
+    try {
+      // Try graceful shutdown first
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', backendProcess.pid.toString(), '/f', '/t']);
+      } else {
+        backendProcess.kill('SIGTERM');
 
-      // Force kill after 5 seconds if still running
-      setTimeout(() => {
-        if (backendProcess && !backendProcess.killed) {
-          backendProcess.kill('SIGKILL');
-        }
-      }, 5000);
+        // Force kill after 5 seconds if still running
+        setTimeout(() => {
+          if (backendProcess && !backendProcess.killed) {
+            log('Force killing backend process', 'WARN');
+            backendProcess.kill('SIGKILL');
+          }
+        }, 5000);
+      }
+    } catch (err) {
+      log(`Error stopping backend: ${err.message}`, 'ERROR');
     }
 
     backendProcess = null;
@@ -212,8 +413,10 @@ function createWindow() {
 
   // Save window size on resize
   mainWindow.on('resize', () => {
-    const { width, height } = mainWindow.getBounds();
-    store.set('windowBounds', { width, height });
+    if (!mainWindow.isDestroyed()) {
+      const { width, height } = mainWindow.getBounds();
+      store.set('windowBounds', { width, height });
+    }
   });
 
   // Show window when ready
@@ -238,15 +441,66 @@ function createWindow() {
  */
 async function loadFrontend() {
   const frontendUrl = getFrontendPath();
+  log(`Loading frontend from: ${frontendUrl}`);
+  updateSplashStatus('Loading application...');
 
   if (isDev) {
     // In development, load from Vite dev server
     await mainWindow.loadURL(frontendUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, modify fetch to use backend
+    // In production, load from bundled files
     await mainWindow.loadURL(frontendUrl);
   }
+
+  log('Frontend loaded successfully');
+}
+
+/**
+ * Get splash screen HTML
+ */
+function getSplashHTML() {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            color: white;
+          }
+          h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+          .version { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+          #status { color: #94a3b8; font-size: 1.1rem; min-height: 1.5em; }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-top: 2rem;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          .error { color: #ef4444; }
+        </style>
+      </head>
+      <body>
+        <h1>MetricFrame</h1>
+        <div class="version">AI & Cybersecurity Metrics Dashboard</div>
+        <p id="status">${startupStatus}</p>
+        <div class="spinner"></div>
+      </body>
+    </html>
+  `;
 }
 
 /**
@@ -254,64 +508,39 @@ async function loadFrontend() {
  */
 async function startup() {
   try {
+    initLogging();
+    log('MetricFrame starting...');
+    log(`Running in ${isDev ? 'development' : 'production'} mode`);
+    log(`Resources path: ${resourcesPath}`);
+    log(`User data path: ${app.getPath('userData')}`);
+
     // Show splash/loading
     createWindow();
-
-    mainWindow.loadURL(`data:text/html;charset=utf-8,
-      <html>
-        <head>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
-              color: white;
-            }
-            h1 { font-size: 2.5rem; margin-bottom: 1rem; }
-            p { color: #94a3b8; font-size: 1.1rem; }
-            .spinner {
-              width: 40px;
-              height: 40px;
-              border: 3px solid rgba(255,255,255,0.2);
-              border-top-color: #0ea5e9;
-              border-radius: 50%;
-              animation: spin 1s linear infinite;
-              margin-top: 2rem;
-            }
-            @keyframes spin { to { transform: rotate(360deg); } }
-          </style>
-        </head>
-        <body>
-          <h1>MetricFrame</h1>
-          <p>Starting application...</p>
-          <div class="spinner"></div>
-        </body>
-      </html>
-    `);
-
+    await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getSplashHTML())}`);
     mainWindow.show();
 
     // Start backend (skip in dev mode if using external backend)
     if (!isDev) {
-      console.log('Starting backend server...');
+      log('Starting backend server...');
       await startBackend();
+    } else {
+      log('Development mode: skipping backend startup (use external backend)');
     }
 
     // Load frontend
-    console.log('Loading frontend...');
+    log('Loading frontend...');
     await loadFrontend();
 
+    log('MetricFrame started successfully');
+
   } catch (error) {
-    console.error('Startup error:', error);
-    dialog.showErrorBox(
-      'Startup Error',
-      `Failed to start MetricFrame: ${error.message}`
-    );
+    log(`Startup error: ${error.message}`, 'ERROR');
+    log(error.stack, 'ERROR');
+
+    const errorMsg = `Failed to start MetricFrame:\n\n${error.message}\n\n` +
+      `Please check the log file for details:\n${logFile}`;
+
+    dialog.showErrorBox('Startup Error', errorMsg);
     app.quit();
   }
 }
@@ -332,12 +561,18 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
+  log('Application quitting...');
   isQuitting = true;
   stopBackend();
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
-  dialog.showErrorBox('Error', error.message);
+  log(`Uncaught exception: ${error.message}`, 'ERROR');
+  log(error.stack, 'ERROR');
+  dialog.showErrorBox('Error', `An unexpected error occurred:\n\n${error.message}`);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  log(`Unhandled rejection: ${reason}`, 'ERROR');
 });

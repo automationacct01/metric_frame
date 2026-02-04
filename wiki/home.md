@@ -17,10 +17,11 @@ MetricFrame is a comprehensive web application for managing and visualizing cybe
 | **Multi-Framework Support** | NIST CSF 2.0 and AI RMF 1.0 with unified dashboard |
 | **10 Framework Functions** | 6 CSF + 4 AI RMF functions |
 | **7 AI Trustworthiness Types** | Track AI system trustworthiness characteristics |
-| **AI Integration** | Claude-powered metrics creation and analysis |
+| **AI Integration** | 6 provider options for metrics creation and analysis |
 | **Bring Your Own Catalog** | Import and manage custom metric catalogs |
 | **Gap-to-Target Scoring** | Transparent weighted risk calculations |
 | **Executive Dashboard** | Red/Amber/Green risk visualization |
+| **Light/Dark Mode** | Toggle between themes (light mode default) |
 | **Column Tooltips** | Hover over any column header for field explanations |
 
 ## How It Works
@@ -96,6 +97,7 @@ The application is under active development with the following features implemen
 | Documentation | Description |
 |---------------|-------------|
 | [Getting Started](getting-started.md) | Quick setup guide (5 minutes) |
+| [Security](security.md) | Network architecture and data privacy |
 | [Demo Mode](demo-mode.md) | Try features without configuration |
 | [How It Works](how-it-works.md) | System architecture overview |
 | [Dashboard Guide](dashboard.md) | Executive dashboard features |

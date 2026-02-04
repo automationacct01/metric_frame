@@ -320,6 +320,7 @@ Users can customize:
 - Score threshold colors
 - Attention panel criteria
 - Dashboard layout (compact/expanded)
+- **Theme**: Toggle between light mode (default) and dark mode via Settings
 
 ## Dashboard API Endpoints
 
