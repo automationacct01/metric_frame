@@ -457,6 +457,7 @@ class HealthResponse(BaseModel):
     timestamp: datetime
     database_connected: bool
     ai_service_available: bool
+    redis_connected: Optional[bool] = None  # None if not configured
 
 
 # ==============================================================================

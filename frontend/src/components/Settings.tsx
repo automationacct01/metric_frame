@@ -23,6 +23,12 @@ import {
   Tabs,
   Tab,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
+  Stack,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -35,6 +41,12 @@ import {
   Edit as EditorIcon,
   Visibility as ViewerIcon,
   People as PeopleIcon,
+  Security as SecurityIcon,
+  Lock as LockIcon,
+  Cloud as CloudIcon,
+  Storage as StorageIcon,
+  Laptop as LaptopIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -43,7 +55,11 @@ import AIProviderSettings from './settings/AIProviderSettings';
 import UserManagement from './settings/UserManagement';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDesktopAuth } from '../contexts/DesktopAuthContext';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 interface RiskThresholds {
   very_low: number;
@@ -213,11 +229,38 @@ function ThresholdInputs({
   );
 }
 
+// Security questions for desktop auth mode change
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What city were you born in?",
+  "What was your childhood nickname?",
+  "What is your mother's maiden name?",
+  "What was the name of your first school?",
+  "What was your favorite food as a child?",
+  "What is the name of your favorite childhood friend?",
+  "What was the make of your first car?",
+];
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState(0);
   const { darkMode, setDarkMode } = useThemeMode();
   const { user: authUser, isAdmin } = useAuth();
+  const desktopAuth = useDesktopAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Desktop auth settings state
+  const [desktopAuthDialogOpen, setDesktopAuthDialogOpen] = useState(false);
+  const [desktopAuthAction, setDesktopAuthAction] = useState<'changePassword' | 'enablePassword' | 'disablePassword' | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [securityQuestion1, setSecurityQuestion1] = useState('');
+  const [securityAnswer1, setSecurityAnswer1] = useState('');
+  const [securityQuestion2, setSecurityQuestion2] = useState('');
+  const [securityAnswer2, setSecurityAnswer2] = useState('');
+  const [desktopAuthError, setDesktopAuthError] = useState<string | null>(null);
+  const [desktopAuthSaving, setDesktopAuthSaving] = useState(false);
 
   // Update current time every second for the timezone preview
   useEffect(() => {
@@ -392,6 +435,108 @@ export default function Settings() {
     setActiveTab(newValue);
   };
 
+  // Desktop auth handlers
+  const resetDesktopAuthForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setSecurityQuestion1('');
+    setSecurityAnswer1('');
+    setSecurityQuestion2('');
+    setSecurityAnswer2('');
+    setDesktopAuthError(null);
+    setShowPasswords(false);
+  };
+
+  const handleDesktopAuthDialogClose = () => {
+    setDesktopAuthDialogOpen(false);
+    setDesktopAuthAction(null);
+    resetDesktopAuthForm();
+  };
+
+  const handleChangePassword = async () => {
+    setDesktopAuthError(null);
+
+    if (newPassword.length < 4) {
+      setDesktopAuthError('New password must be at least 4 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setDesktopAuthError('Passwords do not match');
+      return;
+    }
+
+    setDesktopAuthSaving(true);
+    try {
+      await desktopAuth.changePassword(currentPassword, newPassword);
+      handleDesktopAuthDialogClose();
+      showSnackbar('Password changed successfully', 'success');
+    } catch (err) {
+      setDesktopAuthError(err instanceof Error ? err.message : 'Failed to change password');
+    } finally {
+      setDesktopAuthSaving(false);
+    }
+  };
+
+  const handleEnablePassword = async () => {
+    setDesktopAuthError(null);
+
+    if (newPassword.length < 4) {
+      setDesktopAuthError('Password must be at least 4 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setDesktopAuthError('Passwords do not match');
+      return;
+    }
+    if (!securityQuestion1 || !securityAnswer1.trim()) {
+      setDesktopAuthError('Please complete security question 1');
+      return;
+    }
+    if (!securityQuestion2 || !securityAnswer2.trim()) {
+      setDesktopAuthError('Please complete security question 2');
+      return;
+    }
+    if (securityQuestion1 === securityQuestion2) {
+      setDesktopAuthError('Please select different security questions');
+      return;
+    }
+
+    setDesktopAuthSaving(true);
+    try {
+      await desktopAuth.changeAuthMode('password', {
+        new_password: newPassword,
+        security_question_1: securityQuestion1,
+        security_answer_1: securityAnswer1,
+        security_question_2: securityQuestion2,
+        security_answer_2: securityAnswer2,
+      });
+      handleDesktopAuthDialogClose();
+      showSnackbar('Password protection enabled', 'success');
+    } catch (err) {
+      setDesktopAuthError(err instanceof Error ? err.message : 'Failed to enable password');
+    } finally {
+      setDesktopAuthSaving(false);
+    }
+  };
+
+  const handleDisablePassword = async () => {
+    setDesktopAuthError(null);
+
+    setDesktopAuthSaving(true);
+    try {
+      await desktopAuth.changeAuthMode('none', {
+        current_password: currentPassword,
+      });
+      handleDesktopAuthDialogClose();
+      showSnackbar('Password protection disabled', 'success');
+    } catch (err) {
+      setDesktopAuthError(err instanceof Error ? err.message : 'Failed to disable password');
+    } finally {
+      setDesktopAuthSaving(false);
+    }
+  };
+
   return (
     <ContentFrame>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -403,6 +548,7 @@ export default function Settings() {
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
           <Tab icon={<TuneIcon />} iconPosition="start" label="General" />
           <Tab icon={<AIIcon />} iconPosition="start" label="AI Configuration" />
+          <Tab icon={<SecurityIcon />} iconPosition="start" label="Security" />
           {isAdmin && <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />}
         </Tabs>
       </Box>
@@ -782,9 +928,240 @@ export default function Settings() {
         <AIProviderSettings userId="admin" />
       </TabPanel>
 
+      {/* Security Tab */}
+      <TabPanel value={activeTab} index={2}>
+        <Grid container spacing={3}>
+          {/* Desktop Authentication Settings - Only show in desktop mode */}
+          {desktopAuth.isDesktopMode && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  avatar={<LockIcon color="primary" />}
+                  title="Desktop Authentication"
+                  subheader="Manage password protection for your desktop app"
+                />
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <Box sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: desktopAuth.authMode === 'password' ? 'success.main' : 'grey.500',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}>
+                      {desktopAuth.authMode === 'password' ? (
+                        <><LockIcon fontSize="small" /> Password Protected</>
+                      ) : (
+                        <><LockOpenIcon fontSize="small" /> No Password</>
+                      )}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {desktopAuth.authMode === 'password'
+                        ? 'Your app requires a password to unlock'
+                        : 'Your app opens directly without a password'}
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    {desktopAuth.authMode === 'password' ? (
+                      <>
+                        <Button
+                          variant="outlined"
+                          startIcon={<LockIcon />}
+                          onClick={() => {
+                            setDesktopAuthAction('changePassword');
+                            setDesktopAuthDialogOpen(true);
+                          }}
+                        >
+                          Change Password
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          startIcon={<LockOpenIcon />}
+                          onClick={() => {
+                            setDesktopAuthAction('disablePassword');
+                            setDesktopAuthDialogOpen(true);
+                          }}
+                        >
+                          Disable Password
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        startIcon={<LockIcon />}
+                        onClick={() => {
+                          setDesktopAuthAction('enablePassword');
+                          setDesktopAuthDialogOpen(true);
+                        }}
+                      >
+                        Enable Password Protection
+                      </Button>
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Network Architecture */}
+          <Grid item xs={12}>
+            <Card>
+              <CardHeader
+                avatar={<CloudIcon color="primary" />}
+                title="Network Architecture"
+                subheader="How your data flows through MetricFrame"
+              />
+              <CardContent>
+                <Box sx={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  backgroundColor: 'action.hover',
+                  p: 2,
+                  borderRadius: 1,
+                  overflowX: 'auto',
+                  whiteSpace: 'pre',
+                  lineHeight: 1.4,
+                }}>
+{`┌─────────────────────────────────────────────────────────────┐
+│  YOUR COMPUTER (localhost)                                  │
+│                                                             │
+│  Browser ──HTTP──► Frontend ──HTTP──► Backend ──► Redis     │
+│  (localhost:3000)   (nginx)          (FastAPI)   (sessions) │
+│                                           │                 │
+└───────────────────────────────────────────│─────────────────┘
+                                            │
+                                            ▼ HTTPS (TLS 1.3 encrypted)
+                                    ┌───────────────────┐
+                                    │   AI APIs         │
+                                    │   (encrypted)     │
+                                    └───────────────────┘`}
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Local traffic stays local:</strong> Browser-to-app communication never leaves your computer.
+                    The only external connections are encrypted HTTPS calls to AI providers when you use AI features.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Data Protection */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                avatar={<LockIcon color="success" />}
+                title="Data Protection"
+                subheader="Your data security measures"
+              />
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {[
+                    { label: '100% Local', desc: 'No data leaves your infrastructure (except encrypted AI calls)' },
+                    { label: 'Role-Based Access', desc: 'Admin, Editor, Viewer roles with enforced permissions' },
+                    { label: 'Encrypted Credentials', desc: 'API keys stored with Fernet encryption' },
+                    { label: 'Secure Sessions', desc: 'Redis-backed sessions with 24h TTL' },
+                    { label: 'Password Security', desc: 'bcrypt hashing for all passwords' },
+                    { label: 'No Telemetry', desc: 'We don\'t track usage or collect any data' },
+                  ].map((item) => (
+                    <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18, mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">{item.label}</Typography>
+                        <Typography variant="caption" color="text.secondary">{item.desc}</Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Deployment Comparison */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                avatar={<StorageIcon color="info" />}
+                title="Deployment Comparison"
+                subheader="Docker vs Desktop App"
+              />
+              <CardContent>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 2 }}>
+                  <Typography variant="caption" fontWeight="bold">Aspect</Typography>
+                  <Typography variant="caption" fontWeight="bold">Docker</Typography>
+                  <Typography variant="caption" fontWeight="bold">Desktop</Typography>
+                </Box>
+                {[
+                  { aspect: 'Sessions', docker: 'Redis', desktop: 'In-memory' },
+                  { aspect: 'Database', docker: 'PostgreSQL', desktop: 'SQLite' },
+                  { aspect: 'Multi-user', docker: 'Yes', desktop: 'Single user' },
+                  { aspect: 'Workers', docker: '4 (uvicorn)', desktop: '1' },
+                  { aspect: 'Network', docker: 'Configurable', desktop: 'Localhost' },
+                ].map((row) => (
+                  <Box key={row.aspect} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary">{row.aspect}</Typography>
+                    <Typography variant="caption">{row.docker}</Typography>
+                    <Typography variant="caption">{row.desktop}</Typography>
+                  </Box>
+                ))}
+                <Box sx={{ mt: 2, p: 1.5, bgcolor: 'info.main', color: 'info.contrastText', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LaptopIcon fontSize="small" />
+                    <Typography variant="caption">
+                      You are using: <strong>Docker deployment</strong>
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* API Key Security */}
+          <Grid item xs={12}>
+            <Card>
+              <CardHeader
+                avatar={<SecurityIcon color="warning" />}
+                title="API Key Security"
+                subheader="How your AI provider credentials are protected"
+              />
+              <CardContent>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  p: 2,
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  flexWrap: 'wrap',
+                }}>
+                  <Chip label="1. You enter API key" size="small" />
+                  <Typography variant="caption">→</Typography>
+                  <Chip label="2. Fernet encryption" size="small" color="primary" />
+                  <Typography variant="caption">→</Typography>
+                  <Chip label="3. Stored in database" size="small" />
+                  <Typography variant="caption">→</Typography>
+                  <Chip label="4. Decrypted for API call" size="small" color="primary" />
+                  <Typography variant="caption">→</Typography>
+                  <Chip label="5. Sent via HTTPS only" size="small" color="success" />
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  API keys are never stored in plaintext, never logged, and only transmitted over encrypted HTTPS connections to AI providers.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </TabPanel>
+
       {/* Users Tab - Admin only */}
       {isAdmin && (
-        <TabPanel value={activeTab} index={2}>
+        <TabPanel value={activeTab} index={3}>
           <UserManagement />
         </TabPanel>
       )}
@@ -802,6 +1179,186 @@ export default function Settings() {
           {state.snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Desktop Auth Dialog */}
+      <Dialog
+        open={desktopAuthDialogOpen}
+        onClose={handleDesktopAuthDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {desktopAuthAction === 'changePassword' && 'Change Password'}
+          {desktopAuthAction === 'enablePassword' && 'Enable Password Protection'}
+          {desktopAuthAction === 'disablePassword' && 'Disable Password Protection'}
+        </DialogTitle>
+        <DialogContent>
+          {desktopAuthError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDesktopAuthError(null)}>
+              {desktopAuthError}
+            </Alert>
+          )}
+
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            {/* Change Password Form */}
+            {desktopAuthAction === 'changePassword' && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Current Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowPasswords(!showPasswords)} edge="end">
+                          {showPasswords ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="New Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  helperText="Minimum 4 characters"
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm New Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </>
+            )}
+
+            {/* Enable Password Form */}
+            {desktopAuthAction === 'enablePassword' && (
+              <>
+                <TextField
+                  fullWidth
+                  label="New Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  helperText="Minimum 4 characters"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowPasswords(!showPasswords)} edge="end">
+                          {showPasswords ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+
+                <Divider />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Security Questions (for password recovery)
+                </Typography>
+
+                <FormControl fullWidth>
+                  <InputLabel>Security Question 1</InputLabel>
+                  <Select
+                    value={securityQuestion1}
+                    label="Security Question 1"
+                    onChange={(e) => setSecurityQuestion1(e.target.value)}
+                  >
+                    {SECURITY_QUESTIONS.map((q) => (
+                      <MenuItem key={q} value={q} disabled={q === securityQuestion2}>
+                        {q}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Answer 1"
+                  value={securityAnswer1}
+                  onChange={(e) => setSecurityAnswer1(e.target.value)}
+                  helperText="Answers are not case-sensitive"
+                />
+
+                <FormControl fullWidth>
+                  <InputLabel>Security Question 2</InputLabel>
+                  <Select
+                    value={securityQuestion2}
+                    label="Security Question 2"
+                    onChange={(e) => setSecurityQuestion2(e.target.value)}
+                  >
+                    {SECURITY_QUESTIONS.map((q) => (
+                      <MenuItem key={q} value={q} disabled={q === securityQuestion1}>
+                        {q}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Answer 2"
+                  value={securityAnswer2}
+                  onChange={(e) => setSecurityAnswer2(e.target.value)}
+                />
+              </>
+            )}
+
+            {/* Disable Password Form */}
+            {desktopAuthAction === 'disablePassword' && (
+              <>
+                <Alert severity="warning">
+                  This will remove password protection. Anyone with access to this computer will be able to open the app.
+                </Alert>
+                <TextField
+                  fullWidth
+                  label="Current Password"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  helperText="Enter your current password to confirm"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowPasswords(!showPasswords)} edge="end">
+                          {showPasswords ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDesktopAuthDialogClose} disabled={desktopAuthSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (desktopAuthAction === 'changePassword') handleChangePassword();
+              else if (desktopAuthAction === 'enablePassword') handleEnablePassword();
+              else if (desktopAuthAction === 'disablePassword') handleDisablePassword();
+            }}
+            disabled={desktopAuthSaving}
+          >
+            {desktopAuthSaving ? 'Saving...' : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ContentFrame>
   );
 }

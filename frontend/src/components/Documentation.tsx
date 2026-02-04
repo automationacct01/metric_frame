@@ -25,10 +25,15 @@ import {
   AccountTree as FrameworkIcon,
   Api as ApiIcon,
   Storage as DatabaseIcon,
+  Security as SecurityIcon,
   Code as DevIcon,
   BugReport as TroubleshootIcon,
   ExpandLess,
   ExpandMore,
+  Lock as LockIcon,
+  Cloud as CloudIcon,
+  CheckCircle as CheckCircleIcon,
+  Laptop as LaptopIcon,
 } from '@mui/icons-material';
 
 interface DocSection {
@@ -50,6 +55,7 @@ const docSections: DocSection[] = [
   { id: 'frameworks-reference', title: 'Frameworks Reference', icon: FrameworkIcon, category: 'Reference' },
   { id: 'api-reference', title: 'API Reference', icon: ApiIcon, category: 'Reference' },
   { id: 'database-schema', title: 'Database Schema', icon: DatabaseIcon, category: 'Reference' },
+  { id: 'security', title: 'Security', icon: SecurityIcon, category: 'Reference' },
   { id: 'development-guide', title: 'Development Guide', icon: DevIcon, category: 'Development' },
   { id: 'troubleshooting', title: 'Troubleshooting', icon: TroubleshootIcon, category: 'Development' },
 ];
@@ -92,6 +98,8 @@ export default function Documentation() {
         return <APIReferenceContent />;
       case 'database-schema':
         return <DatabaseSchemaContent />;
+      case 'security':
+        return <SecurityContent />;
       case 'development-guide':
         return <DevelopmentGuideContent />;
       case 'troubleshooting':
@@ -2518,6 +2526,163 @@ alembic history`}
           <li>Keep migrations small - one logical change per migration</li>
           <li>Never edit applied migrations - create new ones instead</li>
         </Box>
+      </Section>
+    </Box>
+  );
+}
+
+function SecurityContent() {
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom fontWeight={600}>Security Architecture</Typography>
+      <Typography variant="body1" color="text.secondary" paragraph>
+        MetricFrame is designed with security as a core principle. This document explains the network architecture,
+        data flow, and security measures that protect your data and API credentials.
+      </Typography>
+
+      <Section title="Network Architecture">
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
+          <CloudIcon color="primary" sx={{ mt: 0.5 }} />
+          <Typography variant="body1">
+            How your data flows through MetricFrame
+          </Typography>
+        </Box>
+        <Box sx={{
+          fontFamily: 'monospace',
+          fontSize: '0.75rem',
+          backgroundColor: 'action.hover',
+          p: 2,
+          borderRadius: 1,
+          overflowX: 'auto',
+          whiteSpace: 'pre',
+          lineHeight: 1.4,
+          mb: 2,
+        }}>
+{`┌─────────────────────────────────────────────────────────────┐
+│  YOUR COMPUTER (localhost)                                  │
+│                                                             │
+│  Browser ──HTTP──► Frontend ──HTTP──► Backend ──► Redis     │
+│  (localhost:3000)   (nginx)          (FastAPI)   (sessions) │
+│                                           │                 │
+└───────────────────────────────────────────│─────────────────┘
+                                            │
+                                            ▼ HTTPS (TLS 1.3 encrypted)
+                                    ┌───────────────────┐
+                                    │   AI APIs         │
+                                    │   (encrypted)     │
+                                    └───────────────────┘`}
+        </Box>
+        <Typography variant="body2" color="text.secondary">
+          <strong>Local traffic stays local:</strong> Browser-to-app communication never leaves your computer.
+          The only external connections are encrypted HTTPS calls to AI providers when you use AI features.
+        </Typography>
+      </Section>
+
+      <Section title="Data Protection">
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
+          <LockIcon color="success" sx={{ mt: 0.5 }} />
+          <Typography variant="body1">
+            Your data security measures
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {[
+            { label: '100% Local', desc: 'No data leaves your infrastructure (except encrypted AI calls)' },
+            { label: 'Role-Based Access', desc: 'Admin, Editor, Viewer roles with enforced permissions' },
+            { label: 'Encrypted Credentials', desc: 'API keys stored with Fernet encryption' },
+            { label: 'Secure Sessions', desc: 'Redis-backed sessions with 24h TTL' },
+            { label: 'Password Security', desc: 'bcrypt hashing for all passwords' },
+            { label: 'No Telemetry', desc: "We don't track usage or collect any data" },
+          ].map((item) => (
+            <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18, mt: 0.25 }} />
+              <Box>
+                <Typography variant="body2" fontWeight="medium">{item.label}</Typography>
+                <Typography variant="caption" color="text.secondary">{item.desc}</Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </Section>
+
+      <Section title="Deployment Comparison">
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
+          <LaptopIcon color="info" sx={{ mt: 0.5 }} />
+          <Typography variant="body1">
+            Docker vs Desktop App
+          </Typography>
+        </Box>
+        <Box component="table" sx={tableStyles}>
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Docker</th>
+              <th>Desktop</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Session Storage</td><td>Redis (multi-worker)</td><td>In-memory (single process)</td></tr>
+            <tr><td>Database</td><td>PostgreSQL</td><td>SQLite</td></tr>
+            <tr><td>Multi-user</td><td>Yes</td><td>Single user</td></tr>
+            <tr><td>Workers</td><td>4 (uvicorn)</td><td>1</td></tr>
+            <tr><td>Network</td><td>Configurable</td><td>Localhost only</td></tr>
+            <tr><td>AI API calls</td><td>HTTPS to providers</td><td>HTTPS to providers</td></tr>
+            <tr><td>API key storage</td><td>Encrypted in PostgreSQL</td><td>Encrypted in SQLite</td></tr>
+          </tbody>
+        </Box>
+      </Section>
+
+      <Section title="API Key Security">
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
+          <SecurityIcon color="warning" sx={{ mt: 0.5 }} />
+          <Typography variant="body1">
+            How your AI provider credentials are protected
+          </Typography>
+        </Box>
+        <Box component="ol" sx={{ pl: 3, '& li': { mb: 1 } }}>
+          <li><strong>Entry:</strong> You enter your API key in Settings → AI Configuration</li>
+          <li><strong>Encryption:</strong> Key is encrypted using Fernet symmetric encryption</li>
+          <li><strong>Storage:</strong> Encrypted key stored in database (never plaintext)</li>
+          <li><strong>Usage:</strong> Key decrypted only when making AI API calls</li>
+          <li><strong>Transmission:</strong> Sent only via HTTPS/TLS to AI providers</li>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          API keys are never stored in plaintext, never logged, and only transmitted over encrypted HTTPS connections to AI providers.
+        </Typography>
+      </Section>
+
+      <Section title="Why Local HTTP is Secure">
+        <Typography variant="body1" paragraph>
+          When you access <code>localhost:3000</code>, your browser communicates with the app through your computer's
+          <strong> loopback interface</strong> (127.0.0.1). This traffic:
+        </Typography>
+        <Box component="ul" sx={{ pl: 3, '& li': { mb: 1 } }}>
+          <li><strong>Never touches the network</strong> - It stays entirely within your computer's memory</li>
+          <li><strong>Cannot be intercepted</strong> - No external device can see loopback traffic</li>
+          <li><strong>Is isolated by design</strong> - The operating system prevents loopback traffic from leaving the machine</li>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          This is fundamentally different from HTTP traffic over a network, which can be intercepted.
+          Adding HTTPS for localhost would require self-signed certificates (causing browser warnings) with no actual security benefit.
+        </Typography>
+      </Section>
+
+      <Section title="Production Recommendations">
+        <SubSection title="For Local Network (Intranet)">
+          <Box component="ol" sx={{ pl: 3, '& li': { mb: 1 } }}>
+            <li>Keep using HTTP on port 3000</li>
+            <li>Ensure firewall blocks external access</li>
+            <li>Use network-level authentication if needed</li>
+          </Box>
+        </SubSection>
+        <SubSection title="For Internet-Facing Deployment">
+          <Box component="ol" sx={{ pl: 3, '& li': { mb: 1 } }}>
+            <li>Place behind a reverse proxy (nginx, Traefik, Caddy)</li>
+            <li>Configure HTTPS with proper certificates (Let's Encrypt)</li>
+            <li>Use a VPN or zero-trust network</li>
+            <li>Implement additional authentication layers</li>
+          </Box>
+        </SubSection>
       </Section>
     </Box>
   );

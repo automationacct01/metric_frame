@@ -17,7 +17,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from .db import engine, get_db, IS_SQLITE, IS_POSTGRESQL, get_database_info, init_db
+from .db import engine, get_db, IS_SQLITE, IS_POSTGRESQL, IS_DESKTOP_MODE, get_database_info, init_db
 from .models import Base, Framework
 from .schemas import HealthResponse
 from .routers import metrics, scores, ai, csf, catalogs, frameworks, ai_providers, users, auth
@@ -136,6 +136,11 @@ app.include_router(ai_providers.router, prefix=api_prefix)  # AI providers route
 app.include_router(users.router, prefix=api_prefix)  # Users router includes its own /users prefix
 app.include_router(auth.router, prefix=api_prefix)  # Auth router includes its own /auth prefix
 
+# Desktop-only auth (simplified single-user authentication)
+if IS_DESKTOP_MODE:
+    from .routers import desktop_auth
+    app.include_router(desktop_auth.router, prefix=api_prefix)  # Desktop auth includes its own /auth/desktop prefix
+
 
 @app.get("/", response_model=dict)
 async def root():
@@ -154,6 +159,7 @@ async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint."""
     database_connected = True
     ai_service_available = True
+    redis_connected = None  # None means not configured
 
     try:
         # Test database connection
@@ -169,6 +175,20 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception:
         ai_service_available = False
 
+    # Test Redis connection if configured
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        try:
+            from .services.session_storage import get_storage, RedisSessionStorage
+            storage = get_storage()
+            if isinstance(storage, RedisSessionStorage):
+                redis_connected = storage.health_check()
+            else:
+                # Redis URL set but using fallback (Redis not reachable)
+                redis_connected = False
+        except Exception:
+            redis_connected = False
+
     status = "healthy" if database_connected else "unhealthy"
 
     return HealthResponse(
@@ -176,6 +196,7 @@ async def health_check(db: Session = Depends(get_db)):
         timestamp=datetime.utcnow(),
         database_connected=database_connected,
         ai_service_available=ai_service_available,
+        redis_connected=redis_connected,
     )
 
 

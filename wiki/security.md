@@ -14,8 +14,8 @@ MetricFrame is designed with security as a core principle. This document explain
 ┌─────────────────────────────────────────────────────────────┐
 │  YOUR COMPUTER (localhost)                                  │
 │                                                             │
-│  Browser ──HTTP──► Frontend ──HTTP──► Backend               │
-│  (localhost:3000)   (nginx)          (FastAPI)              │
+│  Browser ──HTTP──► Frontend ──HTTP──► Backend ──► Redis     │
+│  (localhost:3000)   (nginx)          (FastAPI)   (sessions) │
 │                                           │                 │
 └───────────────────────────────────────────│─────────────────┘
                                             │
@@ -36,9 +36,10 @@ MetricFrame is designed with security as a core principle. This document explain
 |--------------|----------|-----------|-----------------|
 | Browser → Frontend | HTTP | No* | No |
 | Frontend → Backend | HTTP | No* | No |
+| Backend → Redis | TCP | No* | No |
 | Backend → AI APIs | HTTPS | Yes (TLS 1.3) | Yes |
 
-*Local HTTP traffic never leaves your machine - see explanation below.
+*Local HTTP/TCP traffic never leaves your machine - see explanation below.
 
 ## Why Local HTTP is Secure
 
@@ -126,6 +127,48 @@ Database retrieval → Fernet decryption → Used for API call
 | Memory handling | Keys cleared after use |
 | HTTPS only | Keys only sent over TLS |
 
+## Session Storage
+
+MetricFrame uses Redis for session storage in production deployments, enabling multiple backend workers to share session state.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Production (4 uvicorn workers)                             │
+│                                                             │
+│  Worker 1 ─┐                                                │
+│  Worker 2 ─┼──► Redis (6379) ◄── All sessions shared        │
+│  Worker 3 ─┤                                                │
+│  Worker 4 ─┘                                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Session Data
+
+| Field | Description |
+|-------|-------------|
+| `email` | User identifier |
+| `created_at` | Session creation timestamp |
+| `last_accessed` | Last activity (for TTL) |
+
+### Security Features
+
+| Feature | Implementation |
+|---------|----------------|
+| **Token Generation** | `secrets.token_urlsafe(32)` - 256 bits of entropy |
+| **Session TTL** | 24-hour sliding window (configurable) |
+| **Automatic Expiration** | Redis native TTL handles cleanup |
+| **Bulk Invalidation** | All user sessions revoked on password change/deactivation |
+| **Graceful Fallback** | In-memory storage if Redis unavailable |
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | (none) | Redis connection URL. If not set, uses in-memory storage |
+| `SESSION_TTL_HOURS` | 24 | Session expiration time in hours |
+
 ## Port Selection: Why 3000?
 
 MetricFrame uses port 3000 for the web interface:
@@ -207,6 +250,56 @@ If deploying MetricFrame on a server accessible by multiple users:
 3. Use a VPN or zero-trust network
 4. Implement additional authentication layers
 
+## Deployment-Specific Security
+
+### Docker Deployment
+
+Docker deployment is designed for multi-user team environments:
+
+| Feature | Implementation |
+|---------|----------------|
+| **Session Storage** | Redis-backed for multi-worker consistency |
+| **Database** | PostgreSQL with persistent volumes |
+| **Workers** | 4 uvicorn workers behind nginx |
+| **Port** | 3000 (configurable) |
+| **Container Isolation** | Services run in isolated containers |
+
+**Security Considerations:**
+- Sessions persist across container restarts (Redis AOF persistence)
+- All workers share session state via Redis
+- Database credentials in environment variables (use secrets in production)
+- Network isolation via Docker bridge network
+
+### Desktop App
+
+The desktop app is optimized for single-user local use:
+
+| Feature | Implementation |
+|---------|----------------|
+| **Session Storage** | In-memory (single process) |
+| **Database** | SQLite (local file) |
+| **Workers** | Single uvicorn process |
+| **Port** | Dynamic (Electron-managed) |
+| **Isolation** | OS-level process isolation |
+
+**Security Considerations:**
+- No Redis required - sessions stored in process memory
+- Database file stored in user's application data directory
+- API keys encrypted in SQLite using same Fernet encryption
+- No network exposure - Electron manages all connections
+- Session persists only while app is running
+
+### Comparison
+
+| Aspect | Docker | Desktop |
+|--------|--------|---------|
+| Multi-user support | Yes | No (single user) |
+| Session persistence | Redis (survives restarts) | Memory (cleared on close) |
+| Database | PostgreSQL | SQLite |
+| Network access | Configurable | Localhost only |
+| AI API calls | HTTPS to providers | HTTPS to providers |
+| API key storage | Encrypted in PostgreSQL | Encrypted in SQLite |
+
 ## Summary
 
 | Component | Security Measure |
@@ -215,6 +308,7 @@ If deploying MetricFrame on a server accessible by multiple users:
 | AI API calls | TLS 1.3 encryption |
 | API keys | Fernet encryption at rest |
 | Passwords | bcrypt hashing |
+| Sessions | Redis (Docker) / In-memory (Desktop) |
 | Access control | Role-based permissions |
 | Web security | Standard security headers |
 

@@ -23,6 +23,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis Session Store (optional for development)
+  # Backend uses in-memory storage by default; enable Redis for multi-worker testing
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - redis  # Only starts with: docker compose --profile redis up
+
   backend:
     build:
       context: ./backend

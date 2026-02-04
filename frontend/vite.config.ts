@@ -15,8 +15,9 @@ const getProxyTarget = () => {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Use relative paths for assets - required for Electron file:// protocol
-  base: './',
+  // Use relative paths for Electron (file://), absolute for web (http://)
+  // VITE_BASE_PATH='./' for desktop, defaults to '/' for Docker/web
+  base: process.env.VITE_BASE_PATH || '/',
   server: {
     host: true,
     port: 5175,
