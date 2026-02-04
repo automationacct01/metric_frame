@@ -15,6 +15,8 @@ const getProxyTarget = () => {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Use relative paths for assets - required for Electron file:// protocol
+  base: './',
   server: {
     host: true,
     port: 5175,

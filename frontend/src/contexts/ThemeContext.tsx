@@ -129,7 +129,7 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  // Initialize from localStorage or system preference
+  // Initialize from localStorage, defaulting to light mode
   const [darkMode, setDarkModeState] = useState<boolean>(() => {
     const stored = localStorage.getItem('appSettings');
     if (stored) {
@@ -142,8 +142,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         // Ignore parse errors
       }
     }
-    // Fall back to system preference
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    // Explicitly initialize localStorage to light mode on first launch
+    const initialSettings = { darkMode: false };
+    localStorage.setItem('appSettings', JSON.stringify(initialSettings));
+    return false;
   });
 
   // Sync with localStorage changes from Settings component

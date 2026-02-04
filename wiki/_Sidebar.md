@@ -26,6 +26,7 @@
 ---
 
 ### Reference
+- [Security](security)
 - [Scoring Methodology](scoring-methodology)
 - [Frameworks Reference](frameworks-reference)
 - [API Reference](api-reference)

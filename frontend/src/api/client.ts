@@ -197,6 +197,15 @@ class APIClient {
 
   // Intelligently determine the correct API base URL
   private determineBaseURL(): string {
+    // 0. Check for Electron/Desktop mode (file:// protocol)
+    // When running as a desktop app, the frontend is loaded from file://
+    // and the backend runs on localhost:8000
+    if (window.location.protocol === 'file:') {
+      const desktopApiUrl = 'http://127.0.0.1:8000/api/v1';
+      console.log('🖥️ Desktop mode detected (file:// protocol), using:', desktopApiUrl);
+      return desktopApiUrl;
+    }
+
     // 1. For development, use Vite proxy (relative URL)
     const currentHost = window.location.hostname;
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
@@ -225,9 +234,14 @@ class APIClient {
   async getHealth(): Promise<HealthResponse> {
     return this.makeRequest(
       async () => {
-        // Note: Health endpoint is at /health (not /api/v1/health)
-        // Create a temporary client without the baseURL for this specific call
-        const healthResponse = await axios.get<HealthResponse>('/health', {
+        // Health endpoint is at /health (not /api/v1/health)
+        // For desktop mode, use absolute URL; for web, use relative
+        const isDesktop = window.location.protocol === 'file:';
+        const healthUrl = isDesktop
+          ? 'http://127.0.0.1:8000/health'
+          : '/health';
+
+        const healthResponse = await axios.get<HealthResponse>(healthUrl, {
           timeout: 10000,
         });
         return healthResponse.data;

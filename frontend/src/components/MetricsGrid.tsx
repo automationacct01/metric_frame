@@ -24,6 +24,7 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import {
   DataGrid,
@@ -249,6 +250,8 @@ export default function MetricsGrid() {
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
   const navigate = useNavigate();
   const { isEditor } = useAuth();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const [state, setState] = useState<MetricsGridState>({
     metrics: [],
@@ -662,9 +665,9 @@ export default function MetricsGrid() {
     try {
       setState(prev => ({ ...prev, savingMetric: metric.id }));
 
-      // Add update_type to the patch data
-      const patchWithType = { ...patchData, update_type: updateType };
-      await apiClient.patchMetric(metric.id, patchWithType);
+      // Add update_type to the patch data - cast to any to allow extra field
+      const patchWithType = { ...patchData, update_type: updateType } as Partial<Metric> & { update_type: UpdateType };
+      await apiClient.patchMetric(metric.id, patchWithType as Partial<Metric>);
       await apiClient.lockMetric(metric.id);
 
       // Reload metrics to get updated values
@@ -1220,9 +1223,9 @@ export default function MetricsGrid() {
           sx={{
             fontWeight: 600,
             fontSize: '0.8rem',
-            backgroundColor: '#f5f5f5',
-            color: '#555',
-            border: '1px solid #e0e0e0'
+            backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f5f5f5',
+            color: isDark ? '#e0e0e0' : '#555',
+            border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e0e0e0'
           }}
         />
       ),
@@ -1318,7 +1321,7 @@ export default function MetricsGrid() {
 
         if (!formula) {
           return (
-            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+            <span style={{ color: isDark ? '#888' : '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
               Not defined
             </span>
           );
@@ -1331,7 +1334,7 @@ export default function MetricsGrid() {
             lineHeight: '1.3',
             padding: '4px 0',
             fontSize: '0.85rem',
-            color: '#444',
+            color: isDark ? '#e0e0e0' : '#444',
           }}>
             {formula}
           </div>
@@ -1350,7 +1353,7 @@ export default function MetricsGrid() {
 
         if (!riskDef) {
           return (
-            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+            <span style={{ color: isDark ? '#888' : '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
               Not defined
             </span>
           );
@@ -1363,7 +1366,7 @@ export default function MetricsGrid() {
             lineHeight: '1.3',
             padding: '4px 0',
             fontSize: '0.85rem',
-            color: '#444',
+            color: isDark ? '#e0e0e0' : '#444',
           }}>
             {riskDef}
           </div>
@@ -1382,7 +1385,7 @@ export default function MetricsGrid() {
 
         if (!impact) {
           return (
-            <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
+            <span style={{ color: isDark ? '#888' : '#9e9e9e', fontStyle: 'italic', fontSize: '0.85rem' }}>
               Not defined
             </span>
           );
@@ -1415,7 +1418,7 @@ export default function MetricsGrid() {
           const funcName = metric.ai_rmf_function_name || AI_RMF_FUNCTION_NAMES[params.value as AIRMFFunction];
 
           if (!funcName) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           return (
@@ -1437,7 +1440,7 @@ export default function MetricsGrid() {
           const categoryName = metric.ai_rmf_category_name;
           const categoryCode = metric.ai_rmf_category_code;
 
-          if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
+          if (!categoryName && !categoryCode) return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
 
           return (
             <Typography variant="body2" sx={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
@@ -1458,7 +1461,7 @@ export default function MetricsGrid() {
           const subcategoryCode = metric.ai_rmf_subcategory_code;
 
           if (!subcategoryCode) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           return (
@@ -1481,7 +1484,7 @@ export default function MetricsGrid() {
           const subcategoryOutcome = metric.ai_rmf_subcategory_outcome;
 
           if (!subcategoryOutcome) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           return (
@@ -1491,7 +1494,7 @@ export default function MetricsGrid() {
               lineHeight: '1.3',
               padding: '4px 0',
               fontSize: '0.85rem',
-              color: '#555',
+              color: isDark ? '#e0e0e0' : '#555',
             }}>
               {subcategoryOutcome}
             </div>
@@ -1510,7 +1513,7 @@ export default function MetricsGrid() {
           const trustworthiness = metric.trustworthiness_characteristic;
 
           if (!trustworthiness) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           const displayText = AI_RMF_TRUSTWORTHINESS[trustworthiness] || trustworthiness;
@@ -1582,7 +1585,7 @@ export default function MetricsGrid() {
           const categoryName = params.row.csf_category_name;
           const categoryCode = params.row.csf_category_code;
 
-          if (!categoryName && !categoryCode) return <span style={{ color: '#9e9e9e' }}>-</span>;
+          if (!categoryName && !categoryCode) return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
 
           return (
             <Typography variant="body2" sx={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
@@ -1602,7 +1605,7 @@ export default function MetricsGrid() {
           const subcategoryCode = params.row.csf_subcategory_code;
 
           if (!subcategoryCode) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           return (
@@ -1624,7 +1627,7 @@ export default function MetricsGrid() {
           const subcategoryOutcome = params.row.csf_subcategory_outcome;
 
           if (!subcategoryOutcome) {
-            return <span style={{ color: '#9e9e9e' }}>-</span>;
+            return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
           }
 
           return (
@@ -1634,7 +1637,7 @@ export default function MetricsGrid() {
               lineHeight: '1.3',
               padding: '4px 0',
               fontSize: '0.85rem',
-              color: '#555',
+              color: isDark ? '#e0e0e0' : '#555',
             }}>
               {subcategoryOutcome}
             </div>
@@ -1705,7 +1708,7 @@ export default function MetricsGrid() {
               onChange={(e) => handleFieldChange(metric.id, 'current_value', e.target.value ? Number(e.target.value) : null)}
               sx={{ width: 100 }}
               InputProps={{
-                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: '#666' }}>{unitDisplay}</span> : undefined,
+                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: isDark ? '#aaa' : '#666' }}>{unitDisplay}</span> : undefined,
               }}
             />
           );
@@ -1748,7 +1751,7 @@ export default function MetricsGrid() {
               onChange={(e) => handleFieldChange(metric.id, 'target_value', e.target.value ? Number(e.target.value) : null)}
               sx={{ width: 80 }}
               InputProps={{
-                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: '#666' }}>{unitDisplay}</span> : undefined,
+                endAdornment: unitDisplay ? <span style={{ fontSize: '0.75rem', color: isDark ? '#aaa' : '#666' }}>{unitDisplay}</span> : undefined,
               }}
             />
           );
@@ -1804,7 +1807,7 @@ export default function MetricsGrid() {
       renderCell: (params: GridRenderCellParams) => {
         const dataSource = params.value;
         if (!dataSource) {
-          return <span style={{ color: '#9e9e9e' }}>-</span>;
+          return <span style={{ color: isDark ? '#888' : '#9e9e9e' }}>-</span>;
         }
         return (
           <Typography

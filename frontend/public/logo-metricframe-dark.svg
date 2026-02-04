@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40" width="220" height="40">
+  <!-- Compact Horizontal Lockup for Sidebar - Dark Mode Version -->
+
+  <!-- Frame 40x40 with consistent 3px stroke - WHITE for dark mode -->
+  <rect x="1.5" y="0" width="37" height="40" rx="5" fill="none" stroke="#ffffff" stroke-width="3"/>
+
+  <!-- 3 bars properly centered in frame - keep blue -->
+  <rect x="7" y="20" width="6" height="14" rx="1" fill="#38bdf8"/>
+  <rect x="17" y="13" width="6" height="21" rx="1" fill="#38bdf8"/>
+  <rect x="27" y="6" width="6" height="28" rx="1" fill="#38bdf8"/>
+
+  <!-- Wordmark - WHITE for dark mode -->
+  <text x="48" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#ffffff" font-weight="700" letter-spacing="0.5">METRICFRAME</text>
+</svg>

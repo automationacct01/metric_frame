@@ -12,6 +12,8 @@ import {
   Grid,
   Card,
   CardContent,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -126,14 +128,24 @@ function TreeRow({
   hasChildren,
   indent = 0,
 }: TreeRowProps) {
-  // Determine chip colors based on level
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
+  // Determine chip colors based on level - adjusted for dark mode
   const getChipColors = () => {
     if (level === 'function') {
-      return getFunctionColor(code);
+      const baseColor = getFunctionColor(code);
+      return isDark
+        ? { bg: alpha(baseColor.text, 0.15), text: baseColor.text }
+        : baseColor;
     } else if (level === 'category') {
-      return CATEGORY_COLOR;
+      return isDark
+        ? { bg: alpha(CATEGORY_COLOR.text, 0.15), text: CATEGORY_COLOR.text }
+        : CATEGORY_COLOR;
     } else {
-      return SUBCATEGORY_COLOR;
+      return isDark
+        ? { bg: alpha(SUBCATEGORY_COLOR.text, 0.15), text: SUBCATEGORY_COLOR.text }
+        : SUBCATEGORY_COLOR;
     }
   };
   const chipColors = getChipColors();
@@ -142,23 +154,23 @@ function TreeRow({
     : null;
 
   const getCoverageColor = (percent: number | null) => {
-    if (percent === null) return '#9e9e9e';
-    if (percent >= 80) return '#4caf50';
-    if (percent >= 50) return '#ff9800';
-    return '#f44336';
+    if (percent === null) return theme.palette.grey[500];
+    if (percent >= 80) return theme.palette.success.main;
+    if (percent >= 50) return theme.palette.warning.main;
+    return theme.palette.error.main;
   };
 
   const getCoverageIcon = (percent: number | null) => {
     if (percent === null) return null;
-    if (percent >= 80) return <CheckCircleIcon fontSize="small" sx={{ color: '#4caf50' }} />;
-    if (percent >= 50) return <WarningIcon fontSize="small" sx={{ color: '#ff9800' }} />;
-    return <ErrorIcon fontSize="small" sx={{ color: '#f44336' }} />;
+    if (percent >= 80) return <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />;
+    if (percent >= 50) return <WarningIcon fontSize="small" sx={{ color: 'warning.main' }} />;
+    return <ErrorIcon fontSize="small" sx={{ color: 'error.main' }} />;
   };
 
   const levelStyles = {
     function: { fontWeight: 600, fontSize: '1rem' },
     category: { fontWeight: 500, fontSize: '0.95rem' },
-    subcategory: { fontWeight: 400, fontSize: '0.875rem', color: '#666' },
+    subcategory: { fontWeight: 400, fontSize: '0.875rem', color: 'text.secondary' },
   };
 
   return (
@@ -169,10 +181,11 @@ function TreeRow({
         py: 1.5,
         px: 2,
         pl: 2 + indent * 3,
-        borderBottom: '1px solid #f0f0f0',
-        backgroundColor: level === 'function' ? '#fafafa' : 'white',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: level === 'function' ? (isDark ? 'action.hover' : 'action.hover') : 'background.paper',
         '&:hover': {
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'action.selected',
         },
         cursor: hasChildren ? 'pointer' : 'default',
         minHeight: 48,
@@ -232,8 +245,10 @@ function TreeRow({
           label={`${metricCount} metric${metricCount !== 1 ? 's' : ''}`}
           size="small"
           sx={{
-            backgroundColor: metricCount > 0 ? '#e8f5e9' : '#ffebee',
-            color: metricCount > 0 ? '#2e7d32' : '#c62828',
+            backgroundColor: metricCount > 0
+              ? (isDark ? alpha(theme.palette.success.main, 0.2) : '#e8f5e9')
+              : (isDark ? alpha(theme.palette.error.main, 0.2) : '#ffebee'),
+            color: metricCount > 0 ? 'success.main' : 'error.main',
             fontWeight: 500,
           }}
         />
@@ -250,7 +265,7 @@ function TreeRow({
               sx={{
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: '#e0e0e0',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
                 '& .MuiLinearProgress-bar': {
                   backgroundColor: getCoverageColor(coveragePercent),
                   borderRadius: 4,
@@ -508,8 +523,9 @@ export default function CSFCoverageView() {
           alignItems: 'center',
           justifyContent: 'space-between',
           p: 2,
-          borderBottom: '2px solid #e0e0e0',
-          backgroundColor: '#f5f5f5',
+          borderBottom: '2px solid',
+          borderColor: 'divider',
+          backgroundColor: 'action.hover',
         }}>
           <Typography variant="h6">
             {processedCoverage.framework_name} Hierarchy
@@ -536,8 +552,9 @@ export default function CSFCoverageView() {
           alignItems: 'center',
           py: 1,
           px: 2,
-          borderBottom: '1px solid #e0e0e0',
-          backgroundColor: '#fafafa',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'action.hover',
         }}>
           <Box sx={{ width: 28 }} />
           <Typography variant="caption" sx={{ minWidth: 100, fontWeight: 600, mr: 2 }}>Code</Typography>

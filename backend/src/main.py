@@ -81,9 +81,10 @@ async def lifespan(app: FastAPI):
         init_db()  # Creates all tables from models
         seed_database_if_empty()
     else:
-        # For PostgreSQL (Docker): Just create tables, seeding is handled separately
+        # For PostgreSQL (Docker): Create tables and auto-seed if database is empty
         print("PostgreSQL mode: Creating tables if not exist...")
         Base.metadata.create_all(bind=engine)
+        seed_database_if_empty()  # Auto-seed on first run
 
     yield
     # Shutdown
