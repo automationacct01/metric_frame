@@ -89,6 +89,23 @@ docker run -d \
 # Update DATABASE_URL in backend/.env
 ```
 
+#### Redis Setup (Optional for Development)
+
+Redis is used for session storage in production with multiple backend workers. For single-worker development, sessions use in-memory storage by default.
+
+```bash
+# Optional: Start Redis for testing multi-worker sessions
+docker run -d \
+  --name metricframe_redis \
+  -p 6379:6379 \
+  redis:7-alpine
+
+# Set REDIS_URL in backend/.env to enable Redis sessions
+# REDIS_URL=redis://localhost:6379/0
+```
+
+> **Note:** If `REDIS_URL` is not set, the backend automatically uses thread-safe in-memory session storage, which is suitable for development with a single uvicorn worker.
+
 ## Project Structure
 
 ```
@@ -110,10 +127,11 @@ metric_frame/
 │   │   │   └── frameworks.py # Multi-framework support
 │   │   ├── services/
 │   │   │   ├── __init__.py
-│   │   │   ├── scoring.py    # Score calculation logic
-│   │   │   ├── ai_client.py  # AI provider integration
-│   │   │   ├── catalog_scoring.py
-│   │   │   └── csf_reference.py
+│   │   │   ├── scoring.py          # Score calculation logic
+│   │   │   ├── ai_client.py        # AI provider integration
+│   │   │   ├── catalog_scoring.py  # Catalog-aware scoring
+│   │   │   ├── session_storage.py  # Redis/in-memory sessions
+│   │   │   └── csf_reference.py    # Framework reference data
 │   │   └── seeds/
 │   │       ├── seed_all.py      # Master seed script
 │   │       ├── load_metrics.py  # JSON metrics loader

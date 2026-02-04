@@ -36,6 +36,21 @@ services:
     networks:
       - metricframe
 
+  # Redis Session Store
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-ttl
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metricframe
+
   # FastAPI Backend
   backend:
     build:
@@ -45,8 +60,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-metricframe}:${POSTGRES_PASSWORD:-metricframe}@db:5432/${POSTGRES_DB:-metricframe}
+      REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000}
       API_PREFIX: /api/v1
       # Encryption key for user AI credentials (REQUIRED - generate your own!)
@@ -84,3 +102,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:

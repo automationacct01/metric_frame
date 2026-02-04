@@ -1,10 +1,8 @@
 """Authentication endpoints for login/logout/register."""
 
-import secrets
 import logging
-import threading
-from datetime import datetime, timedelta
-from typing import Annotated, Optional, NamedTuple
+from datetime import datetime
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
@@ -16,6 +14,14 @@ from slowapi.util import get_remote_address
 
 from ..db import get_db
 from ..models import User
+from ..services.session_storage import (
+    create_session as _create_session,
+    get_session as _get_session,
+    invalidate_session as _invalidate_session,
+    invalidate_user_sessions as _invalidate_user_sessions,
+    cleanup_expired_sessions as _cleanup_expired_sessions,
+    SessionData,
+)
 
 
 # Rate limiter for auth endpoints - stricter limits for sensitive operations
@@ -42,89 +48,6 @@ EmailSyntax = Annotated[str, BeforeValidator(validate_email_syntax)]
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
-
-
-# Session configuration
-SESSION_TTL_HOURS = 24  # Sessions expire after 24 hours of inactivity
-SESSION_CLEANUP_INTERVAL = 300  # Clean up expired sessions every 5 minutes
-
-
-class SessionData(NamedTuple):
-    """Session data with expiration tracking."""
-    email: str
-    created_at: datetime
-    last_accessed: datetime
-
-
-# In-memory session store with TTL support
-# Appropriate for local desktop/docker applications
-_sessions: dict[str, SessionData] = {}  # token -> SessionData
-_sessions_lock = threading.Lock()  # Thread-safe session access
-
-
-def _create_session(email: str) -> str:
-    """Create a new session with expiration tracking."""
-    token = secrets.token_urlsafe(32)
-    now = datetime.utcnow()
-    with _sessions_lock:
-        _sessions[token] = SessionData(
-            email=email,
-            created_at=now,
-            last_accessed=now
-        )
-    return token
-
-
-def _get_session(token: str) -> Optional[SessionData]:
-    """Get session data if valid (not expired), updating last accessed time."""
-    with _sessions_lock:
-        session = _sessions.get(token)
-        if not session:
-            return None
-
-        # Check if session has expired
-        now = datetime.utcnow()
-        if now - session.last_accessed > timedelta(hours=SESSION_TTL_HOURS):
-            # Session expired, remove it
-            _sessions.pop(token, None)
-            return None
-
-        # Update last accessed time
-        _sessions[token] = SessionData(
-            email=session.email,
-            created_at=session.created_at,
-            last_accessed=now
-        )
-        return _sessions[token]
-
-
-def _invalidate_session(token: str) -> Optional[str]:
-    """Invalidate a session, returning the email if found."""
-    with _sessions_lock:
-        session = _sessions.pop(token, None)
-        return session.email if session else None
-
-
-def _invalidate_user_sessions(email: str) -> int:
-    """Invalidate all sessions for a user, returning count removed."""
-    with _sessions_lock:
-        tokens_to_remove = [t for t, s in _sessions.items() if s.email == email]
-        for token in tokens_to_remove:
-            _sessions.pop(token, None)
-        return len(tokens_to_remove)
-
-
-def _cleanup_expired_sessions() -> int:
-    """Remove all expired sessions, returning count removed."""
-    now = datetime.utcnow()
-    with _sessions_lock:
-        expired = [
-            t for t, s in _sessions.items()
-            if now - s.last_accessed > timedelta(hours=SESSION_TTL_HOURS)
-        ]
-        for token in expired:
-            _sessions.pop(token, None)
-        return len(expired)
 
 
 class LoginRequest(BaseModel):

@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FrameworkProvider, useFramework } from './contexts/FrameworkContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DesktopAuthProvider, useDesktopAuth } from './contexts/DesktopAuthContext';
 
 // Components
 import Navbar from './components/Navbar';
@@ -25,6 +26,11 @@ import Documentation from './components/Documentation';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import { FrameworkSelection, APIKeySetup } from './components/onboarding';
+
+// Desktop auth components
+import DesktopSetup from './components/desktop/DesktopSetup';
+import DesktopLogin from './components/desktop/DesktopLogin';
+import DesktopForgotPassword from './components/desktop/DesktopForgotPassword';
 
 // Landing Page
 import LandingPage from './pages/LandingPage';
@@ -66,6 +72,103 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   if (!isAdmin) {
     // Non-admins can't access this route - redirect to dashboard
     return <Navigate to="/app/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Desktop Auth Router - handles simplified desktop authentication flow
+function DesktopAuthRouter() {
+  const { isDesktopMode, setupCompleted, authMode, isAuthenticated, isLoading } = useDesktopAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Not in desktop mode - fall through to regular auth
+  if (!isDesktopMode) {
+    return null;
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Setup not completed - show setup wizard
+  if (!setupCompleted) {
+    return <DesktopSetup />;
+  }
+
+  // No auth mode - user is automatically authenticated
+  if (authMode === 'none') {
+    return null; // Fall through to app content
+  }
+
+  // Password mode but not authenticated - show login
+  if (authMode === 'password' && !isAuthenticated) {
+    if (showForgotPassword) {
+      return (
+        <DesktopForgotPassword
+          onBack={() => setShowForgotPassword(false)}
+          onSuccess={() => setShowForgotPassword(false)}
+        />
+      );
+    }
+    return <DesktopLogin onForgotPassword={() => setShowForgotPassword(true)} />;
+  }
+
+  // Authenticated - fall through to app content
+  return null;
+}
+
+// Desktop Protected Route - wrapper for desktop mode that bypasses regular auth
+function DesktopProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isDesktopMode, isAuthenticated, authMode, setupCompleted, isLoading } = useDesktopAuth();
+
+  // Not desktop mode - use regular auth flow
+  if (!isDesktopMode) {
+    return <ProtectedRoute>{children}</ProtectedRoute>;
+  }
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Desktop mode - check desktop auth
+  if (!setupCompleted) {
+    return <Navigate to="/" replace />;
+  }
+
+  // No auth mode = always authenticated after setup
+  if (authMode === 'none') {
+    return <>{children}</>;
+  }
+
+  // Password mode - check if authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -170,14 +273,73 @@ function AppContent() {
   );
 }
 
+// Desktop Root Route - shows desktop auth flow or redirects to app
+function DesktopRootRoute() {
+  const desktopAuth = useDesktopAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Loading
+  if (desktopAuth.isLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Not desktop mode - shouldn't happen but handle it
+  if (!desktopAuth.isDesktopMode) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Setup not completed - show setup wizard
+  if (!desktopAuth.setupCompleted) {
+    return <DesktopSetup />;
+  }
+
+  // No auth mode - go straight to dashboard
+  if (desktopAuth.authMode === 'none') {
+    return <Navigate to="/app/dashboard" replace />;
+  }
+
+  // Password mode but not authenticated - show login
+  if (!desktopAuth.isAuthenticated) {
+    if (showForgotPassword) {
+      return (
+        <DesktopForgotPassword
+          onBack={() => setShowForgotPassword(false)}
+          onSuccess={() => setShowForgotPassword(false)}
+        />
+      );
+    }
+    return <DesktopLogin onForgotPassword={() => setShowForgotPassword(true)} />;
+  }
+
+  // Authenticated - go to dashboard
+  return <Navigate to="/app/dashboard" replace />;
+}
+
 // Determine if we should show landing page or go to login
 // Landing page is only for the public website, not desktop or Docker
 function RootRoute() {
   const isDesktop = window.location.protocol === 'file:';
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  // Desktop app or Docker/local dev → go to login
-  if (isDesktop || isLocalhost) {
+  // Desktop app → use desktop auth flow
+  if (isDesktop) {
+    return <DesktopRootRoute />;
+  }
+
+  // Docker/local dev → go to regular login
+  if (isLocalhost) {
     return <Navigate to="/login" replace />;
   }
 
@@ -186,48 +348,61 @@ function RootRoute() {
 }
 
 function App() {
+  // Check if we're in desktop mode
+  const isDesktop = window.location.protocol === 'file:';
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <CssBaseline />
         <Router>
-          <AuthProvider>
-            <Routes>
-              {/* Root route - landing page for website, login for desktop/Docker */}
-              <Route path="/" element={<RootRoute />} />
+          <DesktopAuthProvider>
+            <AuthProvider>
+              <Routes>
+                {/* Root route - landing page for website, desktop auth for desktop, login for Docker */}
+                <Route path="/" element={<RootRoute />} />
 
-              {/* Download page for Docker/Desktop options */}
-              <Route path="/download" element={<DownloadPage />} />
+                {/* Download page for Docker/Desktop options */}
+                <Route path="/download" element={<DownloadPage />} />
 
-              {/* Login page */}
-              <Route path="/login" element={<Login />} />
+                {/* Login page - only for web/Docker, desktop uses its own auth */}
+                <Route path="/login" element={<Login />} />
 
-              {/* Forgot password page */}
-              <Route path="/forgot-password" element={<ForgotPassword />} />
+                {/* Forgot password page - only for web/Docker */}
+                <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              {/* Main app with framework context at /app/* - protected */}
-              <Route
-                path="/app/*"
-                element={
-                  <ProtectedRoute>
-                    <FrameworkProvider>
-                      <AppContent />
-                    </FrameworkProvider>
-                  </ProtectedRoute>
-                }
-              />
+                {/* Main app with framework context at /app/* - protected */}
+                <Route
+                  path="/app/*"
+                  element={
+                    isDesktop ? (
+                      <DesktopProtectedRoute>
+                        <FrameworkProvider>
+                          <AppContent />
+                        </FrameworkProvider>
+                      </DesktopProtectedRoute>
+                    ) : (
+                      <ProtectedRoute>
+                        <FrameworkProvider>
+                          <AppContent />
+                        </FrameworkProvider>
+                      </ProtectedRoute>
+                    )
+                  }
+                />
 
-              {/* Backward compatibility redirects for old URLs */}
-              <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
-              <Route path="/metrics" element={<Navigate to="/app/metrics" replace />} />
-              <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
-              <Route path="/ai-assistant" element={<Navigate to="/app/ai-assistant" replace />} />
-              <Route path="/catalog-wizard" element={<Navigate to="/app/catalog-wizard" replace />} />
-              <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
-              <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
-              <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
-            </Routes>
-          </AuthProvider>
+                {/* Backward compatibility redirects for old URLs */}
+                <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+                <Route path="/metrics" element={<Navigate to="/app/metrics" replace />} />
+                <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
+                <Route path="/ai-assistant" element={<Navigate to="/app/ai-assistant" replace />} />
+                <Route path="/catalog-wizard" element={<Navigate to="/app/catalog-wizard" replace />} />
+                <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
+                <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
+                <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
+              </Routes>
+            </AuthProvider>
+          </DesktopAuthProvider>
         </Router>
       </ThemeProvider>
     </QueryClientProvider>

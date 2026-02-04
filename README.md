@@ -136,8 +136,14 @@ Docker Deployment:
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   React + TS    │    │   FastAPI + PY   │    │   PostgreSQL    │
 │   Frontend      │◄──►│   Backend        │◄──►│   Database      │
-│   (nginx)       │    │   (uvicorn)      │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+│   (nginx)       │    │   (uvicorn x4)   │    │                 │
+└─────────────────┘    └────────┬─────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │     Redis       │
+                       │   (sessions)    │
+                       └─────────────────┘
 ```
 
 ## Development
@@ -183,6 +189,10 @@ cd frontend && npm install && npm run dev
 ```env
 # Database (PostgreSQL for Docker, SQLite for Desktop)
 DATABASE_URL=postgresql://metricframe:metricframe@localhost:5432/metricframe
+
+# Session Storage (Redis for multi-worker production)
+REDIS_URL=redis://redis:6379/0
+SESSION_TTL_HOURS=24
 
 # AI Provider API Keys (bring your own - choose one or more)
 ANTHROPIC_API_KEY=your-key-here
@@ -242,6 +252,15 @@ RISK_THRESHOLD_HIGH=30.0
 - **Password Recovery**: Recovery key + security questions for account recovery
 - **Open Source**: Full code transparency - audit it yourself
 - **No Telemetry**: We don't track usage or collect any data
+
+### Docker vs Desktop Security
+
+| Aspect | Docker | Desktop App |
+|--------|--------|-------------|
+| Session Storage | Redis (multi-worker) | In-memory (single process) |
+| Database | PostgreSQL | SQLite |
+| Multi-user | Yes | No (single user) |
+| Network | Configurable | Localhost only |
 
 See the [Security Documentation](wiki/security.md) for detailed architecture information.
 

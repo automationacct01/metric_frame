@@ -56,7 +56,7 @@ LOG_LEVEL=INFO
 
 This script will:
 1. Build Docker containers
-2. Start PostgreSQL database
+2. Start PostgreSQL database and Redis session store
 3. Run database migrations
 4. Seed 356 pre-configured metrics
 5. Launch frontend and backend services
@@ -71,9 +71,10 @@ docker compose ps
 
 # Expected output:
 # NAME                    STATUS
-# metricframe-db   running
-# metricframe-api  running
-# metricframe-web  running
+# metricframe-db     running (healthy)
+# metricframe-redis  running (healthy)
+# metricframe-api    running (healthy)
+# metricframe-web    running (healthy)
 ```
 
 ### Step 5: Access the Application
@@ -152,6 +153,8 @@ Use the Catalog Manager to import your own metrics:
 | `DEBUG` | Enable debug mode | false |
 | `LOG_LEVEL` | Logging verbosity | INFO |
 | `CORS_ORIGINS` | Allowed frontend origins | http://localhost:5175 |
+| `REDIS_URL` | Redis connection for session storage | None (uses in-memory) |
+| `SESSION_TTL_HOURS` | Session expiration time | 24 |
 
 ### Scoring Thresholds
 
