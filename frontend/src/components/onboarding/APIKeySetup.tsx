@@ -20,12 +20,8 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
-  Stepper,
-  Step,
-  StepLabel,
-  Divider,
+  Collapse,
   Chip,
-  alpha,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -34,8 +30,80 @@ import {
   Warning as WarningIcon,
   ArrowForward as ArrowForwardIcon,
   Key as KeyIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../../api/client';
+
+// Provider configuration
+interface ProviderConfig {
+  code: string;
+  name: string;
+  description: string;
+  placeholder: string;
+  helpUrl: string;
+  helpText: string;
+  defaultModel: string;
+  recommended?: boolean;
+}
+
+const PROVIDERS: ProviderConfig[] = [
+  {
+    code: 'anthropic',
+    name: 'Anthropic Claude',
+    description: 'Claude excels at understanding security metrics and generating recommendations.',
+    placeholder: 'sk-ant-api03-...',
+    helpUrl: 'https://console.anthropic.com/account/keys',
+    helpText: 'console.anthropic.com',
+    defaultModel: 'claude-sonnet-4-20250514',
+    recommended: true,
+  },
+  {
+    code: 'openai',
+    name: 'OpenAI',
+    description: 'OpenAI provides excellent analysis and reporting capabilities.',
+    placeholder: 'sk-...',
+    helpUrl: 'https://platform.openai.com/api-keys',
+    helpText: 'platform.openai.com',
+    defaultModel: 'gpt-4o',
+  },
+  {
+    code: 'together',
+    name: 'Together.ai',
+    description: 'Together.ai offers fast inference with open-source models at competitive prices.',
+    placeholder: 'your-together-api-key',
+    helpUrl: 'https://api.together.xyz/settings/api-keys',
+    helpText: 'api.together.xyz',
+    defaultModel: 'meta-llama/Llama-3-70b-chat-hf',
+  },
+  {
+    code: 'azure_openai',
+    name: 'Azure OpenAI',
+    description: 'Enterprise-grade OpenAI models hosted on Microsoft Azure with compliance features.',
+    placeholder: 'your-azure-api-key',
+    helpUrl: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub',
+    helpText: 'portal.azure.com',
+    defaultModel: 'gpt-4o',
+  },
+  {
+    code: 'bedrock',
+    name: 'AWS Bedrock',
+    description: 'Access foundation models through AWS with built-in security and compliance.',
+    placeholder: 'Configure via AWS credentials',
+    helpUrl: 'https://console.aws.amazon.com/bedrock/',
+    helpText: 'AWS Console',
+    defaultModel: 'anthropic.claude-3-sonnet-20240229-v1:0',
+  },
+  {
+    code: 'vertex',
+    name: 'Google Vertex AI',
+    description: 'Google Cloud AI platform with enterprise features and Gemini models.',
+    placeholder: 'Configure via GCP credentials',
+    helpUrl: 'https://console.cloud.google.com/vertex-ai',
+    helpText: 'Google Cloud Console',
+    defaultModel: 'gemini-1.5-pro',
+  },
+];
 
 interface APIKeySetupProps {
   onComplete: () => void;
@@ -43,18 +111,29 @@ interface APIKeySetupProps {
 }
 
 export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  // State for all provider keys
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [validationStatus, setValidationStatus] = useState<Record<string, boolean | null>>({});
+  const [showMoreProviders, setShowMoreProviders] = useState(false);
+
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [anthropicValid, setAnthropicValid] = useState<boolean | null>(null);
-  const [openaiValid, setOpenaiValid] = useState<boolean | null>(null);
+
+  const updateApiKey = (code: string, value: string) => {
+    setApiKeys(prev => ({ ...prev, [code]: value }));
+    setValidationStatus(prev => ({ ...prev, [code]: null }));
+  };
+
+  const toggleShowKey = (code: string) => {
+    setShowKeys(prev => ({ ...prev, [code]: !prev[code] }));
+  };
 
   const handleValidateAndSave = async () => {
-    if (!anthropicKey && !openaiKey) {
+    const providedKeys = Object.entries(apiKeys).filter(([_, value]) => value.trim());
+
+    if (providedKeys.length === 0) {
       setError('Please enter at least one API key');
       return;
     }
@@ -63,40 +142,21 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
     setError(null);
 
     try {
-      // Validate and save Anthropic key if provided
-      if (anthropicKey) {
+      for (const [providerCode, apiKey] of providedKeys) {
+        const provider = PROVIDERS.find(p => p.code === providerCode);
+        if (!provider) continue;
+
         const config = await apiClient.createAIConfiguration({
-          provider_id: 'anthropic',
-          model_id: 'claude-sonnet-4-20250514',
-          credentials: { api_key: anthropicKey },
-          is_active: true,
-        }, 'admin');
-
-        // Validate the configuration
-        const validation = await apiClient.validateAIConfiguration(config.id);
-        setAnthropicValid(validation.valid);
-
-        if (!validation.valid) {
-          setError(`Anthropic API key validation failed: ${validation.error || 'Unknown error'}`);
-          setValidating(false);
-          return;
-        }
-      }
-
-      // Validate and save OpenAI key if provided
-      if (openaiKey) {
-        const config = await apiClient.createAIConfiguration({
-          provider_id: 'openai',
-          model_id: 'gpt-4o',
-          credentials: { api_key: openaiKey },
-          is_active: !anthropicKey, // Only active if Anthropic not configured
+          provider_code: providerCode,
+          model_id: provider.defaultModel,
+          credentials: { api_key: apiKey },
         }, 'admin');
 
         const validation = await apiClient.validateAIConfiguration(config.id);
-        setOpenaiValid(validation.valid);
+        setValidationStatus(prev => ({ ...prev, [providerCode]: validation.valid }));
 
         if (!validation.valid) {
-          setError(`OpenAI API key validation failed: ${validation.error || 'Unknown error'}`);
+          setError(`${provider.name} API key validation failed: ${validation.message || 'Unknown error'}`);
           setValidating(false);
           return;
         }
@@ -117,7 +177,63 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
     }
   };
 
-  const hasAnyKey = anthropicKey || openaiKey;
+  const hasAnyKey = Object.values(apiKeys).some(key => key.trim());
+
+  // Split providers into primary (first 2) and additional
+  const primaryProviders = PROVIDERS.slice(0, 2);
+  const additionalProviders = PROVIDERS.slice(2);
+
+  const renderProviderInput = (provider: ProviderConfig) => (
+    <Box key={provider.code} sx={{ mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+        <Typography variant="subtitle1" fontWeight={600}>
+          {provider.name}
+        </Typography>
+        {provider.recommended && (
+          <Chip
+            label="Recommended"
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        )}
+        {validationStatus[provider.code] === true && (
+          <CheckCircleIcon color="success" fontSize="small" />
+        )}
+      </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        {provider.description}
+      </Typography>
+      <TextField
+        fullWidth
+        size="small"
+        label={`${provider.name} API Key`}
+        placeholder={provider.placeholder}
+        type={showKeys[provider.code] ? 'text' : 'password'}
+        value={apiKeys[provider.code] || ''}
+        onChange={(e) => updateApiKey(provider.code, e.target.value)}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={() => toggleShowKey(provider.code)}
+                edge="end"
+                size="small"
+              >
+                {showKeys[provider.code] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+      />
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+        Get your API key from{' '}
+        <Link href={provider.helpUrl} target="_blank" rel="noopener">
+          {provider.helpText}
+        </Link>
+      </Typography>
+    </Box>
+  );
 
   return (
     <Box
@@ -172,116 +288,30 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
         {/* API Key Setup Card */}
         <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
           <CardContent sx={{ p: 4 }}>
-            {/* Anthropic Section */}
-            <Box sx={{ mb: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
-                  Anthropic Claude
-                </Typography>
-                <Chip
-                  label="Recommended"
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-                {anthropicValid === true && (
-                  <CheckCircleIcon color="success" />
-                )}
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Claude excels at understanding security metrics and generating recommendations.
-              </Typography>
-              <TextField
-                fullWidth
-                label="Anthropic API Key"
-                placeholder="sk-ant-api03-..."
-                type={showAnthropicKey ? 'text' : 'password'}
-                value={anthropicKey}
-                onChange={(e) => {
-                  setAnthropicKey(e.target.value);
-                  setAnthropicValid(null);
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowAnthropicKey(!showAnthropicKey)}
-                        edge="end"
-                      >
-                        {showAnthropicKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Get your API key from{' '}
-                <Link
-                  href="https://console.anthropic.com/account/keys"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  console.anthropic.com
-                </Link>
-              </Typography>
+            {/* Primary Providers (Anthropic & OpenAI) */}
+            {primaryProviders.map(renderProviderInput)}
+
+            {/* Show More Providers Toggle */}
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Button
+                variant="text"
+                onClick={() => setShowMoreProviders(!showMoreProviders)}
+                endIcon={showMoreProviders ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                sx={{ color: 'text.secondary' }}
+              >
+                {showMoreProviders ? 'Show Fewer Providers' : 'Show More Providers'}
+              </Button>
             </Box>
 
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                OR
-              </Typography>
-            </Divider>
-
-            {/* OpenAI Section */}
-            <Box sx={{ mb: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
-                  OpenAI
-                </Typography>
-                {openaiValid === true && (
-                  <CheckCircleIcon color="success" />
-                )}
+            {/* Additional Providers (Collapsible) */}
+            <Collapse in={showMoreProviders}>
+              <Box sx={{ pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                {additionalProviders.map(renderProviderInput)}
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                GPT-4 provides excellent analysis and reporting capabilities.
-              </Typography>
-              <TextField
-                fullWidth
-                label="OpenAI API Key"
-                placeholder="sk-..."
-                type={showOpenaiKey ? 'text' : 'password'}
-                value={openaiKey}
-                onChange={(e) => {
-                  setOpenaiKey(e.target.value);
-                  setOpenaiValid(null);
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                        edge="end"
-                      >
-                        {showOpenaiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Get your API key from{' '}
-                <Link
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  platform.openai.com
-                </Link>
-              </Typography>
-            </Box>
+            </Collapse>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
+              <Alert severity="error" sx={{ mb: 3, mt: 2 }}>
                 {error}
               </Alert>
             )}
@@ -324,15 +354,6 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
           You can configure API keys later in Settings. Some AI features will be unavailable
           until an API key is configured.
         </Typography>
-
-        {/* Additional Providers */}
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            We also support Azure OpenAI, AWS Bedrock, Google Vertex AI, and Together.ai.
-            <br />
-            Configure additional providers in Settings after setup.
-          </Typography>
-        </Box>
       </Container>
     </Box>
   );

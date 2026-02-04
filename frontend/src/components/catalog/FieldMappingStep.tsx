@@ -63,8 +63,8 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
       ];
       
       mappingRules.forEach(rule => {
-        const matchedColumn = availableColumns.find(col => 
-          rule.patterns.some(pattern => 
+        const matchedColumn = availableColumns.find((col: string) =>
+          rule.patterns.some(pattern =>
             col.toLowerCase().includes(pattern.toLowerCase())
           )
         );
@@ -143,7 +143,7 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
                       <MenuItem value="">
                         <em>Select a column</em>
                       </MenuItem>
-                      {availableColumns.map((column) => (
+                      {availableColumns.map((column: string) => (
                         <MenuItem key={column} value={column}>
                           {column}
                         </MenuItem>
@@ -179,7 +179,7 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
                       <MenuItem value="">
                         <em>Not mapped</em>
                       </MenuItem>
-                      {availableColumns.map((column) => (
+                      {availableColumns.map((column: string) => (
                         <MenuItem key={column} value={column}>
                           {column}
                         </MenuItem>

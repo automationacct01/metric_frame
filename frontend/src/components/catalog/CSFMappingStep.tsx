@@ -348,8 +348,8 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
             onClick={() => {
               // Accept all unmapped suggestions
               const newMappings = suggestions
-                .filter(s => !isMetricMapped(s.catalog_item_id))
-                .map(s => ({
+                .filter((s: any) => !isMetricMapped(s.catalog_item_id))
+                .map((s: any) => ({
                   catalog_item_id: s.catalog_item_id,
                   csf_function: s.suggested_function,
                   csf_category_code: s.suggested_category,
@@ -393,8 +393,8 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
                 </TableCell>
               </TableRow>
             ) : (
-              suggestions.map((suggestion) => (
-              <TableRow 
+              suggestions.map((suggestion: any) => (
+              <TableRow
                 key={suggestion.catalog_item_id}
                 sx={{ 
                   opacity: isMetricMapped(suggestion.catalog_item_id) ? 0.6 : 1,
@@ -485,8 +485,8 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
             onClick={() => {
               // Accept all unmapped suggestions
               const newMappings = suggestions
-                .filter(s => !isMetricMapped(s.catalog_item_id))
-                .map(s => ({
+                .filter((s: any) => !isMetricMapped(s.catalog_item_id))
+                .map((s: any) => ({
                   catalog_item_id: s.catalog_item_id,
                   csf_function: s.suggested_function,
                   csf_category_code: s.suggested_category,

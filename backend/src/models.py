@@ -64,6 +64,66 @@ class GUID(TypeDecorator):
             return uuid_module.UUID(value) if not isinstance(value, uuid_module.UUID) else value
 
 
+class DatabaseEnum(TypeDecorator):
+    """Platform-independent Enum type.
+
+    Uses PostgreSQL's native ENUM when available, otherwise uses String(50).
+    Always stores the enum VALUE (not the name) for consistency.
+    """
+    impl = String(50)
+    cache_ok = True
+
+    def __init__(self, enum_class, pg_enum_name=None, **kwargs):
+        """Initialize the DatabaseEnum.
+
+        Args:
+            enum_class: The Python Enum class
+            pg_enum_name: Name of the PostgreSQL ENUM type (defaults to lowercase class name)
+        """
+        super().__init__(**kwargs)
+        self.enum_class = enum_class
+        self.pg_enum_name = pg_enum_name or enum_class.__name__.lower()
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            # Use native PostgreSQL ENUM
+            return dialect.type_descriptor(
+                postgresql.ENUM(*[e.value for e in self.enum_class], name=self.pg_enum_name, create_type=False)
+            )
+        else:
+            return dialect.type_descriptor(String(50))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        # Always use the .value for storage
+        if isinstance(value, self.enum_class):
+            return value.value
+        elif isinstance(value, str):
+            # If it's already a string value, validate it
+            try:
+                return self.enum_class(value).value
+            except ValueError:
+                # Try matching by name
+                try:
+                    return getattr(self.enum_class, value.upper()).value
+                except AttributeError:
+                    return value
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        try:
+            return self.enum_class(value)
+        except ValueError:
+            # Try matching by name
+            try:
+                return getattr(self.enum_class, value.upper())
+            except AttributeError:
+                return value
+
+
 def generate_uuid():
     """Generate a new UUID."""
     return uuid_module.uuid4()
@@ -285,7 +345,7 @@ class FrameworkCrossMapping(Base):
     target_framework_id = Column(GUID(), ForeignKey("frameworks.id"), nullable=False)
     source_subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=False)
     target_subcategory_id = Column(GUID(), ForeignKey("framework_subcategories.id"), nullable=False)
-    mapping_type = Column(Enum(MappingType, native_enum=False), default=MappingType.DIRECT)
+    mapping_type = Column(DatabaseEnum(MappingType, 'mappingtype'), default=MappingType.DIRECT)
     confidence = Column(Numeric(3, 2))  # 0.00 - 1.00
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -334,7 +394,7 @@ class Metric(Base):
     weight = Column(Numeric(4, 2), default=1.0)
 
     # Scoring configuration
-    direction = Column(Enum(MetricDirection, native_enum=False), nullable=False)
+    direction = Column(DatabaseEnum(MetricDirection, 'metricdirection'), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
@@ -343,7 +403,7 @@ class Metric(Base):
     # Ownership and data source
     owner_function = Column(String(100))
     data_source = Column(String(200))
-    collection_frequency = Column(Enum(CollectionFrequency, native_enum=False))
+    collection_frequency = Column(DatabaseEnum(CollectionFrequency, 'collectionfrequency'))
 
     # Current state
     last_collected_at = Column(DateTime(timezone=True))
@@ -580,7 +640,7 @@ class MetricCatalogItem(Base):
     formula = Column(Text)
 
     # Core required fields
-    direction = Column(Enum(MetricDirection, native_enum=False), nullable=False)
+    direction = Column(DatabaseEnum(MetricDirection, 'metricdirection'), nullable=False)
     target_value = Column(Numeric(10, 4))
     target_units = Column(String(50))
     tolerance_low = Column(Numeric(10, 4))
@@ -593,7 +653,7 @@ class MetricCatalogItem(Base):
     # Data source information
     owner_function = Column(String(100))
     data_source = Column(String(200))
-    collection_frequency = Column(Enum(CollectionFrequency, native_enum=False))
+    collection_frequency = Column(DatabaseEnum(CollectionFrequency, 'collectionfrequency'))
 
     # Current state
     current_value = Column(Numeric(10, 4))
@@ -638,7 +698,7 @@ class MetricCatalogFrameworkMapping(Base):
 
     # Mapping metadata
     confidence_score = Column(Numeric(3, 2))  # AI confidence in mapping (0.0-1.0)
-    mapping_method = Column(Enum(MappingMethod, native_enum=False), default=MappingMethod.AUTO)
+    mapping_method = Column(DatabaseEnum(MappingMethod, 'mappingmethod'), default=MappingMethod.AUTO)
     mapping_notes = Column(Text)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

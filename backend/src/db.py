@@ -4,6 +4,8 @@ Supports both PostgreSQL (Docker/server deployments) and SQLite (desktop app).
 """
 
 import os
+import sys
+from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -11,8 +13,58 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Default to PostgreSQL for backward compatibility
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://nist:nist@localhost:5432/nistmetrics")
+
+def is_desktop_mode():
+    """Detect if running as a desktop app (PyInstaller bundle or explicit desktop mode)."""
+    # Check if running from PyInstaller bundle
+    if getattr(sys, 'frozen', False):
+        return True
+    # Check for explicit desktop mode environment variable
+    if os.getenv("METRICFRAME_DESKTOP_MODE", "").lower() == "true":
+        return True
+    # Check if DATABASE_URL is not set and we're not in a Docker environment
+    if not os.getenv("DATABASE_URL") and not os.getenv("DOCKER_ENV"):
+        # Additional check: if no PostgreSQL-related env vars are set, assume desktop
+        if not any(os.getenv(var) for var in ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]):
+            return True
+    return False
+
+
+def get_desktop_db_path():
+    """Get the SQLite database path for desktop mode."""
+    # Use platform-appropriate user data directory
+    if sys.platform == "darwin":  # macOS
+        base_dir = Path.home() / "Library" / "Application Support" / "metricframe"
+    elif sys.platform == "win32":  # Windows
+        base_dir = Path(os.getenv("APPDATA", Path.home())) / "metricframe"
+    else:  # Linux and others
+        base_dir = Path.home() / ".local" / "share" / "metricframe"
+
+    # Create directory if it doesn't exist
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    return base_dir / "metricframe.db"
+
+
+def get_database_url():
+    """Determine the database URL based on environment."""
+    # First check for explicit DATABASE_URL
+    explicit_url = os.getenv("DATABASE_URL")
+    if explicit_url:
+        return explicit_url
+
+    # Check if we're in desktop mode
+    if is_desktop_mode():
+        db_path = get_desktop_db_path()
+        return f"sqlite:///{db_path}"
+
+    # Default to PostgreSQL for server deployments
+    return "postgresql://nist:nist@localhost:5432/nistmetrics"
+
+
+# Get the database URL
+DATABASE_URL = get_database_url()
+IS_DESKTOP_MODE = is_desktop_mode()
 
 # Detect database type
 IS_SQLITE = DATABASE_URL.startswith("sqlite")
@@ -74,4 +126,5 @@ def get_database_info():
         "type": "sqlite" if IS_SQLITE else "postgresql" if IS_POSTGRESQL else "unknown",
         "is_sqlite": IS_SQLITE,
         "is_postgresql": IS_POSTGRESQL,
+        "is_desktop_mode": IS_DESKTOP_MODE,
     }

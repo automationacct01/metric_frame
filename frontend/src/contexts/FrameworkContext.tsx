@@ -10,29 +10,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient } from '../api/client';
+import { Framework, FrameworkFunction } from '../types';
 
-// Framework types
-export interface Framework {
-  id: string;
-  code: string;
-  name: string;
-  version: string;
-  description: string;
-  source_url?: string;
-  active: boolean;
-  is_extension: boolean;
-}
-
-export interface FrameworkFunction {
-  id: string;
-  framework_id: string;
-  code: string;
-  name: string;
-  description: string;
-  display_order: number;
-  color_hex?: string;
-  icon_name?: string;
-}
+// Re-export types for backward compatibility
+export type { Framework, FrameworkFunction };
 
 // Onboarding step type
 export type OnboardingStep = 'framework' | 'apikey' | 'complete';
@@ -148,11 +129,8 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
     setFrameworksError(null);
 
     try {
-      const response = await fetch('/api/v1/frameworks');
-      if (!response.ok) {
-        throw new Error('Failed to fetch frameworks');
-      }
-      const data = await response.json();
+      // Use apiClient which handles desktop/web URL differences
+      const data = await apiClient.getFrameworks();
       setFrameworks(data);
 
       // If we have a stored framework ID, try to restore selection
