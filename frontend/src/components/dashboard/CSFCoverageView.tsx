@@ -183,7 +183,7 @@ function TreeRow({
         pl: 2 + indent * 3,
         borderBottom: '1px solid',
         borderColor: 'divider',
-        backgroundColor: level === 'function' ? (isDark ? 'action.hover' : 'action.hover') : 'background.paper',
+        backgroundColor: level === 'function' ? (isDark ? 'action.hover' : 'background.paper') : 'background.paper',
         '&:hover': {
           backgroundColor: 'action.selected',
         },
@@ -283,6 +283,8 @@ function TreeRow({
 }
 
 export default function CSFCoverageView() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { selectedFramework, isLoadingFrameworks } = useFramework();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
 
@@ -525,7 +527,7 @@ export default function CSFCoverageView() {
           p: 2,
           borderBottom: '2px solid',
           borderColor: 'divider',
-          backgroundColor: 'action.hover',
+          backgroundColor: isDark ? 'action.hover' : 'background.paper',
         }}>
           <Typography variant="h6">
             {processedCoverage.framework_name} Hierarchy
@@ -554,7 +556,7 @@ export default function CSFCoverageView() {
           px: 2,
           borderBottom: '1px solid',
           borderColor: 'divider',
-          backgroundColor: 'action.hover',
+          backgroundColor: isDark ? 'action.hover' : 'background.paper',
         }}>
           <Box sx={{ width: 28 }} />
           <Typography variant="caption" sx={{ minWidth: 100, fontWeight: 600, mr: 2 }}>Code</Typography>

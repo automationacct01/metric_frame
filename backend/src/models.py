@@ -929,6 +929,33 @@ class FunctionScore(Base):
         return f"<FunctionScore(function_id={self.function_id}, score={self.score})>"
 
 
+class DesktopConfig(Base):
+    """Desktop app configuration - single row table for desktop mode only.
+
+    Stores authentication mode (password or none) and credentials for
+    the simplified desktop authentication system.
+    """
+
+    __tablename__ = "desktop_config"
+
+    id = Column(Integer, primary_key=True, default=1)
+    auth_mode = Column(String(20), nullable=False, default='none')  # 'password' | 'none'
+    setup_completed = Column(Boolean, default=False)
+
+    # Password protection fields (only used if auth_mode='password')
+    password_hash = Column(String(255), nullable=True)
+    security_question_1 = Column(String(255), nullable=True)
+    security_answer_1_hash = Column(String(255), nullable=True)
+    security_question_2 = Column(String(255), nullable=True)
+    security_answer_2_hash = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:
+        return f"<DesktopConfig(auth_mode={self.auth_mode}, setup_completed={self.setup_completed})>"
+
+
 # ==============================================================================
 # INDICES
 # ==============================================================================
