@@ -14,24 +14,20 @@ MetricFrame provides:
 
 ## Download
 
-### Desktop App (Recommended for most users)
+### Desktop App (Coming Soon)
 
-One-click installation, no technical setup required:
+A standalone desktop application with one-click installation is currently in development. It will be available for macOS, Windows, and Linux when released.
 
-- **macOS**: [Download .dmg](https://github.com/automationacct01/metric_frame/releases/latest)
-- **Windows**: [Download .exe](https://github.com/automationacct01/metric_frame/releases/latest)
-- **Linux**: [Download .AppImage](https://github.com/automationacct01/metric_frame/releases/latest)
-
-### Docker (For servers and teams)
+### Docker (Recommended)
 
 ```bash
-# Quick start
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/quickstart.sh | bash
+# Quick start (review script first, then run)
+curl -fsSL https://get.metricframe.ai/install.sh -o install.sh
+less install.sh
+chmod +x install.sh && ./install.sh
 
-# Or with Docker Compose
-git clone https://github.com/automationacct01/metric_frame.git
-cd metric_frame
-docker compose -f docker-compose.prod.yml up -d
+# Or direct execution (for trusted environments)
+curl -fsSL https://get.metricframe.ai/install.sh | bash
 ```
 
 ## Requirements
@@ -42,12 +38,12 @@ MetricFrame requires your own AI API key for the AI assistant features. Choose f
 
 | Provider | Models | Get API Key |
 |----------|--------|-------------|
-| **Anthropic** | Claude Opus, Sonnet, Haiku | [console.anthropic.com](https://console.anthropic.com/account/keys) |
-| **OpenAI** | GPT-4o, GPT-4, GPT-3.5 | [platform.openai.com](https://platform.openai.com/api-keys) |
-| **Together.ai** | DeepSeek, Llama, Mistral | [api.together.xyz](https://api.together.xyz/) |
-| **Azure OpenAI** | GPT-4, GPT-3.5 (Enterprise) | [azure.microsoft.com](https://azure.microsoft.com/en-us/products/ai-services/openai-service) |
-| **AWS Bedrock** | Claude, Llama, Amazon Nova | [aws.amazon.com](https://aws.amazon.com/bedrock/) |
-| **GCP Vertex AI** | Gemini, Claude | [cloud.google.com](https://cloud.google.com/vertex-ai) |
+| **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/account/keys) |
+| **OpenAI** | GPT-5.2, GPT-5.1, GPT-5, GPT-5 Mini, GPT-5 Pro | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **Together.ai** | DeepSeek-V3.1, DeepSeek-R1, Qwen3, Llama 4, Mistral | [api.together.xyz](https://api.together.xyz/) |
+| **Azure OpenAI** | GPT-5.2, GPT-5, DeepSeek-R1, Llama 4, Mistral Large 3 | [azure.microsoft.com](https://azure.microsoft.com/en-us/products/ai-services/openai-service) |
+| **AWS Bedrock** | Claude 4.5, Amazon Nova, Llama 4, DeepSeek-R1, Qwen3 | [aws.amazon.com](https://aws.amazon.com/bedrock/) |
+| **GCP Vertex AI** | Gemini 3, Gemini 2.5, Claude 4.5, Llama 4, DeepSeek-R1 | [cloud.google.com](https://cloud.google.com/vertex-ai) |
 
 Your API keys are stored locally and encrypted. We never see your keys or your data.
 
@@ -123,15 +119,6 @@ Your API keys are stored locally and encrypted. We never see your keys or your d
 ## Architecture
 
 ```
-Desktop App:
-┌──────────────────────────────────────────────────┐
-│  Electron Shell                                   │
-│  ┌────────────────┐  ┌────────────────────────┐  │
-│  │  React Frontend │  │  Python Backend        │  │
-│  │                 │  │  + SQLite Database     │  │
-│  └────────────────┘  └────────────────────────┘  │
-└──────────────────────────────────────────────────┘
-
 Docker Deployment:
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   React + TS    │    │   FastAPI + PY   │    │   PostgreSQL    │
@@ -159,16 +146,11 @@ Docker Deployment:
 git clone https://github.com/automationacct01/metric_frame.git
 cd metric_frame
 
-# Copy environment template
-cp backend/.env.example backend/.env
-# Edit backend/.env to add your API keys
-
-# Start with Docker
+# Start with Docker (recommended)
 docker compose up -d
 
-# Or run directly
-cd backend && pip install -r requirements.txt && uvicorn src.main:app --reload &
-cd frontend && npm install && npm run dev
+# Access the app at http://localhost:5175
+# Configure AI API keys in Settings > AI Configuration
 ```
 
 ### Access Points
@@ -194,21 +176,11 @@ DATABASE_URL=postgresql://metricframe:metricframe@localhost:5432/metricframe
 REDIS_URL=redis://redis:6379/0
 SESSION_TTL_HOURS=24
 
-# AI Provider API Keys (bring your own - choose one or more)
-ANTHROPIC_API_KEY=your-key-here
-OPENAI_API_KEY=your-key-here
-TOGETHER_API_KEY=your-key-here
-AZURE_OPENAI_API_KEY=your-key-here
-AWS_ACCESS_KEY_ID=your-key-here
-AWS_SECRET_ACCESS_KEY=your-key-here
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
-
-# Risk Thresholds
-RISK_THRESHOLD_VERY_LOW=90.0
-RISK_THRESHOLD_LOW=75.0
-RISK_THRESHOLD_MEDIUM=50.0
-RISK_THRESHOLD_HIGH=30.0
+# Encryption key for AI credentials stored in-app (generate your own)
+AI_CREDENTIALS_MASTER_KEY=  # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+> **Note**: AI provider API keys are configured through the in-app **Settings > AI Configuration** page, not via environment variables. Keys are encrypted at rest using the master key above.
 
 ## Documentation
 
@@ -253,14 +225,14 @@ RISK_THRESHOLD_HIGH=30.0
 - **Open Source**: Full code transparency - audit it yourself
 - **No Telemetry**: We don't track usage or collect any data
 
-### Docker vs Desktop Security
+### Docker Security
 
-| Aspect | Docker | Desktop App |
-|--------|--------|-------------|
-| Session Storage | Redis (multi-worker) | In-memory (single process) |
-| Database | PostgreSQL | SQLite |
-| Multi-user | Yes | No (single user) |
-| Network | Configurable | Localhost only |
+| Aspect | Details |
+|--------|---------|
+| Session Storage | Redis (multi-worker support) |
+| Database | PostgreSQL with encrypted credentials |
+| Multi-user | Yes, with role-based access control |
+| Network | Configurable, localhost by default |
 
 See the [Security Documentation](wiki/security.md) for detailed architecture information.
 
