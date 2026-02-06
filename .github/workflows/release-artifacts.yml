@@ -63,12 +63,12 @@ jobs:
           VERSION="${{ github.event.inputs.version || 'latest' }}"
 
           # Pull the images
-          docker pull ghcr.io/automationacct01/metric_frame/frontend:${VERSION} || docker pull ghcr.io/automationacct01/metric_frame/frontend:latest
-          docker pull ghcr.io/automationacct01/metric_frame/backend:${VERSION} || docker pull ghcr.io/automationacct01/metric_frame/backend:latest
+          docker pull ghcr.io/automationacct01/metric_frame-frontend:${VERSION} || docker pull ghcr.io/automationacct01/metric_frame-frontend:latest
+          docker pull ghcr.io/automationacct01/metric_frame-backend:${VERSION} || docker pull ghcr.io/automationacct01/metric_frame-backend:latest
 
           # Tag for offline bundle
-          docker tag ghcr.io/automationacct01/metric_frame/frontend:latest metricframe-frontend:latest
-          docker tag ghcr.io/automationacct01/metric_frame/backend:latest metricframe-backend:latest
+          docker tag ghcr.io/automationacct01/metric_frame-frontend:latest metricframe-frontend:latest
+          docker tag ghcr.io/automationacct01/metric_frame-backend:latest metricframe-backend:latest
 
           # Save to tarball
           docker save metricframe-frontend:latest metricframe-backend:latest | gzip > metricframe-docker-images.tar.gz
