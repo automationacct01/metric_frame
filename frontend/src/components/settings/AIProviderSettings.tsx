@@ -51,6 +51,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Refresh as RefreshIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../../api/client';
 import {
@@ -102,6 +103,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
   const [activationPromptOpen, setActivationPromptOpen] = useState(false);
   const [pendingActivationConfigId, setPendingActivationConfigId] = useState<string | null>(null);
   const [pendingActivationProviderName, setPendingActivationProviderName] = useState<string>('');
+  const [pendingActivationValidated, setPendingActivationValidated] = useState<boolean>(false);
 
   // Clear credential state on unmount
   useEffect(() => {
@@ -185,25 +187,22 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
       handleCloseConfigDialog();
 
       // Step 2: Auto-validate the credentials
+      let validationPassed = false;
       setValidating(true);
       try {
         const validationResult = await apiClient.validateAIConfiguration(configId);
-
-        if (validationResult.valid) {
-          // Validation succeeded - prompt user to activate
-          setPendingActivationConfigId(configId);
-          setPendingActivationProviderName(providerName);
-          setActivationPromptOpen(true);
-        } else {
-          // Validation failed - show error
-          setError(`Credentials saved but validation failed: ${validationResult.message || 'Invalid credentials'}`);
-        }
+        validationPassed = validationResult.valid;
       } catch (validationErr: any) {
         console.error('Validation failed:', validationErr);
-        setError(`Credentials saved but validation failed: ${validationErr.response?.data?.detail || 'Could not validate credentials'}`);
       } finally {
         setValidating(false);
       }
+
+      // Step 3: Always prompt to activate
+      setPendingActivationConfigId(configId);
+      setPendingActivationProviderName(providerName);
+      setPendingActivationValidated(validationPassed);
+      setActivationPromptOpen(true);
 
       await loadData();
     } catch (err: any) {
@@ -271,11 +270,12 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
         setError(err.response?.data?.detail || 'Failed to activate provider');
       }
     } else {
-      setSuccess(`${pendingActivationProviderName} credentials saved and validated. You can activate it later.`);
+      setSuccess(`${pendingActivationProviderName} credentials saved. You can activate it later.`);
     }
 
     setPendingActivationConfigId(null);
     setPendingActivationProviderName('');
+    setPendingActivationValidated(false);
   };
 
   const toggleProviderExpanded = (providerCode: string) => {
@@ -640,14 +640,23 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CheckIcon color="success" />
-            Credentials Validated
+            {pendingActivationValidated ? (
+              <><CheckIcon color="success" />Credentials Validated</>
+            ) : (
+              <><WarningIcon color="warning" />Credentials Saved</>
+            )}
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Your {pendingActivationProviderName} credentials have been validated successfully.
-          </Typography>
+          {pendingActivationValidated ? (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Your {pendingActivationProviderName} credentials have been validated successfully.
+            </Typography>
+          ) : (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Your {pendingActivationProviderName} credentials have been saved but validation failed. This may be due to billing limits or network issues. You can still activate the provider and retry validation later.
+            </Typography>
+          )}
           <Typography variant="body2" color="text.secondary">
             Would you like to activate this provider now? Activating will make it your default AI provider for the assistant.
           </Typography>
