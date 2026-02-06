@@ -160,9 +160,8 @@ POSTGRES_DB=metricframe
 # Application port (default: 3000)
 FRONTEND_PORT=3000
 
-# AI Provider API Keys (configure in app Settings, or set here)
-# ANTHROPIC_API_KEY=your-key-here
-# OPENAI_API_KEY=your-key-here
+# Encryption key for AI provider credentials (generated after first pull)
+AI_CREDENTIALS_MASTER_KEY=PENDING
 EOF
 
     success "Created .env with secure random database password"
@@ -174,6 +173,22 @@ fi
 info "Pulling latest images..."
 if ! docker compose pull; then
     error "Failed to pull Docker images. Check your internet connection."
+fi
+
+# Generate proper Fernet encryption key using the backend image
+if grep -q "AI_CREDENTIALS_MASTER_KEY=PENDING" .env 2>/dev/null; then
+    info "Generating encryption key for AI credentials..."
+    MASTER_KEY=$(docker run --rm ghcr.io/automationacct01/metric_frame-backend:latest python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null)
+    if [ -n "$MASTER_KEY" ]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|AI_CREDENTIALS_MASTER_KEY=PENDING|AI_CREDENTIALS_MASTER_KEY=${MASTER_KEY}|" .env
+        else
+            sed -i "s|AI_CREDENTIALS_MASTER_KEY=PENDING|AI_CREDENTIALS_MASTER_KEY=${MASTER_KEY}|" .env
+        fi
+        success "Encryption key generated"
+    else
+        warn "Could not generate encryption key. AI credential storage may not work until key is set."
+    fi
 fi
 
 info "Starting MetricFrame..."
