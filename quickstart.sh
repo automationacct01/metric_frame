@@ -3,7 +3,7 @@
 # This script redirects to the main install.sh for backward compatibility
 #
 # For the latest secure installation options, visit:
-# https://github.com/automationacct01/metric_frame
+# https://www.metricframe.ai
 
 set -e
 
@@ -11,4 +11,4 @@ echo "Redirecting to secure installer..."
 echo ""
 
 # Execute the main install script
-exec curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh | bash
+exec curl -fsSL https://get.metricframe.ai/install.sh | bash
