@@ -23,6 +23,19 @@ import {
   Security as SecurityIcon,
   Verified as VerifiedIcon,
   CloudDownload as CloudDownloadIcon,
+  MenuBook as MenuBookIcon,
+  Dashboard as DashboardIcon,
+  SmartToy as AIIcon,
+  Assessment as MetricsIcon,
+  People as PeopleIcon,
+  Speed as ScoringIcon,
+  Shield as ShieldIcon,
+  AccountTree as FrameworkIcon,
+  Build as BuildIcon,
+  BugReport as TroubleshootIcon,
+  Storage as StorageIcon,
+  Api as ApiIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -347,20 +360,29 @@ export default function DownloadPage() {
                   <Button
                     fullWidth
                     variant="outlined"
-                    href="https://github.com/automationacct01/metric_frame"
-                    target="_blank"
+                    disabled
                     sx={{
                       py: 1.5,
-                      borderColor: alpha('#fff', 0.3),
-                      color: alpha('#fff', 0.9),
-                      '&:hover': {
-                        bgcolor: alpha('#fff', 0.1),
-                        borderColor: alpha('#fff', 0.5),
+                      borderColor: alpha('#fff', 0.1),
+                      color: alpha('#fff', 0.3),
+                      '&.Mui-disabled': {
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
                       },
                     }}
                   >
                     View Source on GitHub
                   </Button>
+                  <Typography
+                    variant="caption"
+                    color={alpha('#fff', 0.4)}
+                    display="block"
+                    textAlign="center"
+                    mt={1}
+                    fontStyle="italic"
+                  >
+                    We're working on providing open access to the repository
+                  </Typography>
                 </Box>
 
                 <Typography
@@ -506,8 +528,339 @@ export default function DownloadPage() {
         </Grid>
 
 
+        {/* Docker Setup Details */}
+        <Box mt={8}>
+          <Typography variant="h4" color="white" mb={1} textAlign="center" fontWeight={600}>
+            Docker Setup Guide
+          </Typography>
+          <Typography variant="body1" color={alpha('#fff', 0.5)} mb={4} textAlign="center">
+            Everything you need to get MetricFrame running with Docker
+          </Typography>
+
+          <Grid container spacing={3}>
+            {/* Prerequisites */}
+            <Grid item xs={12} md={4}>
+              <Card
+                sx={{
+                  height: '100%',
+                  background: alpha('#fff', 0.04),
+                  border: `1px solid ${alpha('#fff', 0.08)}`,
+                  borderRadius: 2,
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+                    <BuildIcon sx={{ color: '#0ea5e9', fontSize: 24 }} />
+                    <Typography variant="h6" color="white" fontWeight={600} fontSize="1rem">
+                      Prerequisites
+                    </Typography>
+                  </Box>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.7), pl: 2, m: 0, '& li': { mb: 1 } }}>
+                    <li>Docker 20.10+ with Docker Compose v2</li>
+                    <li>4 GB RAM minimum (8 GB recommended)</li>
+                    <li>2 GB free disk space</li>
+                    <li>No root/sudo required</li>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* What Gets Installed */}
+            <Grid item xs={12} md={4}>
+              <Card
+                sx={{
+                  height: '100%',
+                  background: alpha('#fff', 0.04),
+                  border: `1px solid ${alpha('#fff', 0.08)}`,
+                  borderRadius: 2,
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+                    <StorageIcon sx={{ color: '#22c55e', fontSize: 24 }} />
+                    <Typography variant="h6" color="white" fontWeight={600} fontSize="1rem">
+                      What Gets Installed
+                    </Typography>
+                  </Box>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.7), pl: 2, m: 0, '& li': { mb: 1 } }}>
+                    <li>React frontend served by nginx</li>
+                    <li>FastAPI backend (4 workers)</li>
+                    <li>PostgreSQL 15 database</li>
+                    <li>Redis session store</li>
+                    <li>356 pre-configured metrics seeded</li>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* After Install */}
+            <Grid item xs={12} md={4}>
+              <Card
+                sx={{
+                  height: '100%',
+                  background: alpha('#fff', 0.04),
+                  border: `1px solid ${alpha('#fff', 0.08)}`,
+                  borderRadius: 2,
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+                    <InfoIcon sx={{ color: '#f59e0b', fontSize: 24 }} />
+                    <Typography variant="h6" color="white" fontWeight={600} fontSize="1rem">
+                      After Installation
+                    </Typography>
+                  </Box>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.7), pl: 2, m: 0, '& li': { mb: 1 } }}>
+                    <li>Open <strong style={{ color: '#0ea5e9' }}>http://localhost:3000</strong></li>
+                    <li>Create your admin account</li>
+                    <li>Save the recovery key (shown once)</li>
+                    <li>Configure AI provider in Settings</li>
+                    <li>Explore the dashboard and 356 metrics</li>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Useful Commands */}
+          <Box
+            sx={{
+              mt: 3,
+              p: 3,
+              background: alpha('#fff', 0.03),
+              border: `1px solid ${alpha('#fff', 0.08)}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="subtitle2" color={alpha('#fff', 0.6)} mb={2}>
+              Useful Commands
+            </Typography>
+            <Grid container spacing={2}>
+              {[
+                { cmd: 'docker compose logs -f', desc: 'View logs' },
+                { cmd: 'docker compose down', desc: 'Stop MetricFrame' },
+                { cmd: 'docker compose pull && docker compose up -d', desc: 'Update to latest' },
+                { cmd: 'docker compose down -v', desc: 'Reset (deletes data)' },
+              ].map((item) => (
+                <Grid item xs={12} sm={6} key={item.cmd}>
+                  <Box display="flex" alignItems="baseline" gap={1}>
+                    <Box
+                      component="code"
+                      sx={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.75rem',
+                        color: '#0ea5e9',
+                        bgcolor: alpha('#000', 0.3),
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.cmd}
+                    </Box>
+                    <Typography variant="caption" color={alpha('#fff', 0.4)}>
+                      {item.desc}
+                    </Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        </Box>
+
+        {/* Desktop App Details */}
+        <Box mt={8}>
+          <Typography variant="h4" color="white" mb={1} textAlign="center" fontWeight={600}>
+            Desktop App
+          </Typography>
+          <Typography variant="body1" color={alpha('#fff', 0.5)} mb={4} textAlign="center">
+            Standalone application — currently in development
+          </Typography>
+
+          <Card
+            sx={{
+              background: alpha('#fff', 0.03),
+              border: `1px solid ${alpha('#f59e0b', 0.15)}`,
+              borderRadius: 2,
+              maxWidth: 800,
+              mx: 'auto',
+            }}
+          >
+            <CardContent sx={{ p: 4 }}>
+              <Grid container spacing={4}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" color="white" fontWeight={600} mb={2}>
+                    Planned Features
+                  </Typography>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.6), pl: 2, m: 0, '& li': { mb: 1.5 } }}>
+                    <li>One-click install — no Docker or technical setup needed</li>
+                    <li>Built-in SQLite database — everything runs locally</li>
+                    <li>Automatic updates</li>
+                    <li>Single-user mode — no login required</li>
+                    <li>Offline-capable — no internet needed after install</li>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" color="white" fontWeight={600} mb={2}>
+                    Platform Status
+                  </Typography>
+                  <Box sx={{ '& > div': { mb: 2 } }}>
+                    <Box>
+                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                        <AppleIcon sx={{ fontSize: 18, color: alpha('#fff', 0.5) }} />
+                        <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
+                          macOS
+                        </Typography>
+                        <Chip label="In Progress" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#f59e0b', 0.2), color: '#f59e0b' }} />
+                      </Box>
+                      <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
+                        Apple Developer certification is being obtained. Code signing and notarization will be completed before release.
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                        <WindowsIcon sx={{ fontSize: 18, color: alpha('#fff', 0.5) }} />
+                        <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
+                          Windows
+                        </Typography>
+                        <Chip label="Planned" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
+                      </Box>
+                      <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
+                        Windows build with installer will follow the macOS release.
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                        <LinuxIcon sx={{ fontSize: 18, color: alpha('#fff', 0.5) }} />
+                        <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
+                          Linux
+                        </Typography>
+                        <Chip label="Planned" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
+                      </Box>
+                      <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
+                        AppImage format for broad Linux distribution compatibility.
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ borderColor: alpha('#fff', 0.08), my: 3 }} />
+
+              <Typography variant="body2" color={alpha('#fff', 0.5)} textAlign="center" fontStyle="italic">
+                The desktop app will include all the same features as the Docker version.
+                Use Docker in the meantime — it's production-ready and fully supported.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* Documentation & Wiki */}
+        <Box mt={8}>
+          <Typography variant="h4" color="white" mb={1} textAlign="center" fontWeight={600}>
+            Documentation
+          </Typography>
+          <Typography variant="body1" color={alpha('#fff', 0.5)} mb={4} textAlign="center">
+            Guides and references to help you get the most out of MetricFrame
+          </Typography>
+
+          <Grid container spacing={2}>
+            {/* Getting Started */}
+            {[
+              {
+                icon: <MenuBookIcon sx={{ fontSize: 22, color: '#22c55e' }} />,
+                title: 'Getting Started',
+                description: 'Quick setup guide, first steps, and initial configuration walkthrough',
+              },
+              {
+                icon: <DashboardIcon sx={{ fontSize: 22, color: '#0ea5e9' }} />,
+                title: 'Dashboard Guide',
+                description: 'Executive dashboard, risk scores, drill-down navigation, and category detail views',
+              },
+              {
+                icon: <MetricsIcon sx={{ fontSize: 22, color: '#a855f7' }} />,
+                title: 'Metrics Management',
+                description: 'Creating, editing, and managing KRIs with inline validation, version history, and locking',
+              },
+              {
+                icon: <AIIcon sx={{ fontSize: 22, color: '#ec4899' }} />,
+                title: 'AI Assistant',
+                description: 'Natural language metric creation, multi-provider setup, role-based AI access, and catalog enhancement',
+              },
+              {
+                icon: <PeopleIcon sx={{ fontSize: 22, color: '#f59e0b' }} />,
+                title: 'User Management',
+                description: 'Admin, Editor, and Viewer roles, user invitations, password recovery, and account management',
+              },
+              {
+                icon: <ScoringIcon sx={{ fontSize: 22, color: '#ef4444' }} />,
+                title: 'Scoring Methodology',
+                description: 'Gap-to-target calculations, weighted aggregation, risk thresholds, and scoring directions',
+              },
+              {
+                icon: <FrameworkIcon sx={{ fontSize: 22, color: '#14b8a6' }} />,
+                title: 'Frameworks Reference',
+                description: 'NIST CSF 2.0 functions, categories, and subcategories plus AI RMF 1.0 characteristics',
+              },
+              {
+                icon: <ShieldIcon sx={{ fontSize: 22, color: '#6366f1' }} />,
+                title: 'Security',
+                description: 'Network architecture, data protection, encryption, session management, and security best practices',
+              },
+              {
+                icon: <ApiIcon sx={{ fontSize: 22, color: '#06b6d4' }} />,
+                title: 'API Reference',
+                description: 'REST API endpoints for metrics, catalogs, scores, AI, and CSF reference data',
+              },
+              {
+                icon: <TroubleshootIcon sx={{ fontSize: 22, color: '#f97316' }} />,
+                title: 'Troubleshooting',
+                description: 'Common issues, Docker debugging, database connectivity, and performance optimization',
+              },
+            ].map((doc) => (
+              <Grid item xs={12} sm={6} md={4} key={doc.title}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    background: alpha('#fff', 0.03),
+                    border: `1px solid ${alpha('#fff', 0.06)}`,
+                    borderRadius: 2,
+                    transition: 'border-color 0.2s',
+                    '&:hover': {
+                      borderColor: alpha('#fff', 0.15),
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                      {doc.icon}
+                      <Typography variant="subtitle2" color="white" fontWeight={600}>
+                        {doc.title}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" color={alpha('#fff', 0.5)} lineHeight={1.5}>
+                      {doc.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Typography
+            variant="body2"
+            color={alpha('#fff', 0.4)}
+            textAlign="center"
+            mt={3}
+            fontStyle="italic"
+          >
+            Full documentation will be available on GitHub once open access to the repository is provided.
+          </Typography>
+        </Box>
+
         {/* Requirements Section */}
-        <Box mt={6}>
+        <Box mt={8}>
           <Typography variant="h6" color="white" mb={3} textAlign="center">
             System Requirements
           </Typography>
