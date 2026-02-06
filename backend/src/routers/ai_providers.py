@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import AIProvider, AIModel, UserAIConfiguration, User
+from .auth import get_current_user
 from ..schemas import (
     AIProviderSchema,
     AIProviderListResponse,
@@ -43,13 +44,6 @@ router = APIRouter(prefix="/ai-providers", tags=["ai-providers"])
 # ==============================================================================
 # Helper Functions
 # ==============================================================================
-
-def get_current_user_id() -> UUID:
-    """Get current user ID. TODO: Replace with actual auth."""
-    # For now, return a default admin user ID
-    # In production, this would come from JWT token or session
-    return UUID("00000000-0000-0000-0000-000000000001")
-
 
 def _provider_type_from_code(code: str) -> Optional[ProviderType]:
     """Convert provider code string to ProviderType enum."""
@@ -146,10 +140,11 @@ async def list_providers(
 
 @router.get("/configurations", response_model=AIConfigurationListResponse)
 async def list_user_configurations(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get all AI provider configurations for the current user."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     configs = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.user_id == user_id
@@ -188,13 +183,14 @@ async def list_user_configurations(
 @router.post("/configurations", response_model=AIConfigurationResponse, status_code=status.HTTP_201_CREATED)
 async def create_configuration(
     config: AIConfigurationCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Create a new AI provider configuration for the current user.
 
     Credentials are encrypted before storage.
     """
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     # Validate provider exists
     provider_type = _provider_type_from_code(config.provider_code)
@@ -278,10 +274,11 @@ async def create_configuration(
 async def update_configuration(
     config_id: UUID,
     update: AIConfigurationUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Update an existing AI provider configuration."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     db_config = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.id == config_id,
@@ -346,10 +343,11 @@ async def update_configuration(
 @router.delete("/configurations/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_configuration(
     config_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete an AI provider configuration."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     db_config = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.id == config_id,
@@ -378,10 +376,11 @@ async def delete_configuration(
 @router.post("/configurations/{config_id}/validate", response_model=AICredentialValidationResponse)
 async def validate_configuration(
     config_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Test that credentials are valid by making a minimal API call."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     db_config = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.id == config_id,
@@ -457,10 +456,11 @@ async def validate_configuration(
 @router.post("/configurations/{config_id}/activate", response_model=AIConfigurationResponse)
 async def activate_configuration(
     config_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Set this configuration as the active one for the current user."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     db_config = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.id == config_id,
@@ -516,10 +516,11 @@ async def activate_configuration(
 @router.post("/configurations/{config_id}/deactivate", response_model=AIConfigurationResponse)
 async def deactivate_configuration(
     config_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Deactivate this configuration."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     db_config = db.query(UserAIConfiguration).filter(
         UserAIConfiguration.id == config_id,
