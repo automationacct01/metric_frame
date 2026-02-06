@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // Determine proxy target based on environment
 // Inside Docker: use 'backend:8000' (Docker service name)
@@ -18,9 +19,17 @@ export default defineConfig({
   // Use relative paths for Electron (file://), absolute for web (http://)
   // VITE_BASE_PATH='./' for desktop, defaults to '/' for Docker/web
   base: process.env.VITE_BASE_PATH || '/',
+  resolve: {
+    alias: {
+      '/wiki': path.resolve(__dirname, '../wiki'),
+    },
+  },
   server: {
     host: true,
     port: 5175,
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/api': {
         target: getProxyTarget(),

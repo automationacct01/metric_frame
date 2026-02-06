@@ -35,6 +35,7 @@ import DesktopForgotPassword from './components/desktop/DesktopForgotPassword';
 // Landing Page
 import LandingPage from './pages/LandingPage';
 import DownloadPage from './pages/DownloadPage';
+import WikiPage from './pages/WikiPage';
 
 // Protected Route wrapper - redirects to login if not authenticated
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -378,6 +379,10 @@ function App() {
 
                 {/* Download page for Docker/Desktop options */}
                 <Route path="/download" element={<DownloadPage />} />
+
+                {/* Public wiki/documentation */}
+                <Route path="/wiki" element={<WikiPage />} />
+                <Route path="/wiki/:pageId" element={<WikiPage />} />
 
                 {/* Login page - only for web/Docker, desktop uses its own auth */}
                 <Route path="/login" element={<Login />} />
