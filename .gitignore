@@ -111,6 +111,7 @@ secrets/
 
 # Build artifacts and distributions
 backend-dist/
+*.spec
 desktop/release/
 *.dmg
 *.zip

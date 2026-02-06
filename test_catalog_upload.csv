@@ -1,7 +1,0 @@
-name,description,current_value,target_value,unit,direction
-Privileged Access Reviews,Privileged accounts reviewed on schedule,85,100,%,higher_is_better
-Data Loss Prevention Alerts,DLP policy violations detected and blocked,45,20,count,lower_is_better
-Cloud Security Posture Score,Cloud resources meeting security baseline,78,95,%,higher_is_better
-Third Party Risk Assessments,Vendors assessed within required timeframe,70,90,%,higher_is_better
-Security Incident Closure Rate,Incidents closed within SLA,82,95,%,higher_is_better
-Mean Time to Contain,Hours to contain confirmed security incidents,6,4,hours,lower_is_better
