@@ -189,7 +189,7 @@ export default function DownloadPage() {
                       />
                       <Chip
                         icon={<VerifiedIcon sx={{ fontSize: 14 }} />}
-                        label="SHA256 Verified"
+                        label="Install Files Verified"
                         size="small"
                         sx={{
                           bgcolor: alpha('#22c55e', 0.2),
