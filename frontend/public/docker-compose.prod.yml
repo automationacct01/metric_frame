@@ -27,7 +27,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-metricframe}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metricframe}"]
       interval: 10s
