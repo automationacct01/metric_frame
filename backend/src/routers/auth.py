@@ -1,6 +1,7 @@
 """Authentication endpoints for login/logout/register."""
 
 import logging
+import secrets
 from datetime import datetime
 from typing import Annotated, Optional
 
