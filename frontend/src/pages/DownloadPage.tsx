@@ -26,9 +26,9 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-const dockerCommand = 'curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh | bash';
-const secureInstallCommand = `# Download and verify before running (recommended)
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh -o install.sh
+const dockerCommand = 'curl -fsSL https://get.metricframe.ai/install.sh | bash';
+const secureInstallCommand = `# Download and verify before running
+curl -fsSL https://get.metricframe.ai/install.sh -o install.sh
 less install.sh  # Review the script
 chmod +x install.sh && ./install.sh`;
 const offlineBundleUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz';
@@ -220,7 +220,7 @@ export default function DownloadPage() {
                     fontSize: '0.8rem',
                     color: '#0ea5e9',
                     position: 'relative',
-                    overflowX: 'auto',
+                    wordBreak: 'break-all',
                   }}
                 >
                   <code>{dockerCommand}</code>
