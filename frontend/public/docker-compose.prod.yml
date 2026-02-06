@@ -1,0 +1,104 @@
+# MetricFrame Production Docker Compose
+# For server deployments and self-hosting
+#
+# SECURITY: Before deploying, create a .env file with:
+#   POSTGRES_USER=<random-username>
+#   POSTGRES_PASSWORD=<strong-random-password-32-chars>
+#   AI_CREDENTIALS_MASTER_KEY=<generate-with-fernet>
+#
+# Generate encryption key:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+#
+# Quick Start:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# With custom settings:
+#   Create a .env file with your settings, then:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-metricframe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-metricframe}
+      POSTGRES_DB: ${POSTGRES_DB:-metricframe}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metricframe}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metricframe
+
+  # Redis Session Store
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-ttl
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - metricframe
+
+  # FastAPI Backend
+  backend:
+    image: ghcr.io/automationacct01/metric_frame-backend:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metricframe}:${POSTGRES_PASSWORD:-metricframe}@db:5432/${POSTGRES_DB:-metricframe}
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000}
+      API_PREFIX: /api/v1
+      # Encryption key for user AI credentials (REQUIRED - generate your own!)
+      AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - metricframe
+
+  # React Frontend (nginx)
+  frontend:
+    image: ghcr.io/automationacct01/metric_frame-frontend:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend.prod
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - metricframe
+
+networks:
+  metricframe:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
