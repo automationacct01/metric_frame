@@ -13,6 +13,8 @@ on:
 jobs:
   generate-checksums:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,6 +46,9 @@ jobs:
   generate-docker-tarball:
     runs-on: ubuntu-latest
     needs: generate-checksums
+    permissions:
+      contents: write
+      packages: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
