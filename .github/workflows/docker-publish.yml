@@ -40,6 +40,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
@@ -84,6 +85,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
@@ -119,7 +121,7 @@ jobs:
 
       - name: Test health endpoint
         run: |
-          curl -f http://localhost/health || exit 1
+          curl -f http://localhost:3000/health || exit 1
 
       - name: Stop services
         run: docker compose -f docker-compose.prod.yml down
