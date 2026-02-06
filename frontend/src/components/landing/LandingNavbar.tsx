@@ -27,6 +27,7 @@ import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
 const navItems = [
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Docs', href: '/wiki' },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -40,10 +41,14 @@ export default function LandingNavbar() {
     setMobileOpen(!mobileOpen);
   };
 
-  const scrollToSection = (href: string) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+  const handleNavClick = (href: string) => {
+    if (href.startsWith('#')) {
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate(href);
     }
     setMobileOpen(false);
   };
@@ -62,7 +67,7 @@ export default function LandingNavbar() {
       <List>
         {navItems.map((item) => (
           <ListItem key={item.label} disablePadding>
-            <ListItemButton onClick={() => scrollToSection(item.href)}>
+            <ListItemButton onClick={() => handleNavClick(item.href)}>
               <ListItemText primary={item.label} />
             </ListItemButton>
           </ListItem>
@@ -124,7 +129,7 @@ export default function LandingNavbar() {
                 {navItems.map((item) => (
                   <Button
                     key={item.label}
-                    onClick={() => scrollToSection(item.href)}
+                    onClick={() => handleNavClick(item.href)}
                     sx={{
                       color: 'text.primary',
                       fontWeight: 500,
