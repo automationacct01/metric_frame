@@ -136,13 +136,20 @@ jobs:
         working-directory: desktop
         run: npm ci
 
+      # ── macOS: signed + notarized ──────────────────────────────
       - name: Build Electron app (macOS)
         if: matrix.platform == 'mac'
         working-directory: desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run build:mac
 
+      # ── Windows: unsigned (no certificate) ─────────────────────
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
         working-directory: desktop
@@ -150,6 +157,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:win
 
+      # ── Linux: unsigned (standard for Linux) ───────────────────
       - name: Build Electron app (Linux)
         if: matrix.platform == 'linux'
         working-directory: desktop
@@ -168,8 +176,34 @@ jobs:
             desktop/release/*.AppImage
             desktop/release/*.deb
 
-  create-release:
+  # ── Generate checksums for all release artifacts ─────────────
+  generate-checksums:
     needs: [build-electron]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" \) | while read f; do
+            sha256sum "$f" >> ../checksums-sha256.txt
+          done
+          # Clean up paths in checksum file
+          sed -i 's|  \./[^/]*/||' ../checksums-sha256.txt
+          cat ../checksums-sha256.txt
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: checksums-sha256.txt
+
+  create-release:
+    needs: [build-electron, generate-checksums]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -188,7 +222,53 @@ jobs:
             artifacts/desktop-release-mac/*
             artifacts/desktop-release-win/*
             artifacts/desktop-release-linux/*
-          generate_release_notes: true
+            artifacts/checksums/checksums-sha256.txt
+          body: |
+            ## Download
+
+            | Platform | File | Signed |
+            |----------|------|--------|
+            | macOS (Apple Silicon) | `MetricFrame-*-mac-arm64.dmg` | Signed & Notarized |
+            | macOS (Intel) | `MetricFrame-*-mac-x64.dmg` | Signed & Notarized |
+            | Windows | `MetricFrame-Setup-*.exe` | Unsigned (see below) |
+            | Linux | `MetricFrame-*.AppImage` | Unsigned (standard) |
+
+            ## Verify Your Download
+
+            All release artifacts include SHA256 checksums. **Always verify before running.**
+
+            ### macOS / Linux
+            ```bash
+            # Download the checksums file
+            curl -LO <checksums-sha256.txt URL>
+
+            # Verify your downloaded file
+            sha256sum -c checksums-sha256.txt --ignore-missing
+            ```
+
+            ### Windows (PowerShell)
+            ```powershell
+            # Get the hash of your downloaded file
+            Get-FileHash MetricFrame-Setup-*.exe -Algorithm SHA256
+
+            # Compare with the value in checksums-sha256.txt
+            ```
+
+            ## Windows & Linux: Unsigned App Notice
+
+            The Windows and Linux builds are **not code-signed**. This is standard for open-source projects.
+
+            **Windows**: SmartScreen may show "Windows protected your PC". Click **More info** → **Run anyway**.
+
+            **Linux**: No action needed. AppImage runs directly.
+
+            ## Verify from Source
+
+            MetricFrame is open source. You can build from source to verify:
+            ```bash
+            git clone https://github.com/automationacct01/metric_frame.git
+            cd metric_frame && ./install.sh
+            ```
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

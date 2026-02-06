@@ -47,12 +47,14 @@ class APIClient {
     // Determine the correct API base URL
     this.baseURL = this.determineBaseURL();
     
-    console.log('🔧 Initializing API Client:', {
-      baseURL: this.baseURL,
-      environment: import.meta.env.NODE_ENV,
-      viteApiBaseUrl: import.meta.env.VITE_API_BASE_URL,
-      timestamp: new Date().toISOString(),
-    });
+    if (import.meta.env.DEV) {
+      console.log('🔧 Initializing API Client:', {
+        baseURL: this.baseURL,
+        environment: import.meta.env.NODE_ENV,
+        viteApiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+        timestamp: new Date().toISOString(),
+      });
+    }
     
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -69,13 +71,15 @@ class APIClient {
         const url = config.url;
         const fullUrl = `${config.baseURL}${url}`;
         
-        console.log(`🚀 API Request: ${method} ${url}`, {
-          fullUrl,
-          method,
-          baseURL: config.baseURL,
-          timeout: config.timeout,
-          timestamp: new Date().toISOString(),
-        });
+        if (import.meta.env.DEV) {
+          console.log(`🚀 API Request: ${method} ${url}`, {
+            fullUrl,
+            method,
+            baseURL: config.baseURL,
+            timeout: config.timeout,
+            timestamp: new Date().toISOString(),
+          });
+        }
         
         // Add request timestamp for performance tracking
         config.metadata = { startTime: Date.now() };
@@ -95,12 +99,14 @@ class APIClient {
         const method = response.config.method?.toUpperCase();
         const url = response.config.url;
         
-        console.log(`✅ API Response: ${method} ${url} (${response.status}) - ${duration}ms`, {
-          status: response.status,
-          statusText: response.statusText,
-          duration,
-          dataSize: JSON.stringify(response.data).length,
-        });
+        if (import.meta.env.DEV) {
+          console.log(`✅ API Response: ${method} ${url} (${response.status}) - ${duration}ms`, {
+            status: response.status,
+            statusText: response.statusText,
+            duration,
+            dataSize: JSON.stringify(response.data).length,
+          });
+        }
         
         return response;
       },
@@ -124,25 +130,26 @@ class APIClient {
           timestamp: new Date().toISOString(),
         };
 
-        console.error(`❌ API Response Error: ${method} ${url}`, errorInfo);
-        
-        // Add connection-specific error messages
-        if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-          console.error('🔌 Connection Error: Cannot reach the backend API server');
-          console.error('💡 Troubleshooting tips:');
-          console.error('   1. Check if backend is running on http://localhost:8002');
-          console.error('   2. Verify CORS settings allow requests from this origin');
-          console.error('   3. Check if database is connected and running');
-        }
+        if (import.meta.env.DEV) {
+          console.error(`❌ API Response Error: ${method} ${url}`, errorInfo);
 
-        if (error.response?.status === 404) {
-          console.error('🔍 Not Found: The requested API endpoint does not exist');
-          console.error(`   Expected URL: ${fullUrl}`);
-        }
+          if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+            console.error('🔌 Connection Error: Cannot reach the backend API server');
+            console.error('💡 Troubleshooting tips:');
+            console.error('   1. Check if backend is running on http://localhost:8002');
+            console.error('   2. Verify CORS settings allow requests from this origin');
+            console.error('   3. Check if database is connected and running');
+          }
 
-        if (error.response?.status >= 500) {
-          console.error('🔥 Server Error: Backend API encountered an internal error');
-          console.error('   Check backend logs for more details');
+          if (error.response?.status === 404) {
+            console.error('🔍 Not Found: The requested API endpoint does not exist');
+            console.error(`   Expected URL: ${fullUrl}`);
+          }
+
+          if (error.response?.status >= 500) {
+            console.error('🔥 Server Error: Backend API encountered an internal error');
+            console.error('   Check backend logs for more details');
+          }
         }
 
         return Promise.reject(error);
@@ -158,9 +165,9 @@ class APIClient {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔄 ${operation} (attempt ${attempt}/${maxRetries})`);
+        if (import.meta.env.DEV) console.log(`🔄 ${operation} (attempt ${attempt}/${maxRetries})`);
         const result = await requestFn();
-        if (attempt > 1) {
+        if (attempt > 1 && import.meta.env.DEV) {
           console.log(`✅ ${operation} succeeded on retry attempt ${attempt}`);
         }
         return result;
@@ -170,13 +177,15 @@ class APIClient {
 
         if (shouldRetry && !isLastAttempt) {
           const delay = retryDelay * attempt;
-          console.log(`⏳ ${operation} failed (attempt ${attempt}), retrying in ${delay}ms...`, {
-            error: error.message,
-            status: error.response?.status,
-          });
+          if (import.meta.env.DEV) {
+            console.log(`⏳ ${operation} failed (attempt ${attempt}), retrying in ${delay}ms...`, {
+              error: error.message,
+              status: error.response?.status,
+            });
+          }
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          console.error(`❌ ${operation} failed after ${attempt} attempts:`, error);
+          if (import.meta.env.DEV) console.error(`❌ ${operation} failed after ${attempt} attempts:`, error);
           throw error;
         }
       }
@@ -202,7 +211,7 @@ class APIClient {
     // and the backend runs on localhost:8000
     if (window.location.protocol === 'file:') {
       const desktopApiUrl = 'http://127.0.0.1:8000/api/v1';
-      console.log('🖥️ Desktop mode detected (file:// protocol), using:', desktopApiUrl);
+      if (import.meta.env.DEV) console.log('🖥️ Desktop mode detected (file:// protocol), using:', desktopApiUrl);
       return desktopApiUrl;
     }
 
@@ -212,21 +221,23 @@ class APIClient {
       // Use relative URL to leverage Vite proxy configuration
       // This avoids CORS issues by making requests appear same-origin
       const proxyUrl = '/api/v1';
-      console.log('🏠 Development environment: Using Vite proxy at', proxyUrl);
-      console.log('🔧 Proxy will forward to backend container via Docker network');
+      if (import.meta.env.DEV) {
+        console.log('🏠 Development environment: Using Vite proxy at', proxyUrl);
+        console.log('🔧 Proxy will forward to backend container via Docker network');
+      }
       return proxyUrl;
     }
 
     // 2. Check environment variable for production override
     if (import.meta.env.VITE_API_BASE_URL) {
-      console.log('🔗 Using API URL from environment:', import.meta.env.VITE_API_BASE_URL);
+      if (import.meta.env.DEV) console.log('🔗 Using API URL from environment:', import.meta.env.VITE_API_BASE_URL);
       return import.meta.env.VITE_API_BASE_URL;
     }
 
     // 3. Production fallback - assume API is on same host with /api/v1 path
     const currentProtocol = window.location.protocol;
     const prodApiUrl = `${currentProtocol}//${currentHost}/api/v1`;
-    console.log('🌐 Production environment assumed, using:', prodApiUrl);
+    if (import.meta.env.DEV) console.log('🌐 Production environment assumed, using:', prodApiUrl);
     return prodApiUrl;
   }
 

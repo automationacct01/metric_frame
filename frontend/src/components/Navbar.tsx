@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDesktopAuth } from '../contexts/DesktopAuthContext';
 
 import { NavItem } from '../types';
 
@@ -118,11 +119,17 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useThemeMode();
   const { user, logout, isAdmin, isEditor, token } = useAuth();
+  const { isDesktopMode } = useDesktopAuth();
+
+  // Desktop mode uses relative paths (file:// protocol can't resolve absolute /)
+  const assetPrefix = isDesktopMode ? './' : '/';
 
   // Filter nav items based on user role
+  // - Desktop mode: show all items (single user owns the app)
   // - adminOnly items: only visible to admins
   // - editorOnly items: visible to editors and admins (hidden from viewers)
   const filteredNavItems = navItems.filter((item) => {
+    if (isDesktopMode) return true;
     if (item.adminOnly && !isAdmin) return false;
     if (item.editorOnly && !isEditor) return false;
     return true;
@@ -261,13 +268,13 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
       >
         {collapsed ? (
           <img
-            src="/favicon-metricframe.svg"
+            src={`${assetPrefix}favicon-metricframe.svg`}
             alt="MetricFrame"
             style={{ height: 28, width: 28 }}
           />
         ) : (
           <img
-            src={darkMode ? '/logo-metricframe-dark.svg' : '/logo-metricframe.svg'}
+            src={darkMode ? `${assetPrefix}logo-metricframe-dark.svg` : `${assetPrefix}logo-metricframe.svg`}
             alt="MetricFrame"
             style={{ height: 40, width: 'auto', maxWidth: '100%' }}
           />
