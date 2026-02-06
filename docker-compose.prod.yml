@@ -53,6 +53,7 @@ services:
 
   # FastAPI Backend
   backend:
+    image: ghcr.io/automationacct01/metric_frame-backend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.backend.prod
@@ -80,6 +81,7 @@ services:
 
   # React Frontend (nginx)
   frontend:
+    image: ghcr.io/automationacct01/metric_frame-frontend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend.prod
