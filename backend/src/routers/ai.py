@@ -59,6 +59,17 @@ router = APIRouter()
 
 
 # =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def get_current_user_id() -> UUID:
+    """Get current user ID. TODO: Replace with actual auth."""
+    # For now, return a default admin user ID
+    # In production, this would come from JWT token or session
+    return UUID("00000000-0000-0000-0000-000000000001")
+
+
+# =============================================================================
 # PROVIDER HELPER FUNCTIONS
 # =============================================================================
 
@@ -348,8 +359,9 @@ async def ai_chat(
         )
 
     try:
-        # Get active AI provider
-        provider = await get_active_provider(db)
+        # Get active AI provider for current user
+        user_id = get_current_user_id()
+        provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
         # Prepare context based on mode
@@ -401,8 +413,19 @@ async def ai_chat(
         # Parse response based on mode
         if request.mode == "metrics":
             # Try to parse JSON response for metrics mode
+            # Strip markdown code block wrappers if present
+            content = response.content.strip()
+            if content.startswith("```"):
+                # Remove opening ```json or ``` and closing ```
+                lines = content.split("\n")
+                if lines[0].startswith("```"):
+                    lines = lines[1:]  # Remove opening fence
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]  # Remove closing fence
+                content = "\n".join(lines).strip()
+
             try:
-                parsed = json.loads(response.content)
+                parsed = json.loads(content)
                 ai_response = parsed
             except json.JSONDecodeError:
                 # If not valid JSON, wrap in standard format
@@ -613,8 +636,9 @@ async def suggest_improvements(
 ):
     """Get AI suggestions for improving metrics or scores."""
     try:
-        # Get active AI provider
-        provider = await get_active_provider(db)
+        # Get active AI provider for current user
+        user_id = get_current_user_id()
+        provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
         # Get current performance data
@@ -674,8 +698,9 @@ async def get_ai_status(db: Session = Depends(get_db)):
     model = None
 
     try:
-        # Try to get active provider
-        provider = await get_active_provider(db)
+        # Try to get active provider for current user
+        user_id = get_current_user_id()
+        provider = await get_active_provider(db, user_id)
         available = True
         provider_name = provider.provider_type.value
         model = get_default_model_for_provider(provider)
@@ -723,8 +748,9 @@ async def get_ai_recommendations(
     - Aligning with industry best practices
     """
     try:
-        # Verify we have an active provider
-        await get_active_provider(db)
+        # Verify we have an active provider for current user
+        user_id = get_current_user_id()
+        await get_active_provider(db, user_id)
     except HTTPException:
         raise HTTPException(
             status_code=503,
@@ -774,8 +800,9 @@ async def suggest_metrics_for_coverage_gap(
     Optionally focus on a specific function or category to get targeted suggestions.
     """
     try:
-        # Verify we have an active provider
-        await get_active_provider(db)
+        # Verify we have an active provider for current user
+        user_id = get_current_user_id()
+        await get_active_provider(db, user_id)
     except HTTPException:
         raise HTTPException(
             status_code=503,
@@ -863,8 +890,9 @@ async def generate_metric_from_name(
 
     response_text = ""
     try:
-        # Get active AI provider
-        provider = await get_active_provider(db)
+        # Get active AI provider for current user
+        user_id = get_current_user_id()
+        provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
         system_prompt = f"""You are a cybersecurity metrics expert. Generate metric definitions for {fw.name}.

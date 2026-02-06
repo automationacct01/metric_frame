@@ -41,12 +41,7 @@ import {
   Edit as EditorIcon,
   Visibility as ViewerIcon,
   People as PeopleIcon,
-  Security as SecurityIcon,
   Lock as LockIcon,
-  Cloud as CloudIcon,
-  Storage as StorageIcon,
-  Laptop as LaptopIcon,
-  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -548,7 +543,6 @@ export default function Settings() {
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
           <Tab icon={<TuneIcon />} iconPosition="start" label="General" />
           <Tab icon={<AIIcon />} iconPosition="start" label="AI Configuration" />
-          <Tab icon={<SecurityIcon />} iconPosition="start" label="Security" />
           {isAdmin && <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />}
         </Tabs>
       </Box>
@@ -562,6 +556,84 @@ export default function Settings() {
         )}
 
         <Grid container spacing={3}>
+          {/* Desktop Authentication Settings - Only show in desktop mode */}
+          {desktopAuth.isDesktopMode && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  avatar={<LockIcon color="primary" />}
+                  title="Desktop Authentication"
+                  subheader="Manage password protection for your desktop app"
+                />
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <Box sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: desktopAuth.authMode === 'password' ? 'success.main' : 'grey.500',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}>
+                      {desktopAuth.authMode === 'password' ? (
+                        <><LockIcon fontSize="small" /> Password Protected</>
+                      ) : (
+                        <><LockOpenIcon fontSize="small" /> No Password</>
+                      )}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {desktopAuth.authMode === 'password'
+                        ? 'Your app requires a password to unlock'
+                        : 'Your app opens directly without a password'}
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    {desktopAuth.authMode === 'password' ? (
+                      <>
+                        <Button
+                          variant="outlined"
+                          startIcon={<LockIcon />}
+                          onClick={() => {
+                            setDesktopAuthAction('changePassword');
+                            setDesktopAuthDialogOpen(true);
+                          }}
+                        >
+                          Change Password
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          startIcon={<LockOpenIcon />}
+                          onClick={() => {
+                            setDesktopAuthAction('disablePassword');
+                            setDesktopAuthDialogOpen(true);
+                          }}
+                        >
+                          Disable Password
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        startIcon={<LockIcon />}
+                        onClick={() => {
+                          setDesktopAuthAction('enablePassword');
+                          setDesktopAuthDialogOpen(true);
+                        }}
+                      >
+                        Enable Password Protection
+                      </Button>
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
           {/* Current Session Info */}
           {authUser && (
             <Grid item xs={12}>
@@ -928,240 +1000,9 @@ export default function Settings() {
         <AIProviderSettings userId="admin" />
       </TabPanel>
 
-      {/* Security Tab */}
-      <TabPanel value={activeTab} index={2}>
-        <Grid container spacing={3}>
-          {/* Desktop Authentication Settings - Only show in desktop mode */}
-          {desktopAuth.isDesktopMode && (
-            <Grid item xs={12}>
-              <Card>
-                <CardHeader
-                  avatar={<LockIcon color="primary" />}
-                  title="Desktop Authentication"
-                  subheader="Manage password protection for your desktop app"
-                />
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                    <Box sx={{
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: desktopAuth.authMode === 'password' ? 'success.main' : 'grey.500',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}>
-                      {desktopAuth.authMode === 'password' ? (
-                        <><LockIcon fontSize="small" /> Password Protected</>
-                      ) : (
-                        <><LockOpenIcon fontSize="small" /> No Password</>
-                      )}
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {desktopAuth.authMode === 'password'
-                        ? 'Your app requires a password to unlock'
-                        : 'Your app opens directly without a password'}
-                    </Typography>
-                  </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    {desktopAuth.authMode === 'password' ? (
-                      <>
-                        <Button
-                          variant="outlined"
-                          startIcon={<LockIcon />}
-                          onClick={() => {
-                            setDesktopAuthAction('changePassword');
-                            setDesktopAuthDialogOpen(true);
-                          }}
-                        >
-                          Change Password
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="warning"
-                          startIcon={<LockOpenIcon />}
-                          onClick={() => {
-                            setDesktopAuthAction('disablePassword');
-                            setDesktopAuthDialogOpen(true);
-                          }}
-                        >
-                          Disable Password
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        startIcon={<LockIcon />}
-                        onClick={() => {
-                          setDesktopAuthAction('enablePassword');
-                          setDesktopAuthDialogOpen(true);
-                        }}
-                      >
-                        Enable Password Protection
-                      </Button>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-
-          {/* Network Architecture */}
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader
-                avatar={<CloudIcon color="primary" />}
-                title="Network Architecture"
-                subheader="How your data flows through MetricFrame"
-              />
-              <CardContent>
-                <Box sx={{
-                  fontFamily: 'monospace',
-                  fontSize: '0.75rem',
-                  backgroundColor: 'action.hover',
-                  p: 2,
-                  borderRadius: 1,
-                  overflowX: 'auto',
-                  whiteSpace: 'pre',
-                  lineHeight: 1.4,
-                }}>
-{`┌─────────────────────────────────────────────────────────────┐
-│  YOUR COMPUTER (localhost)                                  │
-│                                                             │
-│  Browser ──HTTP──► Frontend ──HTTP──► Backend ──► Redis     │
-│  (localhost:3000)   (nginx)          (FastAPI)   (sessions) │
-│                                           │                 │
-└───────────────────────────────────────────│─────────────────┘
-                                            │
-                                            ▼ HTTPS (TLS 1.3 encrypted)
-                                    ┌───────────────────┐
-                                    │   AI APIs         │
-                                    │   (encrypted)     │
-                                    └───────────────────┘`}
-                </Box>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Local traffic stays local:</strong> Browser-to-app communication never leaves your computer.
-                    The only external connections are encrypted HTTPS calls to AI providers when you use AI features.
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Data Protection */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardHeader
-                avatar={<LockIcon color="success" />}
-                title="Data Protection"
-                subheader="Your data security measures"
-              />
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {[
-                    { label: '100% Local', desc: 'No data leaves your infrastructure (except encrypted AI calls)' },
-                    { label: 'Role-Based Access', desc: 'Admin, Editor, Viewer roles with enforced permissions' },
-                    { label: 'Encrypted Credentials', desc: 'API keys stored with Fernet encryption' },
-                    { label: 'Secure Sessions', desc: 'Redis-backed sessions with 24h TTL' },
-                    { label: 'Password Security', desc: 'bcrypt hashing for all passwords' },
-                    { label: 'No Telemetry', desc: 'We don\'t track usage or collect any data' },
-                  ].map((item) => (
-                    <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18, mt: 0.25 }} />
-                      <Box>
-                        <Typography variant="body2" fontWeight="medium">{item.label}</Typography>
-                        <Typography variant="caption" color="text.secondary">{item.desc}</Typography>
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Deployment Comparison */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardHeader
-                avatar={<StorageIcon color="info" />}
-                title="Deployment Comparison"
-                subheader="Docker vs Desktop App"
-              />
-              <CardContent>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 2 }}>
-                  <Typography variant="caption" fontWeight="bold">Aspect</Typography>
-                  <Typography variant="caption" fontWeight="bold">Docker</Typography>
-                  <Typography variant="caption" fontWeight="bold">Desktop</Typography>
-                </Box>
-                {[
-                  { aspect: 'Sessions', docker: 'Redis', desktop: 'In-memory' },
-                  { aspect: 'Database', docker: 'PostgreSQL', desktop: 'SQLite' },
-                  { aspect: 'Multi-user', docker: 'Yes', desktop: 'Single user' },
-                  { aspect: 'Workers', docker: '4 (uvicorn)', desktop: '1' },
-                  { aspect: 'Network', docker: 'Configurable', desktop: 'Localhost' },
-                ].map((row) => (
-                  <Box key={row.aspect} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary">{row.aspect}</Typography>
-                    <Typography variant="caption">{row.docker}</Typography>
-                    <Typography variant="caption">{row.desktop}</Typography>
-                  </Box>
-                ))}
-                <Box sx={{ mt: 2, p: 1.5, bgcolor: 'info.main', color: 'info.contrastText', borderRadius: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LaptopIcon fontSize="small" />
-                    <Typography variant="caption">
-                      You are using: <strong>Docker deployment</strong>
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* API Key Security */}
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader
-                avatar={<SecurityIcon color="warning" />}
-                title="API Key Security"
-                subheader="How your AI provider credentials are protected"
-              />
-              <CardContent>
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  p: 2,
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                  flexWrap: 'wrap',
-                }}>
-                  <Chip label="1. You enter API key" size="small" />
-                  <Typography variant="caption">→</Typography>
-                  <Chip label="2. Fernet encryption" size="small" color="primary" />
-                  <Typography variant="caption">→</Typography>
-                  <Chip label="3. Stored in database" size="small" />
-                  <Typography variant="caption">→</Typography>
-                  <Chip label="4. Decrypted for API call" size="small" color="primary" />
-                  <Typography variant="caption">→</Typography>
-                  <Chip label="5. Sent via HTTPS only" size="small" color="success" />
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  API keys are never stored in plaintext, never logged, and only transmitted over encrypted HTTPS connections to AI providers.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
-
       {/* Users Tab - Admin only */}
       {isAdmin && (
-        <TabPanel value={activeTab} index={3}>
+        <TabPanel value={activeTab} index={2}>
           <UserManagement />
         </TabPanel>
       )}

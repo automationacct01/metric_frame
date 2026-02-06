@@ -69,9 +69,6 @@ services:
       API_PREFIX: /api/v1
       # Encryption key for user AI credentials (REQUIRED - generate your own!)
       AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
-      # AI Provider keys (optional - users configure in app)
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

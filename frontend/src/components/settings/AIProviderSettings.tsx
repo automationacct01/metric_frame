@@ -98,6 +98,11 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
   // Expanded provider cards
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
 
+  // Activation prompt dialog
+  const [activationPromptOpen, setActivationPromptOpen] = useState(false);
+  const [pendingActivationConfigId, setPendingActivationConfigId] = useState<string | null>(null);
+  const [pendingActivationProviderName, setPendingActivationProviderName] = useState<string>('');
+
   // Clear credential state on unmount
   useEffect(() => {
     return () => {
@@ -172,9 +177,34 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
         model_id: selectedModel || undefined,
       };
 
-      await apiClient.createAIConfiguration(config, userId);
-      setSuccess(`Successfully configured ${selectedProvider.name}`);
+      // Step 1: Save the configuration
+      const savedConfig = await apiClient.createAIConfiguration(config, userId);
+      const configId = savedConfig.id;
+      const providerName = selectedProvider.name;
+
       handleCloseConfigDialog();
+
+      // Step 2: Auto-validate the credentials
+      setValidating(true);
+      try {
+        const validationResult = await apiClient.validateAIConfiguration(configId);
+
+        if (validationResult.valid) {
+          // Validation succeeded - prompt user to activate
+          setPendingActivationConfigId(configId);
+          setPendingActivationProviderName(providerName);
+          setActivationPromptOpen(true);
+        } else {
+          // Validation failed - show error
+          setError(`Credentials saved but validation failed: ${validationResult.message || 'Invalid credentials'}`);
+        }
+      } catch (validationErr: any) {
+        console.error('Validation failed:', validationErr);
+        setError(`Credentials saved but validation failed: ${validationErr.response?.data?.detail || 'Could not validate credentials'}`);
+      } finally {
+        setValidating(false);
+      }
+
       await loadData();
     } catch (err: any) {
       console.error('Failed to save configuration:', err);
@@ -226,6 +256,26 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
       console.error('Delete failed:', err);
       setError(err.response?.data?.detail || 'Failed to delete configuration');
     }
+  };
+
+  const handleActivationPromptResponse = async (activate: boolean) => {
+    setActivationPromptOpen(false);
+
+    if (activate && pendingActivationConfigId) {
+      try {
+        await apiClient.activateAIConfiguration(pendingActivationConfigId);
+        setSuccess(`${pendingActivationProviderName} has been activated and is ready to use!`);
+        await loadData();
+      } catch (err: any) {
+        console.error('Activation failed:', err);
+        setError(err.response?.data?.detail || 'Failed to activate provider');
+      }
+    } else {
+      setSuccess(`${pendingActivationProviderName} credentials saved and validated. You can activate it later.`);
+    }
+
+    setPendingActivationConfigId(null);
+    setPendingActivationProviderName('');
   };
 
   const toggleProviderExpanded = (providerCode: string) => {
@@ -560,13 +610,61 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
               <Button
                 variant="contained"
                 onClick={handleSaveConfiguration}
-                disabled={saving}
+                disabled={saving || validating}
               >
-                {saving ? <CircularProgress size={20} /> : 'Save Configuration'}
+                {saving ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    Saving...
+                  </>
+                ) : validating ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    Validating...
+                  </>
+                ) : (
+                  'Save Configuration'
+                )}
               </Button>
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Activation Prompt Dialog */}
+      <Dialog
+        open={activationPromptOpen}
+        onClose={() => handleActivationPromptResponse(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CheckIcon color="success" />
+            Credentials Validated
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Your {pendingActivationProviderName} credentials have been validated successfully.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Would you like to activate this provider now? Activating will make it your default AI provider for the assistant.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleActivationPromptResponse(false)}>
+            Not Now
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => handleActivationPromptResponse(true)}
+            startIcon={<StarIcon />}
+          >
+            Activate Now
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

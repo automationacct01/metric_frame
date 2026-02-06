@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Use HashRouter for desktop (file:// protocol), BrowserRouter for web
@@ -68,6 +68,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Admin Route wrapper - redirects to dashboard if not admin
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAuth();
+  const { isDesktopMode } = useDesktopAuth();
+
+  // Desktop mode = single user with full admin access
+  if (isDesktopMode) {
+    return <>{children}</>;
+  }
 
   if (!isAdmin) {
     // Non-admins can't access this route - redirect to dashboard
@@ -197,6 +203,14 @@ function AppContent() {
     setOnboardingCompleted,
     setApiKeyConfigured,
   } = useFramework();
+  const { isDesktopMode } = useDesktopAuth();
+
+  // Desktop mode: auto-complete onboarding (user can configure in Settings)
+  useEffect(() => {
+    if (isDesktopMode && showOnboarding) {
+      setOnboardingCompleted(true);
+    }
+  }, [isDesktopMode, showOnboarding, setOnboardingCompleted]);
 
   // Sidebar collapsed state - persisted to localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -223,8 +237,8 @@ function AppContent() {
     setOnboardingCompleted(true);
   }, [setOnboardingCompleted]);
 
-  // Show onboarding if not completed
-  if (showOnboarding && !isLoadingFrameworks) {
+  // Show onboarding if not completed (skipped in desktop mode)
+  if (showOnboarding && !isDesktopMode && !isLoadingFrameworks) {
     // Step 1: Framework selection
     if (onboardingStep === 'framework') {
       return <FrameworkSelection />;

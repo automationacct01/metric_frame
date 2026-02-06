@@ -1,254 +1,238 @@
-# Code Signing Guide for MetricFrame Desktop
+# Code Signing & Download Verification Guide
 
-This guide explains how to set up code signing for MetricFrame desktop releases on macOS, Windows, and Linux.
+This guide covers macOS code signing and SHA256 checksum verification for MetricFrame releases.
 
-## Why Code Signing?
+---
 
-Code signing:
-- Proves the app comes from a trusted source
-- Prevents "unidentified developer" warnings
-- Required for macOS Gatekeeper and Windows SmartScreen
-- Enables automatic updates without security prompts
+## Signing Strategy
 
-## macOS Code Signing
+| Platform | Approach | Why |
+|----------|----------|-----|
+| **macOS** | Code signed + notarized | Gatekeeper blocks unsigned apps aggressively |
+| **Windows** | Unsigned + SHA256 checksums | Standard for open-source; SmartScreen has a simple bypass |
+| **Linux** | Unsigned + SHA256 checksums | Standard for all Linux apps |
 
-### Requirements
-- Apple Developer account ($99/year)
-- Developer ID Application certificate
-- Developer ID Installer certificate (for .pkg files)
+**Cost:** $99/year (Apple Developer Program only)
 
-### Setup
+---
 
-1. **Join Apple Developer Program**
-   - Visit [developer.apple.com](https://developer.apple.com)
-   - Enroll in the Apple Developer Program
+## Part 1: macOS Code Signing & Notarization
 
-2. **Create Certificates**
-   - Open Xcode > Preferences > Accounts
-   - Select your team > Manage Certificates
-   - Create "Developer ID Application" certificate
-   - Create "Developer ID Installer" certificate (optional, for .pkg)
+### Step 1: Enroll in Apple Developer Program
 
-3. **Export Certificates for CI/CD**
-   ```bash
-   # Export from Keychain Access as .p12 file
-   # Then base64 encode for GitHub Secrets
-   base64 -i certificate.p12 | pbcopy
-   ```
+1. Go to https://developer.apple.com/programs/
+2. Click "Enroll"
+3. Sign in with your Apple ID (or create one)
+4. Pay **$99/year**
+5. Wait for approval (usually 24-48 hours)
 
-4. **Configure GitHub Secrets**
-   - `APPLE_CERTIFICATE`: Base64-encoded .p12 certificate
-   - `APPLE_CERTIFICATE_PASSWORD`: Certificate password
-   - `APPLE_ID`: Your Apple ID email
-   - `APPLE_APP_SPECIFIC_PASSWORD`: App-specific password from appleid.apple.com
-   - `APPLE_TEAM_ID`: Your team ID (from developer.apple.com)
+### Step 2: Create Signing Certificates
 
-5. **Update electron-builder config**
-   ```yaml
-   # desktop/electron-builder.yml
-   mac:
-     identity: "Developer ID Application: Your Name (TEAM_ID)"
-     hardenedRuntime: true
-     gatekeeperAssess: false
-     entitlements: build/entitlements.mac.plist
-     entitlementsInherit: build/entitlements.mac.plist
-   afterSign: scripts/notarize.js
-   ```
+1. Go to https://developer.apple.com/account/resources/certificates/list
+2. Click the **+** button to create a new certificate
+3. Select **"Developer ID Application"** (for apps distributed outside App Store)
+4. Follow the prompts to create a Certificate Signing Request (CSR):
+   - Open **Keychain Access** on your Mac
+   - Menu: **Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority**
+   - Enter your email, leave CA Email blank
+   - Select **"Saved to disk"**
+   - Save the `.certSigningRequest` file
+5. Upload the CSR to Apple's portal
+6. Download the certificate (`.cer` file)
+7. Double-click to install it in Keychain
 
-6. **Create Entitlements File**
-   ```xml
-   <!-- desktop/build/entitlements.mac.plist -->
-   <?xml version="1.0" encoding="UTF-8"?>
-   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-   <plist version="1.0">
-   <dict>
-       <key>com.apple.security.cs.allow-jit</key>
-       <true/>
-       <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-       <true/>
-       <key>com.apple.security.cs.disable-library-validation</key>
-       <true/>
-   </dict>
-   </plist>
-   ```
+### Step 3: Export the Certificate as .p12
 
-7. **Create Notarization Script**
-   ```javascript
-   // desktop/scripts/notarize.js
-   const { notarize } = require('@electron/notarize');
+1. Open **Keychain Access**
+2. Find your "Developer ID Application" certificate under "My Certificates"
+3. Right-click → **Export**
+4. Save as `.p12` format
+5. Set a strong password (you'll need this later)
 
-   exports.default = async function notarizing(context) {
-     const { electronPlatformName, appOutDir } = context;
-     if (electronPlatformName !== 'darwin') return;
+### Step 4: Generate App-Specific Password
 
-     const appName = context.packager.appInfo.productFilename;
+1. Go to https://appleid.apple.com
+2. Sign in → **Security** → **App-Specific Passwords**
+3. Click **Generate Password**
+4. Name it "MetricFrame Notarization"
+5. Copy the password (format: `xxxx-xxxx-xxxx-xxxx`)
 
-     return await notarize({
-       appBundleId: 'com.metricframe.app',
-       appPath: `${appOutDir}/${appName}.app`,
-       appleId: process.env.APPLE_ID,
-       appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
-       teamId: process.env.APPLE_TEAM_ID,
-     });
-   };
-   ```
+### Step 5: Find Your Team ID
 
-### Local Testing
+1. Go to https://developer.apple.com/account
+2. Click **Membership Details**
+3. Copy your **Team ID** (10-character string like `ABC1234DEF`)
+
+### Step 6: Base64 Encode Your Certificate
+
+Run this command to copy the base64-encoded certificate to your clipboard:
 
 ```bash
-# Sign manually for testing
-codesign --deep --force --verbose --sign "Developer ID Application: Your Name" MetricFrame.app
-
-# Verify signature
-codesign --verify --verbose MetricFrame.app
-spctl --assess --verbose MetricFrame.app
+base64 -i ~/path/to/certificate.p12 | pbcopy
 ```
 
 ---
 
-## Windows Code Signing
+## Part 2: GitHub Secrets Configuration
 
-### Requirements
-- Code signing certificate from trusted CA
-- Options: DigiCert, Sectigo, SSL.com (~$200-500/year)
-- Or: Azure Trusted Signing (Microsoft, $9.99/month)
+Go to your repository settings: **Settings → Secrets and variables → Actions**
 
-### Option 1: Traditional EV Certificate
+URL: https://github.com/automationacct01/metric_frame/settings/secrets/actions
 
-1. **Purchase Certificate**
-   - EV (Extended Validation) recommended for immediate trust
-   - Standard OV certificates require reputation building
+### Required Secrets (macOS only)
 
-2. **Export Certificate**
-   ```powershell
-   # Export from Windows Certificate Store as .pfx
-   # Or request .pfx directly from CA
-   ```
+| Secret Name | Value | Description |
+|-------------|-------|-------------|
+| `CSC_LINK` | Base64 string | Your .p12 certificate (base64 encoded) |
+| `CSC_KEY_PASSWORD` | Password | Password you set when exporting .p12 |
+| `APPLE_ID` | Email | Your Apple Developer account email |
+| `APPLE_ID_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | App-specific password from Step 4 |
+| `APPLE_TEAM_ID` | `ABC1234DEF` | 10-character Team ID |
 
-3. **Configure GitHub Secrets**
-   - `WINDOWS_CERTIFICATE`: Base64-encoded .pfx file
-   - `WINDOWS_CERTIFICATE_PASSWORD`: Certificate password
+No secrets are needed for Windows or Linux builds.
 
-4. **Update electron-builder config**
-   ```yaml
-   # desktop/electron-builder.yml
-   win:
-     certificateFile: ${env.WINDOWS_CERTIFICATE_FILE}
-     certificatePassword: ${env.WINDOWS_CERTIFICATE_PASSWORD}
-     signingHashAlgorithms: [sha256]
-   ```
+---
 
-### Option 2: Azure Trusted Signing
+## Part 3: Triggering a Signed Build
 
-1. **Set up Azure Account**
-   - Create Azure subscription
-   - Enable Trusted Signing service
+Once all secrets are configured, push to the public repository:
 
-2. **Configure in electron-builder**
-   ```yaml
-   win:
-     azureSignOptions:
-       endpoint: https://your-endpoint.codesigning.azure.net
-       codeSigningAccountName: your-account
-       certificateProfileName: your-profile
-   ```
+```bash
+git push public main
+```
 
-### Local Testing
+The GitHub Action will automatically:
+1. Build the frontend and backend for each platform
+2. Sign and notarize the macOS app with your Developer ID certificate
+3. Build unsigned Windows and Linux installers
+4. Generate SHA256 checksums for all artifacts
+5. Create a GitHub Release with all artifacts and checksums
 
+---
+
+## Part 4: SHA256 Checksum Verification
+
+Every release includes a `checksums-sha256.txt` file that users can use to verify their downloads haven't been tampered with. This provides integrity verification for all platforms, regardless of code signing.
+
+### How it works
+
+The GitHub Actions workflow:
+1. Builds all platform artifacts (`.dmg`, `.exe`, `.AppImage`, `.deb`)
+2. Generates SHA256 hashes of every artifact
+3. Publishes `checksums-sha256.txt` alongside the release
+
+### User verification
+
+**macOS / Linux:**
+```bash
+# Download the checksums file from the release
+curl -LO https://github.com/automationacct01/metric_frame/releases/latest/download/checksums-sha256.txt
+
+# Verify your downloaded file matches
+sha256sum -c checksums-sha256.txt --ignore-missing
+# Expected output: MetricFrame-1.0.0-mac-arm64.dmg: OK
+```
+
+**Windows (PowerShell):**
 ```powershell
-# Sign manually
-signtool sign /f certificate.pfx /p PASSWORD /t http://timestamp.digicert.com MetricFrame.exe
+# Get the hash of your downloaded file
+Get-FileHash .\MetricFrame-Setup-1.0.0.exe -Algorithm SHA256
 
-# Verify
-signtool verify /pa MetricFrame.exe
+# Compare the output hash with the value in checksums-sha256.txt
 ```
 
----
+### Why checksums matter
 
-## Linux Code Signing
-
-Linux apps don't require code signing like macOS/Windows, but you can:
-
-### GPG Signing
-
-1. **Generate GPG Key**
-   ```bash
-   gpg --full-generate-key
-   gpg --armor --export YOUR_KEY_ID > public.key
-   ```
-
-2. **Sign AppImage**
-   ```bash
-   gpg --detach-sign --armor MetricFrame.AppImage
-   ```
-
-3. **Users Verify**
-   ```bash
-   gpg --verify MetricFrame.AppImage.asc MetricFrame.AppImage
-   ```
+- **Code signing** proves the author is who they claim to be (identity)
+- **Checksums** prove the file hasn't been modified since release (integrity)
+- Together they provide full supply-chain verification
+- Even with macOS code signing, checksums are a useful second layer
 
 ---
 
-## GitHub Actions Integration
+## Part 5: Local Signing (Optional)
 
-Add to `.github/workflows/desktop-release.yml`:
-
-```yaml
-- name: Build and Sign (macOS)
-  if: matrix.platform == 'mac'
-  working-directory: desktop
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-    CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-    APPLE_ID: ${{ secrets.APPLE_ID }}
-    APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-    APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-  run: npm run build:mac
-
-- name: Build and Sign (Windows)
-  if: matrix.platform == 'win'
-  working-directory: desktop
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE }}
-    CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-  run: npm run build:win
-```
-
----
-
-## Cost Summary
-
-| Platform | Option | Cost |
-|----------|--------|------|
-| macOS | Apple Developer | $99/year |
-| Windows | EV Certificate | $200-500/year |
-| Windows | Azure Trusted Signing | $9.99/month |
-| Linux | GPG (self-signed) | Free |
-
----
-
-## Without Code Signing
-
-If you don't set up code signing:
+To build and sign locally without GitHub Actions:
 
 ### macOS
-Users see "cannot be opened because the developer cannot be verified"
-- Workaround: Right-click > Open, or System Preferences > Security
 
-### Windows
-Users see SmartScreen warning "Windows protected your PC"
-- Workaround: Click "More info" > "Run anyway"
+```bash
+export CSC_LINK=/path/to/certificate.p12
+export CSC_KEY_PASSWORD=yourpassword
+export APPLE_ID=your@email.com
+export APPLE_ID_PASSWORD=xxxx-xxxx-xxxx-xxxx
+export APPLE_TEAM_ID=ABC1234DEF
 
-### Linux
-No warnings for unsigned apps
+cd desktop
+npm run build:mac
+```
+
+### Verify macOS Signature
+
+```bash
+# Check code signature
+codesign --verify --verbose /Applications/MetricFrame.app
+
+# Check notarization status
+spctl --assess --verbose /Applications/MetricFrame.app
+
+# Check entitlements
+codesign -d --entitlements - /Applications/MetricFrame.app
+```
 
 ---
 
-## Recommendations
+## Unsigned Platforms: User Workarounds
 
-1. **For Open Source Projects**: Start without signing, add later if needed
-2. **For Commercial Distribution**: Sign immediately for professional appearance
-3. **Minimum Investment**: macOS signing ($99) has the most user impact
-4. **Full Coverage**: macOS + Windows Azure Signing = ~$220/year
+### Windows
+
+SmartScreen may show "Windows protected your PC". This is expected for unsigned apps.
+
+1. Click **"More info"**
+2. Click **"Run anyway"**
+
+Users can verify integrity with the SHA256 checksum before running.
+
+### Linux
+
+No workaround needed. AppImage files run directly:
+```bash
+chmod +x MetricFrame-*.AppImage
+./MetricFrame-*.AppImage
+```
+
+---
+
+## Troubleshooting
+
+### macOS: "The application is damaged"
+
+This means the app wasn't signed or notarized. Check:
+1. All `APPLE_*` secrets are set correctly
+2. The `CSC_LINK` is properly base64 encoded
+3. Check GitHub Actions logs for signing/notarization errors
+
+### macOS: Notarization fails
+
+Common issues:
+- App-specific password expired (regenerate at appleid.apple.com)
+- Team ID incorrect (verify at developer.apple.com)
+- Certificate expired (renew in Apple Developer portal)
+- Entitlements missing required permissions
+
+### Build succeeds but app crashes on launch
+
+Code signing doesn't affect functionality. Debug by:
+1. Check the app logs: `~/Library/Application Support/MetricFrame/logs/`
+2. Run from terminal to see errors: `open /Applications/MetricFrame.app`
+
+---
+
+## Security Notes
+
+- **Never commit certificates** to the repository
+- Store certificates securely (password manager, secure drive)
+- Use separate app-specific passwords for CI/CD
+- Rotate certificates before expiration
+- Keep your Apple Developer account secure with 2FA
+- SHA256 checksums are generated in CI — they cannot be tampered with after build

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Container,
@@ -20,50 +20,24 @@ import {
   ContentCopy as CopyIcon,
   Check as CheckIcon,
   ArrowBack as ArrowBackIcon,
+  Security as SecurityIcon,
+  Verified as VerifiedIcon,
+  CloudDownload as CloudDownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-interface Release {
-  version: string;
-  date: string;
-  assets: {
-    mac?: string;
-    macArm?: string;
-    windows?: string;
-    linux?: string;
-  };
-}
-
-// This would be fetched from GitHub releases API in production
-const latestRelease: Release = {
-  version: '1.0.0',
-  date: '2024-01-30',
-  assets: {
-    mac: 'https://github.com/automationacct01/metric_frame/releases/latest/download/MetricFrame-mac-x64.dmg',
-    macArm: 'https://github.com/automationacct01/metric_frame/releases/latest/download/MetricFrame-mac-arm64.dmg',
-    windows: 'https://github.com/automationacct01/metric_frame/releases/latest/download/MetricFrame-Setup.exe',
-    linux: 'https://github.com/automationacct01/metric_frame/releases/latest/download/MetricFrame.AppImage',
-  },
-};
-
-const dockerCommand = 'curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/quickstart.sh | bash';
+const dockerCommand = 'curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh | bash';
+const secureInstallCommand = `# Download and verify before running (recommended)
+curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh -o install.sh
+less install.sh  # Review the script
+chmod +x install.sh && ./install.sh`;
+const offlineBundleUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz';
+const checksumUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz.sha256';
 
 export default function DownloadPage() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [detectedOS, setDetectedOS] = useState<'mac' | 'windows' | 'linux' | null>(null);
-
-  useEffect(() => {
-    // Detect user's operating system
-    const platform = navigator.platform.toLowerCase();
-    if (platform.includes('mac')) {
-      setDetectedOS('mac');
-    } else if (platform.includes('win')) {
-      setDetectedOS('windows');
-    } else if (platform.includes('linux')) {
-      setDetectedOS('linux');
-    }
-  }, []);
+  const [copiedSecure, setCopiedSecure] = useState(false);
 
   const handleCopyCommand = () => {
     navigator.clipboard.writeText(dockerCommand);
@@ -71,8 +45,10 @@ export default function DownloadPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = (url: string) => {
-    window.open(url, '_blank');
+  const handleCopySecureCommand = () => {
+    navigator.clipboard.writeText(secureInstallCommand);
+    setCopiedSecure(true);
+    setTimeout(() => setCopiedSecure(false), 2000);
   };
 
   return (
@@ -170,145 +146,7 @@ export default function DownloadPage() {
         </Box>
 
         <Grid container spacing={4}>
-          {/* Desktop App Section */}
-          <Grid item xs={12} md={6}>
-            <Card
-              sx={{
-                height: '100%',
-                background: alpha('#fff', 0.05),
-                backdropFilter: 'blur(10px)',
-                border: `1px solid ${alpha('#fff', 0.1)}`,
-                borderRadius: 3,
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box display="flex" alignItems="center" gap={2} mb={3}>
-                  <DownloadIcon sx={{ fontSize: 40, color: '#0ea5e9' }} />
-                  <Box>
-                    <Typography variant="h5" color="white" fontWeight={600}>
-                      Desktop App
-                    </Typography>
-                    <Chip
-                      label="Recommended for most users"
-                      size="small"
-                      sx={{
-                        mt: 0.5,
-                        bgcolor: alpha('#0ea5e9', 0.2),
-                        color: '#0ea5e9',
-                      }}
-                    />
-                  </Box>
-                </Box>
-
-                <Typography color={alpha('#fff', 0.7)} mb={3}>
-                  Standalone application with built-in database. No Docker or technical setup required.
-                  Perfect for individual users and small teams.
-                </Typography>
-
-                <Box mb={3}>
-                  <Typography variant="body2" color={alpha('#fff', 0.5)} mb={1}>
-                    Features:
-                  </Typography>
-                  <Box component="ul" sx={{ color: alpha('#fff', 0.7), pl: 2, m: 0 }}>
-                    <li>One-click installation</li>
-                    <li>Automatic updates</li>
-                    <li>Local SQLite database</li>
-                    <li>Works offline</li>
-                  </Box>
-                </Box>
-
-                <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
-
-                <Typography variant="body2" color={alpha('#fff', 0.5)} mb={2}>
-                  Download for your platform:
-                </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Button
-                      fullWidth
-                      variant={detectedOS === 'mac' ? 'contained' : 'outlined'}
-                      startIcon={<AppleIcon />}
-                      onClick={() => latestRelease.assets.macArm && handleDownload(latestRelease.assets.macArm)}
-                      sx={{
-                        py: 1.5,
-                        borderColor: alpha('#fff', 0.3),
-                        color: detectedOS === 'mac' ? 'white' : alpha('#fff', 0.9),
-                        bgcolor: detectedOS === 'mac' ? '#0ea5e9' : 'transparent',
-                        '&:hover': {
-                          bgcolor: detectedOS === 'mac' ? '#0284c7' : alpha('#fff', 0.1),
-                          borderColor: alpha('#fff', 0.5),
-                        },
-                      }}
-                    >
-                      macOS (Apple Silicon)
-                      {detectedOS === 'mac' && (
-                        <Chip label="Detected" size="small" sx={{ ml: 1, height: 20 }} />
-                      )}
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Button
-                      fullWidth
-                      variant={detectedOS === 'windows' ? 'contained' : 'outlined'}
-                      startIcon={<WindowsIcon />}
-                      onClick={() => latestRelease.assets.windows && handleDownload(latestRelease.assets.windows)}
-                      sx={{
-                        py: 1.5,
-                        borderColor: alpha('#fff', 0.3),
-                        color: detectedOS === 'windows' ? 'white' : alpha('#fff', 0.9),
-                        bgcolor: detectedOS === 'windows' ? '#0ea5e9' : 'transparent',
-                        '&:hover': {
-                          bgcolor: detectedOS === 'windows' ? '#0284c7' : alpha('#fff', 0.1),
-                          borderColor: alpha('#fff', 0.5),
-                        },
-                      }}
-                    >
-                      Windows
-                      {detectedOS === 'windows' && (
-                        <Chip label="Detected" size="small" sx={{ ml: 1, height: 20 }} />
-                      )}
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Button
-                      fullWidth
-                      variant={detectedOS === 'linux' ? 'contained' : 'outlined'}
-                      startIcon={<LinuxIcon />}
-                      onClick={() => latestRelease.assets.linux && handleDownload(latestRelease.assets.linux)}
-                      sx={{
-                        py: 1.5,
-                        borderColor: alpha('#fff', 0.3),
-                        color: detectedOS === 'linux' ? 'white' : alpha('#fff', 0.9),
-                        bgcolor: detectedOS === 'linux' ? '#0ea5e9' : 'transparent',
-                        '&:hover': {
-                          bgcolor: detectedOS === 'linux' ? '#0284c7' : alpha('#fff', 0.1),
-                          borderColor: alpha('#fff', 0.5),
-                        },
-                      }}
-                    >
-                      Linux (AppImage)
-                      {detectedOS === 'linux' && (
-                        <Chip label="Detected" size="small" sx={{ ml: 1, height: 20 }} />
-                      )}
-                    </Button>
-                  </Grid>
-                </Grid>
-
-                <Typography
-                  variant="caption"
-                  color={alpha('#fff', 0.4)}
-                  display="block"
-                  textAlign="center"
-                  mt={2}
-                >
-                  Version {latestRelease.version} &bull; Released {latestRelease.date}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Docker Section */}
+          {/* Docker Section - Primary */}
           <Grid item xs={12} md={6}>
             <Card
               sx={{
@@ -326,15 +164,27 @@ export default function DownloadPage() {
                     <Typography variant="h5" color="white" fontWeight={600}>
                       Docker
                     </Typography>
-                    <Chip
-                      label="For servers & teams"
-                      size="small"
-                      sx={{
-                        mt: 0.5,
-                        bgcolor: alpha('#0ea5e9', 0.2),
-                        color: '#0ea5e9',
-                      }}
-                    />
+                    <Box display="flex" gap={1} mt={0.5}>
+                      <Chip
+                        label="Recommended"
+                        size="small"
+                        sx={{
+                          bgcolor: alpha('#22c55e', 0.2),
+                          color: '#22c55e',
+                          fontWeight: 600,
+                        }}
+                      />
+                      <Chip
+                        icon={<VerifiedIcon sx={{ fontSize: 14 }} />}
+                        label="SHA256 Verified"
+                        size="small"
+                        sx={{
+                          bgcolor: alpha('#22c55e', 0.2),
+                          color: '#22c55e',
+                          '& .MuiChip-icon': { color: '#22c55e' },
+                        }}
+                      />
+                    </Box>
                   </Box>
                 </Box>
 
@@ -356,8 +206,9 @@ export default function DownloadPage() {
 
                 <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
 
+                {/* Quick Install */}
                 <Typography variant="body2" color={alpha('#fff', 0.5)} mb={2}>
-                  Quick start with one command:
+                  Quick install (one command):
                 </Typography>
 
                 <Box
@@ -366,7 +217,7 @@ export default function DownloadPage() {
                     borderRadius: 2,
                     p: 2,
                     fontFamily: 'monospace',
-                    fontSize: '0.85rem',
+                    fontSize: '0.8rem',
                     color: '#0ea5e9',
                     position: 'relative',
                     overflowX: 'auto',
@@ -388,26 +239,109 @@ export default function DownloadPage() {
                   </Button>
                 </Box>
 
-                <Typography variant="body2" color={alpha('#fff', 0.5)} mt={3} mb={2}>
-                  Or use Docker Compose:
-                </Typography>
-
+                {/* Secure Install */}
                 <Box
                   sx={{
-                    bgcolor: alpha('#000', 0.3),
-                    borderRadius: 2,
+                    mt: 3,
                     p: 2,
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                    color: alpha('#fff', 0.7),
+                    bgcolor: alpha('#22c55e', 0.1),
+                    border: `1px solid ${alpha('#22c55e', 0.3)}`,
+                    borderRadius: 2,
                   }}
                 >
-                  <code>
-                    git clone https://github.com/automationacct01/metric_frame.git<br />
-                    cd metricframe<br />
-                    docker compose -f docker-compose.prod.yml up -d
-                  </code>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <SecurityIcon sx={{ fontSize: 18, color: '#22c55e' }} />
+                    <Typography variant="body2" color="#22c55e" fontWeight={600}>
+                      Security-Conscious Install (Recommended)
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color={alpha('#fff', 0.6)} display="block" mb={1.5}>
+                    Download, review the script, verify checksum, then run:
+                  </Typography>
+                  <Box
+                    sx={{
+                      bgcolor: alpha('#000', 0.3),
+                      borderRadius: 1,
+                      p: 1.5,
+                      fontFamily: 'monospace',
+                      fontSize: '0.7rem',
+                      color: alpha('#fff', 0.8),
+                      position: 'relative',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {secureInstallCommand}
+                    <Button
+                      size="small"
+                      onClick={handleCopySecureCommand}
+                      sx={{
+                        position: 'absolute',
+                        right: 4,
+                        top: 4,
+                        minWidth: 'auto',
+                        color: alpha('#fff', 0.7),
+                      }}
+                    >
+                      {copiedSecure ? <CheckIcon sx={{ fontSize: 16 }} /> : <CopyIcon sx={{ fontSize: 16 }} />}
+                    </Button>
+                  </Box>
                 </Box>
+
+                <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
+
+                {/* Offline Bundle */}
+                <Typography variant="body2" color={alpha('#fff', 0.5)} mb={2}>
+                  Offline installation (air-gapped networks):
+                </Typography>
+
+                <Grid container spacing={1}>
+                  <Grid item xs={8}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<CloudDownloadIcon />}
+                      href={offlineBundleUrl}
+                      target="_blank"
+                      sx={{
+                        py: 1,
+                        borderColor: alpha('#fff', 0.3),
+                        color: alpha('#fff', 0.9),
+                        fontSize: '0.8rem',
+                        '&:hover': {
+                          bgcolor: alpha('#fff', 0.1),
+                          borderColor: alpha('#fff', 0.5),
+                        },
+                      }}
+                    >
+                      Download Bundle (.tar.gz)
+                    </Button>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      href={checksumUrl}
+                      target="_blank"
+                      sx={{
+                        py: 1,
+                        borderColor: alpha('#22c55e', 0.3),
+                        color: '#22c55e',
+                        fontSize: '0.75rem',
+                        '&:hover': {
+                          bgcolor: alpha('#22c55e', 0.1),
+                          borderColor: '#22c55e',
+                        },
+                      }}
+                    >
+                      SHA256
+                    </Button>
+                  </Grid>
+                </Grid>
+
+                <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" mt={1}>
+                  Includes Docker images for offline deployment
+                </Typography>
 
                 <Box mt={3}>
                   <Button
@@ -425,7 +359,7 @@ export default function DownloadPage() {
                       },
                     }}
                   >
-                    View on GitHub
+                    View Source on GitHub
                   </Button>
                 </Box>
 
@@ -437,6 +371,134 @@ export default function DownloadPage() {
                   mt={2}
                 >
                   Requires Docker Desktop or Docker Engine
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Desktop App Section - Coming Soon */}
+          <Grid item xs={12} md={6}>
+            <Card
+              sx={{
+                height: '100%',
+                background: alpha('#fff', 0.03),
+                backdropFilter: 'blur(10px)',
+                border: `1px solid ${alpha('#fff', 0.08)}`,
+                borderRadius: 3,
+                opacity: 0.85,
+              }}
+            >
+              <CardContent sx={{ p: 4 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <DownloadIcon sx={{ fontSize: 40, color: alpha('#f59e0b', 0.7) }} />
+                  <Box>
+                    <Typography variant="h5" color="white" fontWeight={600}>
+                      Desktop App
+                    </Typography>
+                    <Chip
+                      label="Coming Soon"
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        bgcolor: alpha('#f59e0b', 0.2),
+                        color: '#f59e0b',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                <Typography color={alpha('#fff', 0.7)} mb={3}>
+                  Desktop app with built-in database is under active development.
+                  Use Docker for now — it includes all the same features.
+                </Typography>
+
+                <Box mb={3}>
+                  <Typography variant="body2" color={alpha('#fff', 0.5)} mb={1}>
+                    Planned features:
+                  </Typography>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.5), pl: 2, m: 0 }}>
+                    <li>One-click installation</li>
+                    <li>Automatic updates</li>
+                    <li>Local SQLite database</li>
+                    <li>Works offline</li>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
+
+                <Typography variant="body2" color={alpha('#fff', 0.4)} mb={2}>
+                  Download for your platform:
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled
+                      startIcon={<AppleIcon />}
+                      sx={{
+                        py: 1.5,
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
+                        '&.Mui-disabled': {
+                          borderColor: alpha('#fff', 0.1),
+                          color: alpha('#fff', 0.3),
+                        },
+                      }}
+                    >
+                      macOS (Apple Silicon)
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled
+                      startIcon={<WindowsIcon />}
+                      sx={{
+                        py: 1.5,
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
+                        '&.Mui-disabled': {
+                          borderColor: alpha('#fff', 0.1),
+                          color: alpha('#fff', 0.3),
+                        },
+                      }}
+                    >
+                      Windows
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled
+                      startIcon={<LinuxIcon />}
+                      sx={{
+                        py: 1.5,
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
+                        '&.Mui-disabled': {
+                          borderColor: alpha('#fff', 0.1),
+                          color: alpha('#fff', 0.3),
+                        },
+                      }}
+                    >
+                      Linux (AppImage)
+                    </Button>
+                  </Grid>
+                </Grid>
+
+                <Typography
+                  variant="caption"
+                  color={alpha('#fff', 0.3)}
+                  display="block"
+                  textAlign="center"
+                  mt={3}
+                >
+                  Desktop releases will be available in a future update
                 </Typography>
               </CardContent>
             </Card>

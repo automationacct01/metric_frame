@@ -1,17 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules
-
-hiddenimports = ['uvicorn.logging', 'uvicorn.lifespan.off', 'uvicorn.lifespan.on', 'sqlalchemy.dialects.sqlite', 'sqlalchemy.dialects.postgresql', 'bcrypt', 'cryptography', 'email_validator', 'slowapi']
-hiddenimports += collect_submodules('uvicorn')
-hiddenimports += collect_submodules('sqlalchemy')
 
 
 a = Analysis(
-    ['src/main.py'],
+    ['desktop_entry.py'],
     pathex=[],
     binaries=[],
-    datas=[('src/seeds', 'seeds')],
-    hiddenimports=hiddenimports,
+    datas=[('src/seeds', 'seeds'), ('src/data', 'src/data')],
+    hiddenimports=['uvicorn.logging', 'uvicorn.lifespan', 'uvicorn.lifespan.on', 'uvicorn.lifespan.off', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.http.h11_impl', 'uvicorn.protocols.http.httptools_impl', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'uvicorn.protocols.websockets.wsproto_impl', 'uvicorn.protocols.websockets.websockets_impl', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.loops.asyncio', 'uvicorn.loops.uvloop', 'passlib.handlers.bcrypt', 'passlib.handlers', 'bcrypt', 'sqlalchemy.dialects.sqlite', 'aiosqlite', 'anthropic', 'openai', 'together', 'httpx', 'httpcore', 'anyio', 'sniffio', 'certifi', 'charset_normalizer', 'idna', 'h11', 'socksio', 'pydantic', 'pydantic_core', 'annotated_types'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
