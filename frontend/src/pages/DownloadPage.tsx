@@ -24,17 +24,8 @@ import {
   Verified as VerifiedIcon,
   CloudDownload as CloudDownloadIcon,
   MenuBook as MenuBookIcon,
-  Dashboard as DashboardIcon,
-  SmartToy as AIIcon,
-  Assessment as MetricsIcon,
-  People as PeopleIcon,
-  Speed as ScoringIcon,
-  Shield as ShieldIcon,
-  AccountTree as FrameworkIcon,
   Build as BuildIcon,
-  BugReport as TroubleshootIcon,
   Storage as StorageIcon,
-  Api as ApiIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -754,107 +745,50 @@ export default function DownloadPage() {
           </Card>
         </Box>
 
-        {/* Documentation & Wiki */}
+        {/* Documentation */}
         <Box mt={8}>
-          <Typography variant="h4" color="white" mb={1} textAlign="center" fontWeight={600}>
-            Documentation
-          </Typography>
-          <Typography variant="body1" color={alpha('#fff', 0.5)} mb={4} textAlign="center">
-            Guides and references to help you get the most out of MetricFrame
-          </Typography>
-
-          <Grid container spacing={2}>
-            {/* Getting Started */}
-            {[
-              {
-                icon: <MenuBookIcon sx={{ fontSize: 22, color: '#22c55e' }} />,
-                title: 'Getting Started',
-                description: 'Quick setup guide, first steps, and initial configuration walkthrough',
+          <Card
+            sx={{
+              background: alpha('#fff', 0.04),
+              border: `1px solid ${alpha('#fff', 0.08)}`,
+              borderRadius: 3,
+              maxWidth: 700,
+              mx: 'auto',
+              cursor: 'pointer',
+              transition: 'border-color 0.2s, transform 0.2s',
+              '&:hover': {
+                borderColor: alpha('#0ea5e9', 0.4),
+                transform: 'translateY(-2px)',
               },
-              {
-                icon: <DashboardIcon sx={{ fontSize: 22, color: '#0ea5e9' }} />,
-                title: 'Dashboard Guide',
-                description: 'Executive dashboard, risk scores, drill-down navigation, and category detail views',
-              },
-              {
-                icon: <MetricsIcon sx={{ fontSize: 22, color: '#a855f7' }} />,
-                title: 'Metrics Management',
-                description: 'Creating, editing, and managing KRIs with inline validation, version history, and locking',
-              },
-              {
-                icon: <AIIcon sx={{ fontSize: 22, color: '#ec4899' }} />,
-                title: 'AI Assistant',
-                description: 'Natural language metric creation, multi-provider setup, role-based AI access, and catalog enhancement',
-              },
-              {
-                icon: <PeopleIcon sx={{ fontSize: 22, color: '#f59e0b' }} />,
-                title: 'User Management',
-                description: 'Admin, Editor, and Viewer roles, user invitations, password recovery, and account management',
-              },
-              {
-                icon: <ScoringIcon sx={{ fontSize: 22, color: '#ef4444' }} />,
-                title: 'Scoring Methodology',
-                description: 'Gap-to-target calculations, weighted aggregation, risk thresholds, and scoring directions',
-              },
-              {
-                icon: <FrameworkIcon sx={{ fontSize: 22, color: '#14b8a6' }} />,
-                title: 'Frameworks Reference',
-                description: 'NIST CSF 2.0 functions, categories, and subcategories plus AI RMF 1.0 characteristics',
-              },
-              {
-                icon: <ShieldIcon sx={{ fontSize: 22, color: '#6366f1' }} />,
-                title: 'Security',
-                description: 'Network architecture, data protection, encryption, session management, and security best practices',
-              },
-              {
-                icon: <ApiIcon sx={{ fontSize: 22, color: '#06b6d4' }} />,
-                title: 'API Reference',
-                description: 'REST API endpoints for metrics, catalogs, scores, AI, and CSF reference data',
-              },
-              {
-                icon: <TroubleshootIcon sx={{ fontSize: 22, color: '#f97316' }} />,
-                title: 'Troubleshooting',
-                description: 'Common issues, Docker debugging, database connectivity, and performance optimization',
-              },
-            ].map((doc) => (
-              <Grid item xs={12} sm={6} md={4} key={doc.title}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    background: alpha('#fff', 0.03),
-                    border: `1px solid ${alpha('#fff', 0.06)}`,
-                    borderRadius: 2,
-                    transition: 'border-color 0.2s',
-                    '&:hover': {
-                      borderColor: alpha('#fff', 0.15),
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 2.5 }}>
-                    <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                      {doc.icon}
-                      <Typography variant="subtitle2" color="white" fontWeight={600}>
-                        {doc.title}
-                      </Typography>
-                    </Box>
-                    <Typography variant="caption" color={alpha('#fff', 0.5)} lineHeight={1.5}>
-                      {doc.description}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-
-          <Typography
-            variant="body2"
-            color={alpha('#fff', 0.4)}
-            textAlign="center"
-            mt={3}
-            fontStyle="italic"
+            }}
+            onClick={() => navigate('/wiki')}
           >
-            Full documentation will be available on GitHub once open access to the repository is provided.
-          </Typography>
+            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+              <MenuBookIcon sx={{ fontSize: 48, color: '#0ea5e9', mb: 2 }} />
+              <Typography variant="h4" color="white" fontWeight={600} mb={1}>
+                Documentation
+              </Typography>
+              <Typography variant="body1" color={alpha('#fff', 0.6)} mb={3}>
+                Guides, references, and tutorials covering everything from setup to
+                scoring methodology, AI configuration, and API reference.
+              </Typography>
+              <Button
+                variant="outlined"
+                size="large"
+                sx={{
+                  borderColor: alpha('#0ea5e9', 0.5),
+                  color: '#0ea5e9',
+                  px: 4,
+                  '&:hover': {
+                    borderColor: '#0ea5e9',
+                    backgroundColor: alpha('#0ea5e9', 0.1),
+                  },
+                }}
+              >
+                Browse Documentation
+              </Button>
+            </CardContent>
+          </Card>
         </Box>
 
         {/* Requirements Section */}
