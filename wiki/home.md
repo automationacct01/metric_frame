@@ -38,7 +38,7 @@ MetricFrame is a comprehensive web application for managing and visualizing cybe
          |               +-------------------+
          |               |                   |
          +-------------->|   AI Assistant    |
-                         |   Claude Sonnet   |
+                         |  6 AI Providers   |
                          |                   |
                          +-------------------+
 ```
@@ -117,7 +117,7 @@ The application is under active development with the following features implemen
 | Frontend | React 18, TypeScript, Material-UI, Vite |
 | Backend | FastAPI, SQLAlchemy, Pydantic |
 | Database | PostgreSQL 15 |
-| AI | Anthropic Claude Sonnet |
+| AI | 6 providers: Anthropic, OpenAI, Together.ai, Azure, Bedrock, Vertex |
 | Deployment | Docker Compose |
 
 ## Repository Structure

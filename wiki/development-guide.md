@@ -23,7 +23,7 @@ Complete guide for setting up a development environment and contributing to Metr
 ### Quick Setup (Docker)
 
 ```bash
-# Clone repository
+# Clone repository (requires repository access)
 git clone https://github.com/automationacct01/metric_frame.git
 cd metric_frame
 
@@ -33,6 +33,8 @@ cp backend/.env.example backend/.env
 # Start all services
 ./dev.sh
 ```
+
+> **Note:** The repository is currently private. For user installation, use the Docker install script at https://get.metricframe.ai/install.sh instead.
 
 ### Local Development (Without Docker)
 

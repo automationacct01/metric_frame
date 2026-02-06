@@ -24,7 +24,7 @@ const faqs = [
   {
     question: 'Do I need my own API key?',
     answer:
-      'Yes, MetricFrame requires you to bring your own AI API key from Anthropic (Claude) or OpenAI (GPT-4). This means your data stays private—we never see your metrics or API usage. You can get an API key from console.anthropic.com or platform.openai.com.',
+      'Yes, MetricFrame requires you to bring your own AI API key. We support 6 providers: Anthropic, OpenAI, Together.ai, Azure OpenAI, AWS Bedrock, and GCP Vertex AI. This means your data stays private—we never see your metrics or API usage. Configure your preferred provider in Settings after installation.',
   },
   {
     question: 'How does the scoring methodology work?',

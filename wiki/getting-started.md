@@ -20,31 +20,20 @@ Optional (for AI features):
 
 ## Quick Start
 
-### Step 1: Clone the Repository
+### Step 1: Install MetricFrame
 
 ```bash
-git clone https://github.com/automationacct01/metric_frame.git
-cd metric_frame
+# Quick start (review script first, then run)
+curl -fsSL https://get.metricframe.ai/install.sh -o install.sh
+less install.sh  # Review the script
+chmod +x install.sh && ./install.sh
 ```
 
-### Step 2: Configure Environment
-
-Create the backend environment file:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env` with your configuration:
-
-```env
-# Database (default works with Docker)
-DATABASE_URL=postgresql://postgres:postgres@db:5432/metricframe
-
-# Application Settings
-DEBUG=true
-LOG_LEVEL=INFO
-```
+The installer will:
+1. Check Docker is installed and running
+2. Download `docker-compose.yml` with SHA256 verification
+3. Generate a secure `.env` with random database credentials
+4. Pull Docker images and start MetricFrame
 
 **Note:** AI provider configuration is done through the app's Settings → AI Configuration page, where you can bring your own API key and choose from 6 provider options.
 
