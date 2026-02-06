@@ -17,7 +17,7 @@ All downloadable files include SHA256 checksums for verification:
 ### 2. HTTPS Everywhere
 
 All downloads are served over HTTPS:
-- Installation scripts: `https://raw.githubusercontent.com/...`
+- Installation scripts: `https://get.metricframe.ai/install.sh`
 - Docker images: `ghcr.io` (GitHub Container Registry)
 - Releases: `https://github.com/.../releases`
 
@@ -44,7 +44,7 @@ All installation scripts are open source and can be reviewed:
 For development machines or trusted environments:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh | bash
+curl -fsSL https://get.metricframe.ai/install.sh | bash
 ```
 
 ### Option 2: Verify Before Running (Recommended)
@@ -53,10 +53,10 @@ For production or security-conscious environments:
 
 ```bash
 # Download the script
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh -o install.sh
+curl -fsSL https://get.metricframe.ai/install.sh -o install.sh
 
 # Download checksums
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/checksums.sha256 -o checksums.sha256
+curl -fsSL https://get.metricframe.ai/checksums.sha256 -o checksums.sha256
 
 # Verify the checksum
 sha256sum -c checksums.sha256 --ignore-missing
@@ -221,5 +221,5 @@ docker compose up -d
 
 Or re-run the installer:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/automationacct01/metric_frame/main/install.sh | bash
+curl -fsSL https://get.metricframe.ai/install.sh | bash
 ```
