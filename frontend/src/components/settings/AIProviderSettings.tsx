@@ -568,10 +568,14 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
             </DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Enter your credentials for {selectedProvider.name}. Your credentials will be
                   encrypted and stored securely.
                 </Typography>
+
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  Your API account must have available credits or an active billing plan for credential validation to succeed.
+                </Alert>
 
                 {/* Credential Fields */}
                 {selectedProvider.auth_fields.map(renderAuthField)}
