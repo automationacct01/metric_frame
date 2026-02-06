@@ -200,7 +200,7 @@ export default function LandingFooter() {
             customization, training, and enterprise integrations.
           </Typography>
           <Link
-            href="mailto:services@metricframe.com"
+            href="mailto:services@metricframe.ai"
             sx={{
               display: 'inline-block',
               px: 3,

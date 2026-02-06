@@ -109,7 +109,7 @@
       ],
       "icon": "build/icon.ico",
       "publisherName": "MetricFrame",
-      "verifyUpdateCodeSignature": false
+      "verifyUpdateCodeSignature": true
     },
     "linux": {
       "target": [
