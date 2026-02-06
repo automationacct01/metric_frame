@@ -313,17 +313,16 @@ export default function DownloadPage() {
                     <Button
                       fullWidth
                       variant="outlined"
+                      disabled
                       startIcon={<CloudDownloadIcon />}
-                      href={offlineBundleUrl}
-                      target="_blank"
                       sx={{
                         py: 1,
-                        borderColor: alpha('#fff', 0.3),
-                        color: alpha('#fff', 0.9),
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
                         fontSize: '0.8rem',
-                        '&:hover': {
-                          bgcolor: alpha('#fff', 0.1),
-                          borderColor: alpha('#fff', 0.5),
+                        '&.Mui-disabled': {
+                          borderColor: alpha('#fff', 0.1),
+                          color: alpha('#fff', 0.3),
                         },
                       }}
                     >
@@ -334,16 +333,15 @@ export default function DownloadPage() {
                     <Button
                       fullWidth
                       variant="outlined"
-                      href={checksumUrl}
-                      target="_blank"
+                      disabled
                       sx={{
                         py: 1,
-                        borderColor: alpha('#22c55e', 0.3),
-                        color: '#22c55e',
+                        borderColor: alpha('#fff', 0.1),
+                        color: alpha('#fff', 0.3),
                         fontSize: '0.75rem',
-                        '&:hover': {
-                          bgcolor: alpha('#22c55e', 0.1),
-                          borderColor: '#22c55e',
+                        '&.Mui-disabled': {
+                          borderColor: alpha('#fff', 0.1),
+                          color: alpha('#fff', 0.3),
                         },
                       }}
                     >
@@ -352,8 +350,8 @@ export default function DownloadPage() {
                   </Grid>
                 </Grid>
 
-                <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" mt={1}>
-                  Includes Docker images for offline deployment
+                <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" mt={1} fontStyle="italic">
+                  Offline bundle coming soon
                 </Typography>
 
                 <Box mt={3}>
