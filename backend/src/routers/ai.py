@@ -158,7 +158,6 @@ async def get_active_provider(db: Session, user_id: Optional[UUID] = None) -> Ba
             .filter(
                 UserAIConfiguration.user_id == user_id,
                 UserAIConfiguration.is_active == True,
-                UserAIConfiguration.credentials_validated == True,
             )
             .first()
         )
