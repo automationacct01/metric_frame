@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Metric, AIChangeLog, UserAIConfiguration, AIProvider as AIProviderModel, User
-from .auth import require_editor
+from .auth import require_editor, get_current_user
 from ..schemas import (
     AIChatRequest,
     AIResponse as AIResponseSchema,
@@ -62,11 +62,6 @@ router = APIRouter()
 # HELPER FUNCTIONS
 # =============================================================================
 
-def get_current_user_id() -> UUID:
-    """Get current user ID. TODO: Replace with actual auth."""
-    # For now, return a default admin user ID
-    # In production, this would come from JWT token or session
-    return UUID("00000000-0000-0000-0000-000000000001")
 
 
 # =============================================================================
@@ -333,6 +328,7 @@ def get_default_model_for_provider(provider: BaseAIProvider) -> str:
 async def ai_chat(
     request: AIChatRequest,
     framework: str = Query("csf_2_0", description="Framework code (csf_2_0, ai_rmf, cyber_ai_profile)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -359,7 +355,7 @@ async def ai_chat(
 
     try:
         # Get active AI provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
@@ -631,12 +627,13 @@ async def get_ai_history(
 async def suggest_improvements(
     function_code: Optional[str] = None,
     framework: str = Query("csf_2_0", description="Framework code"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get AI suggestions for improving metrics or scores."""
     try:
         # Get active AI provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
@@ -689,7 +686,7 @@ async def suggest_improvements(
 
 
 @router.get("/status")
-async def get_ai_status(db: Session = Depends(get_db)):
+async def get_ai_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get AI service status and configuration."""
     # Check what provider is available
     available = False
@@ -698,7 +695,7 @@ async def get_ai_status(db: Session = Depends(get_db)):
 
     try:
         # Try to get active provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         provider = await get_active_provider(db, user_id)
         available = True
         provider_name = provider.provider_type.value
@@ -736,6 +733,7 @@ async def get_ai_status(db: Session = Depends(get_db)):
 async def get_ai_recommendations(
     framework: str = Query("csf_2_0", description="Framework code"),
     max_recommendations: int = Query(10, ge=1, le=25, description="Maximum recommendations"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -748,7 +746,7 @@ async def get_ai_recommendations(
     """
     try:
         # Verify we have an active provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         await get_active_provider(db, user_id)
     except HTTPException:
         raise HTTPException(
@@ -791,6 +789,7 @@ async def suggest_metrics_for_coverage_gap(
     function_code: Optional[str] = Query(None, description="Target function code"),
     category_code: Optional[str] = Query(None, description="Target category code"),
     count: int = Query(5, ge=1, le=10, description="Number of suggestions"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -800,7 +799,7 @@ async def suggest_metrics_for_coverage_gap(
     """
     try:
         # Verify we have an active provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         await get_active_provider(db, user_id)
     except HTTPException:
         raise HTTPException(
@@ -890,7 +889,7 @@ async def generate_metric_from_name(
     response_text = ""
     try:
         # Get active AI provider for current user
-        user_id = get_current_user_id()
+        user_id = current_user.id
         provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
