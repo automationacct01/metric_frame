@@ -5,20 +5,17 @@
  */
 
 import React from 'react';
-import { Box, Container, Typography, Grid, Link, Divider, IconButton } from '@mui/material';
-import {
-  LinkedIn as LinkedInIcon,
-  Twitter as TwitterIcon,
-  GitHub as GitHubIcon,
-} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { Box, Container, Typography, Grid, Link, Divider } from '@mui/material';
 
 const footerLinks = {
   product: {
     title: 'Product',
     links: [
       { label: 'Features', href: '#features' },
+      { label: 'How It Works', href: '#how-it-works' },
       { label: 'FAQ', href: '#faq' },
-      { label: 'Changelog', href: '#' },
+      { label: 'Download', href: '/download' },
     ],
   },
   resources: {
@@ -26,8 +23,8 @@ const footerLinks = {
     links: [
       { label: 'Documentation', href: '/wiki' },
       { label: 'API Reference', href: '/wiki/api-reference' },
-      { label: 'Blog', href: '#' },
-      { label: 'Support', href: '#' },
+      { label: 'Security', href: '/wiki/security' },
+      { label: 'Scoring Methodology', href: '/wiki/scoring-methodology' },
     ],
   },
   services: {
@@ -39,23 +36,19 @@ const footerLinks = {
       { label: 'Contact Us', href: '#contact-services' },
     ],
   },
-  legal: {
-    title: 'Legal',
-    links: [
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
-      { label: 'Security', href: '#' },
-    ],
-  },
 };
 
 export default function LandingFooter() {
-  const scrollToSection = (href: string) => {
+  const navigate = useNavigate();
+
+  const handleLinkClick = (href: string) => {
     if (href.startsWith('#')) {
       const element = document.querySelector(href);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
       }
+    } else if (href.startsWith('/')) {
+      navigate(href);
     }
   };
 
@@ -96,37 +89,6 @@ export default function LandingFooter() {
                 Transform your AI and cybersecurity metrics into executive-ready insights.
               </Typography>
             </Box>
-
-            {/* Social Links */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton
-                size="small"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  '&:hover': { color: '#0ea5e9' },
-                }}
-              >
-                <LinkedInIcon />
-              </IconButton>
-              <IconButton
-                size="small"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  '&:hover': { color: '#0ea5e9' },
-                }}
-              >
-                <TwitterIcon />
-              </IconButton>
-              <IconButton
-                size="small"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  '&:hover': { color: '#0ea5e9' },
-                }}
-              >
-                <GitHubIcon />
-              </IconButton>
-            </Box>
           </Grid>
 
           {/* Link Columns */}
@@ -148,9 +110,9 @@ export default function LandingFooter() {
                     <Link
                       href={link.href}
                       onClick={(e) => {
-                        if (link.href.startsWith('#')) {
+                        if (link.href.startsWith('#') || link.href.startsWith('/')) {
                           e.preventDefault();
-                          scrollToSection(link.href);
+                          handleLinkClick(link.href);
                         }
                       }}
                       sx={{
