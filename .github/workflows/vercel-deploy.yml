@@ -8,5 +8,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Vercel Deploy Hook
-        run: curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+      - name: Trigger Vercel Production Deployment
+        run: |
+          curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "frontend",
+              "gitSource": {
+                "type": "github",
+                "org": "automationacct01",
+                "repo": "metric_frame",
+                "ref": "main"
+              },
+              "target": "production",
+              "projectSettings": {
+                "rootDirectory": null
+              }
+            }'
