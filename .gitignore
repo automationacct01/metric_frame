@@ -109,6 +109,9 @@ docs/_build/
 # License keys (NEVER commit these!)
 secrets/
 
+# Vercel
+.vercel/
+
 # Build artifacts and distributions
 backend-dist/
 *.spec

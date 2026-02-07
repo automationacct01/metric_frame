@@ -1,0 +1,15 @@
+backend/
+backend-dist/
+desktop/
+docker/
+docs/
+scripts/
+.github/
+docker-compose.yml
+docker-compose.prod.yml
+dev.sh
+quickstart.sh
+install.sh
+checksums.sha256
+test_metrics_simple.csv
+README.md
