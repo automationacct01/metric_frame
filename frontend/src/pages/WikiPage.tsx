@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -101,7 +101,6 @@ const navCategories: NavCategory[] = [
 export default function WikiPage() {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const currentPage = pageId || 'home';
   const [expandedCategories, setExpandedCategories] = useState<string[]>(
     navCategories.map((c) => c.name)
