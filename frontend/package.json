@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "prebuild": "mkdir -p src/wiki-md && cp -f ../wiki/*.md src/wiki-md/ 2>/dev/null || true",
+    "build": "npm run prebuild && tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

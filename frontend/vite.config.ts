@@ -21,9 +21,6 @@ export default defineConfig({
   server: {
     host: true,
     port: 5175,
-    fs: {
-      allow: ['..'],
-    },
     proxy: {
       '/api': {
         target: getProxyTarget(),

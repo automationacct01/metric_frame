@@ -36,13 +36,14 @@ import {
   ExpandMore,
 } from '@mui/icons-material';
 
-// Load all wiki markdown files at build time (relative path from this file)
-const wikiModules = import.meta.glob('../../../wiki/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+// Load all wiki markdown files at build time
+// Files are copied from repo root wiki/ into src/wiki-md/ by the prebuild script
+const wikiModules = import.meta.glob('../wiki-md/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 // Build lookup: page id → markdown content
 const wikiContent: Record<string, string> = {};
 for (const [path, content] of Object.entries(wikiModules)) {
-  // path is like "../../../wiki/getting-started.md" → extract "getting-started"
+  // path is like "../wiki-md/getting-started.md" → extract "getting-started"
   const match = path.match(/\/([^/]+)\.md$/);
   if (match) {
     wikiContent[match[1]] = content;
