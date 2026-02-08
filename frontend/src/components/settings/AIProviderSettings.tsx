@@ -429,6 +429,8 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
               <Card
                 sx={{
                   height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
                   borderLeft: `4px solid ${PROVIDER_COLORS[provider.code] || '#888'}`,
                   opacity: provider.available !== false ? 1 : 0.6,
                 }}
@@ -456,7 +458,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                     )
                   }
                 />
-                <CardContent>
+                <CardContent sx={{ flexGrow: 1 }}>
                   {/* Status Chips */}
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                     <Chip
