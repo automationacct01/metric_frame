@@ -187,7 +187,14 @@ function DesktopProtectedRoute({ children }: { children: React.ReactNode }) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: (failureCount, error: any) => {
+        // Never retry 4xx (except 408/429) or 503 (service unavailable)
+        const status = error?.response?.status;
+        if (status === 503 || (status >= 400 && status < 500 && status !== 408 && status !== 429)) {
+          return false;
+        }
+        return failureCount < 2;
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
     },

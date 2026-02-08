@@ -234,6 +234,8 @@ function startBackend() {
         CORS_ORIGINS: 'http://localhost:8000,http://127.0.0.1:8000,file://',
         // Disable debug for production
         DEBUG: 'false',
+        // Encryption key for AI provider credentials
+        AI_CREDENTIALS_MASTER_KEY: 'K2cLrptyN61-jcyNzDdLF-960i4i8d91nLeN10TKBv0=',
       };
 
       log(`Database path: ${env.DATABASE_URL}`);

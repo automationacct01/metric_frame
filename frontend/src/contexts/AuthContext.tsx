@@ -60,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
 
+  // Desktop mode: all users are admin (single-user, no role restrictions)
+  const isDesktopMode = window.location.protocol === 'file:' || import.meta.env.VITE_DESKTOP_MODE === 'true';
+
   // Check if any users exist and validate stored token
   useEffect(() => {
     const initAuth = async () => {
@@ -204,8 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
-    isAdmin: user?.role === 'admin',
-    isEditor: user?.role === 'editor' || user?.role === 'admin',
+    isAdmin: isDesktopMode || user?.role === 'admin',
+    isEditor: isDesktopMode || user?.role === 'editor' || user?.role === 'admin',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

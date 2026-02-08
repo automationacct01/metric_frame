@@ -13,7 +13,7 @@ import bcrypt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from ..db import get_db
+from ..db import get_db, IS_DESKTOP_MODE
 from ..models import User
 from ..services.session_storage import (
     create_session as _create_session,
@@ -171,6 +171,22 @@ async def get_current_user(
 
     session = _get_session(auth_token) if auth_token else None
     if not session:
+        # In desktop mode, fall back to first admin user if no token
+        if IS_DESKTOP_MODE:
+            user = db.query(User).filter(User.role == "admin", User.active == True).first()
+            if not user:
+                # Create a default desktop admin user if none exists
+                user = User(
+                    name="Desktop Admin",
+                    email="admin@metricframe.local",
+                    password_hash="",
+                    role="admin",
+                    active=True
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            return user
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"

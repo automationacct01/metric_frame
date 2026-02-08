@@ -147,7 +147,8 @@ Respond with JSON:
 async def generate_metric_recommendations(
     db: Session,
     framework_code: str,
-    max_recommendations: int = 10
+    max_recommendations: int = 10,
+    provider: Optional[BaseAIProvider] = None
 ) -> Dict[str, Any]:
     """
     Generate AI-powered metric recommendations based on framework coverage analysis.
@@ -177,7 +178,8 @@ async def generate_metric_recommendations(
 
     # Use AI provider to generate recommendations
     try:
-        provider = await _get_provider(db)
+        if provider is None:
+            provider = await _get_provider(db)
         model = _get_default_model(provider)
         system_prompt = _get_recommendations_system_prompt(framework_code)
 
@@ -377,7 +379,8 @@ async def suggest_metrics_for_gap(
     framework_code: str,
     function_code: Optional[str] = None,
     category_code: Optional[str] = None,
-    count: int = 5
+    count: int = 5,
+    provider: Optional[BaseAIProvider] = None
 ) -> Dict[str, Any]:
     """
     Suggest specific metrics to fill a particular coverage gap.
@@ -448,7 +451,8 @@ For each metric suggestion, provide:
 5. Recommended data source"""
 
     try:
-        provider = await _get_provider(db)
+        if provider is None:
+            provider = await _get_provider(db)
         model = _get_default_model(provider)
         system_prompt = _get_recommendations_system_prompt(framework_code)
 

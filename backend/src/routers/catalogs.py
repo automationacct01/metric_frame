@@ -813,14 +813,19 @@ async def get_active_catalog_metrics(
     try:
         # Query catalog items with their CSF mappings
         if function:
-            # When filtering by function, use inner join to ensure we only get items with mappings
-            logging.info(f"Filtering active catalog metrics by function: {function}")
+            # When filtering by function, join through FrameworkFunction to match by code
+            # (csf_function is a Python property, not a DB column)
+            func_code = function.value if hasattr(function, 'value') else str(function)
+            logging.info(f"Filtering active catalog metrics by function: {func_code}")
             query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
                 MetricCatalogItem.catalog_id == active_catalog.id
             ).join(
                 MetricCatalogCSFMapping,
                 MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
-            ).filter(MetricCatalogCSFMapping.csf_function == function)
+            ).join(
+                FrameworkFunction,
+                MetricCatalogCSFMapping.function_id == FrameworkFunction.id
+            ).filter(FrameworkFunction.code == func_code)
         else:
             # When not filtering by function, use outer join to get all items
             query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
@@ -900,12 +905,16 @@ async def export_active_catalog_metrics_csv(
     try:
         # Build the same query as get_active_catalog_metrics but without pagination
         if function:
+            func_code = function.value if hasattr(function, 'value') else str(function)
             query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
                 MetricCatalogItem.catalog_id == active_catalog.id
             ).join(
                 MetricCatalogCSFMapping,
                 MetricCatalogItem.id == MetricCatalogCSFMapping.catalog_item_id
-            ).filter(MetricCatalogCSFMapping.csf_function == function)
+            ).join(
+                FrameworkFunction,
+                MetricCatalogCSFMapping.function_id == FrameworkFunction.id
+            ).filter(FrameworkFunction.code == func_code)
         else:
             query = db.query(MetricCatalogItem, MetricCatalogCSFMapping).filter(
                 MetricCatalogItem.catalog_id == active_catalog.id
@@ -945,17 +954,14 @@ async def export_active_catalog_metrics_csv(
     # Convert to metric format and prepare CSV data
     output = io.StringIO()
     
-    # Define CSV columns based on the metric structure
-    fieldnames = [
-        'id', 'metric_number', 'name', 'description', 'formula',
-        'csf_function', 'csf_category_code', 'csf_subcategory_code',
-        'csf_category_name', 'csf_subcategory_outcome',
-        'priority_rank', 'weight', 'direction', 'target_value', 'target_units',
-        'tolerance_low', 'tolerance_high', 'owner_function', 'data_source',
-        'collection_frequency', 'current_value', 'current_label', 'notes',
-        'active', 'created_at', 'updated_at'
-    ]
-    
+    # Build fieldnames dynamically from the first converted item to stay in sync
+    # with convert_catalog_item_to_metric output
+    if items:
+        sample_data = convert_catalog_item_to_metric(items[0][0], items[0][1])
+        fieldnames = list(sample_data.keys())
+    else:
+        fieldnames = ['id', 'metric_number', 'name', 'description']
+
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
     
@@ -994,6 +1000,11 @@ async def clone_default_catalog(
     and audit history are cleared in the new catalog.
     """
     try:
+        # Get the default framework (CSF 2.0) for the cloned catalog
+        default_framework = db.query(Framework).filter(Framework.code == "csf_2_0").first()
+        if not default_framework:
+            raise HTTPException(status_code=500, detail="Default framework (CSF 2.0) not found")
+
         # Deactivate any existing active catalog for this owner
         db.query(MetricCatalog).filter(
             MetricCatalog.owner == request.owner,
@@ -1004,6 +1015,7 @@ async def clone_default_catalog(
         new_catalog = MetricCatalog(
             name=request.new_name,
             description=request.description or "Cloned from default demo catalog - ready for customization",
+            framework_id=default_framework.id,
             owner=request.owner,
             active=False,  # Start inactive, user can activate
             is_default=False,
@@ -1047,24 +1059,19 @@ async def clone_default_catalog(
             db.flush()  # Get the item ID
             items_cloned += 1
 
-            # Create CSF mapping if the metric has CSF data
-            if metric.csf_function:
-                csf_mapping = MetricCatalogCSFMapping(
+            # Create framework mapping if the metric has function data
+            if metric.function_id:
+                fw_mapping = MetricCatalogCSFMapping(
                     catalog_id=new_catalog.id,
                     catalog_item_id=catalog_item.id,
-                    csf_function=metric.csf_function,
-                    csf_category_code=metric.csf_category_code,
-                    csf_category_name=metric.csf_category_name,
-                    csf_subcategory_code=metric.csf_subcategory_code,
-                    csf_subcategory_outcome=metric.csf_subcategory_outcome,
                     function_id=metric.function_id,
                     category_id=metric.category_id,
                     subcategory_id=metric.subcategory_id,
                     confidence_score=1.0,
-                    mapping_method=MappingMethod.default_catalog,
+                    mapping_method=MappingMethod.AUTO,
                     mapping_notes="Copied from default catalog"
                 )
-                db.add(csf_mapping)
+                db.add(fw_mapping)
                 mappings_cloned += 1
 
         db.commit()
@@ -1108,6 +1115,7 @@ async def clone_catalog(
         new_catalog = MetricCatalog(
             name=request.new_name,
             description=request.description or f"Cloned from {source_catalog.name}",
+            framework_id=source_catalog.framework_id,
             owner=request.owner,
             active=False,  # Start inactive
             is_default=False,
@@ -1170,11 +1178,6 @@ async def clone_catalog(
                 new_mapping = MetricCatalogCSFMapping(
                     catalog_id=new_catalog.id,
                     catalog_item_id=new_item_id,
-                    csf_function=source_mapping.csf_function,
-                    csf_category_code=source_mapping.csf_category_code,
-                    csf_category_name=source_mapping.csf_category_name,
-                    csf_subcategory_code=source_mapping.csf_subcategory_code,
-                    csf_subcategory_outcome=source_mapping.csf_subcategory_outcome,
                     function_id=source_mapping.function_id,
                     category_id=source_mapping.category_id,
                     subcategory_id=source_mapping.subcategory_id,

@@ -103,7 +103,16 @@ const MetricRecommendations: React.FC = () => {
     collection_frequency: 'monthly',
   });
 
-  // Fetch AI recommendations
+  // Check AI availability first (lightweight GET, shared cache with AIChat)
+  const { data: aiStatus } = useQuery({
+    queryKey: ['ai-status'],
+    queryFn: () => apiClient.getAIStatus(),
+    staleTime: 60 * 1000,
+  });
+
+  const aiAvailable = aiStatus?.available ?? false;
+
+  // Fetch AI recommendations — only when AI is available (prevents 503 floods)
   const {
     data: recommendations,
     isLoading: isLoadingRecommendations,
@@ -113,7 +122,8 @@ const MetricRecommendations: React.FC = () => {
     queryKey: ['ai-recommendations', frameworkCode],
     queryFn: () => apiClient.getAIRecommendations(frameworkCode, 10),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!frameworkCode,
+    enabled: !!frameworkCode && aiAvailable,
+    retry: false,
   });
 
   // Fetch coverage gaps
@@ -405,7 +415,7 @@ const MetricRecommendations: React.FC = () => {
                 <Typography variant="body2" color="text.secondary">
                   Generating AI insights...
                 </Typography>
-              ) : recommendations ? (
+              ) : recommendations && recommendations.success !== false ? (
                 <Box component="ul" sx={{ m: 0, pl: 2, '& li': { mb: 0.75 } }}>
                   {/* Coverage stat */}
                   <Typography component="li" variant="body2" color="text.secondary">
@@ -453,9 +463,13 @@ const MetricRecommendations: React.FC = () => {
                     </Typography>
                   )}
                 </Box>
+              ) : !aiAvailable ? (
+                <Typography variant="body2" color="text.secondary">
+                  Configure an AI provider in Settings to enable AI-powered insights. Coverage gaps are shown below.
+                </Typography>
               ) : recommendationsError ? (
                 <Typography variant="body2" color="text.secondary">
-                  AI insights unavailable. View coverage gaps below.
+                  An error occurred loading AI insights. Coverage gaps are shown below.
                 </Typography>
               ) : (
                 <Typography variant="body2" color="text.secondary">
@@ -489,7 +503,12 @@ const MetricRecommendations: React.FC = () => {
                 <Typography variant="h6">Recommended Metrics</Typography>
               </Box>
 
-              {isLoadingRecommendations ? (
+              {!aiAvailable ? (
+                <Alert severity="info">
+                  <AlertTitle>AI Provider Required</AlertTitle>
+                  Configure an AI provider in Settings &gt; AI Configuration to enable metric recommendations. Coverage gap data above is still available.
+                </Alert>
+              ) : isLoadingRecommendations ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
                   <CircularProgress sx={{ mb: 2 }} />
                   <Typography variant="body2" color="text.secondary">
@@ -506,7 +525,13 @@ const MetricRecommendations: React.FC = () => {
                   }
                 >
                   <AlertTitle>Recommendations Unavailable</AlertTitle>
-                  AI recommendations timed out or encountered an error. Coverage data above is still available.
+                  An error occurred while generating recommendations. Please try again.
+                </Alert>
+              ) : recommendations?.success === false ? (
+                <Alert severity="info">
+                  <AlertTitle>{recommendations.ai_available === false ? 'AI Provider Required' : 'AI Generation Failed'}</AlertTitle>
+                  {recommendations.error || 'Configure an AI provider in Settings to enable recommendations.'}
+                  {' '}Coverage gap data above is still available.
                 </Alert>
               ) : recommendations?.recommendations && recommendations.recommendations.length > 0 ? (
                 <Grid container spacing={2}>

@@ -745,23 +745,23 @@ async def get_ai_recommendations(
     - Aligning with industry best practices
     """
     try:
-        # Verify we have an active provider for current user
         user_id = current_user.id
-        await get_active_provider(db, user_id)
+        provider = await get_active_provider(db, user_id)
     except HTTPException:
-        raise HTTPException(
-            status_code=503,
-            detail="AI service is not available. Please configure an AI provider."
-        )
+        # No provider configured — return 200 with empty results, not 503
+        return {
+            "success": False,
+            "ai_available": False,
+            "recommendations": [],
+            "gap_analysis": {},
+            "framework_code": framework,
+            "error": "No AI provider configured. Configure one in Settings > AI Configuration.",
+        }
 
-    result = await generate_metric_recommendations(db, framework, max_recommendations)
+    result = await generate_metric_recommendations(db, framework, max_recommendations, provider=provider)
 
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=500,
-            detail=result.get("error", "Failed to generate recommendations")
-        )
-
+    # Always return the result as 200 — the client handles {success: false}
+    result["ai_available"] = True
     return result
 
 
@@ -798,25 +798,22 @@ async def suggest_metrics_for_coverage_gap(
     Optionally focus on a specific function or category to get targeted suggestions.
     """
     try:
-        # Verify we have an active provider for current user
         user_id = current_user.id
-        await get_active_provider(db, user_id)
+        provider = await get_active_provider(db, user_id)
     except HTTPException:
-        raise HTTPException(
-            status_code=503,
-            detail="AI service is not available. Please configure an AI provider."
-        )
+        return {
+            "success": False,
+            "ai_available": False,
+            "suggestions": [],
+            "framework_code": framework,
+            "error": "No AI provider configured. Configure one in Settings > AI Configuration.",
+        }
 
     result = await suggest_metrics_for_gap(
-        db, framework, function_code, category_code, count
+        db, framework, function_code, category_code, count, provider=provider
     )
 
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=500,
-            detail=result.get("error", "Failed to generate suggestions")
-        )
-
+    result["ai_available"] = True
     return result
 
 

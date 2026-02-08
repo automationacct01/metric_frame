@@ -38,6 +38,11 @@ chmod +x install.sh && ./install.sh`;
 const offlineBundleUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz';
 const checksumUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz.sha256';
 
+const desktopDownloads = {
+  macArm64: 'https://github.com/automationacct01/metric_frame/releases/download/v1.0.0-desktop/MetricFrame-1.0.0-mac-arm64.dmg',
+  macX64: 'https://github.com/automationacct01/metric_frame/releases/download/v1.0.0-desktop/MetricFrame-1.0.0-mac-x64.dmg',
+};
+
 export default function DownloadPage() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -387,81 +392,134 @@ export default function DownloadPage() {
             </Card>
           </Grid>
 
-          {/* Desktop App Section - Coming Soon */}
+          {/* Desktop App Section - macOS Available */}
           <Grid item xs={12} md={6}>
             <Card
               sx={{
                 height: '100%',
-                background: alpha('#fff', 0.03),
+                background: alpha('#fff', 0.05),
                 backdropFilter: 'blur(10px)',
-                border: `1px solid ${alpha('#fff', 0.08)}`,
+                border: `1px solid ${alpha('#fff', 0.1)}`,
                 borderRadius: 3,
-                opacity: 0.85,
               }}
             >
               <CardContent sx={{ p: 4 }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
-                  <DownloadIcon sx={{ fontSize: 40, color: alpha('#f59e0b', 0.7) }} />
+                  <DownloadIcon sx={{ fontSize: 40, color: '#22c55e' }} />
                   <Box>
                     <Typography variant="h5" color="white" fontWeight={600}>
                       Desktop App
                     </Typography>
-                    <Chip
-                      label="Coming Soon"
-                      size="small"
-                      sx={{
-                        mt: 0.5,
-                        bgcolor: alpha('#f59e0b', 0.2),
-                        color: '#f59e0b',
-                        fontWeight: 600,
-                      }}
-                    />
+                    <Box display="flex" gap={1} mt={0.5}>
+                      <Chip
+                        label="macOS Available"
+                        size="small"
+                        sx={{
+                          bgcolor: alpha('#22c55e', 0.2),
+                          color: '#22c55e',
+                          fontWeight: 600,
+                        }}
+                      />
+                      <Chip
+                        icon={<VerifiedIcon sx={{ fontSize: 14 }} />}
+                        label="Code Signed"
+                        size="small"
+                        sx={{
+                          bgcolor: alpha('#22c55e', 0.2),
+                          color: '#22c55e',
+                          '& .MuiChip-icon': { color: '#22c55e' },
+                        }}
+                      />
+                    </Box>
                   </Box>
                 </Box>
 
                 <Typography color={alpha('#fff', 0.7)} mb={3}>
-                  Desktop app with built-in database is under active development.
-                  Use Docker for now — it includes all the same features.
+                  Standalone desktop app with built-in database. No Docker, no server setup — just download and run.
                 </Typography>
 
                 <Box mb={3}>
                   <Typography variant="body2" color={alpha('#fff', 0.5)} mb={1}>
-                    Planned features:
+                    Features:
                   </Typography>
-                  <Box component="ul" sx={{ color: alpha('#fff', 0.5), pl: 2, m: 0 }}>
+                  <Box component="ul" sx={{ color: alpha('#fff', 0.7), pl: 2, m: 0 }}>
                     <li>One-click installation</li>
-                    <li>Automatic updates</li>
                     <li>Local SQLite database</li>
                     <li>Works offline</li>
+                    <li>Single-user mode</li>
                   </Box>
                 </Box>
 
                 <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
 
-                <Typography variant="body2" color={alpha('#fff', 0.4)} mb={2}>
-                  Download for your platform:
+                <Typography variant="body2" color={alpha('#fff', 0.5)} mb={2}>
+                  Download for macOS:
                 </Typography>
 
                 <Grid container spacing={2}>
                   <Grid item xs={12}>
                     <Button
                       fullWidth
-                      variant="outlined"
-                      disabled
+                      variant="contained"
                       startIcon={<AppleIcon />}
+                      href={desktopDownloads.macArm64}
                       sx={{
                         py: 1.5,
-                        borderColor: alpha('#fff', 0.1),
-                        color: alpha('#fff', 0.3),
-                        '&.Mui-disabled': {
-                          borderColor: alpha('#fff', 0.1),
-                          color: alpha('#fff', 0.3),
+                        bgcolor: alpha('#22c55e', 0.9),
+                        color: '#fff',
+                        fontWeight: 600,
+                        '&:hover': {
+                          bgcolor: '#22c55e',
                         },
                       }}
                     >
-                      macOS (Apple Silicon)
+                      macOS (Apple Silicon) — .dmg
                     </Button>
                   </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<AppleIcon />}
+                      href={desktopDownloads.macX64}
+                      sx={{
+                        py: 1.5,
+                        borderColor: alpha('#22c55e', 0.5),
+                        color: '#22c55e',
+                        '&:hover': {
+                          borderColor: '#22c55e',
+                          bgcolor: alpha('#22c55e', 0.1),
+                        },
+                      }}
+                    >
+                      macOS (Intel) — .dmg
+                    </Button>
+                  </Grid>
+                </Grid>
+
+                {/* Notarization Notice */}
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 1.5,
+                    bgcolor: alpha('#f59e0b', 0.1),
+                    border: `1px solid ${alpha('#f59e0b', 0.2)}`,
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant="caption" color={alpha('#f59e0b', 0.9)} display="block">
+                    The app is code-signed with a Developer ID certificate. Apple notarization is in progress — Apple is experiencing a backlog and we are working on it.
+                    On first launch, right-click the app and select <strong>Open</strong> to bypass Gatekeeper.
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
+
+                <Typography variant="body2" color={alpha('#fff', 0.4)} mb={2}>
+                  Other platforms:
+                </Typography>
+
+                <Grid container spacing={2}>
                   <Grid item xs={12}>
                     <Button
                       fullWidth
@@ -478,7 +536,7 @@ export default function DownloadPage() {
                         },
                       }}
                     >
-                      Windows
+                      Windows — Coming Soon
                     </Button>
                   </Grid>
                   <Grid item xs={12}>
@@ -497,7 +555,7 @@ export default function DownloadPage() {
                         },
                       }}
                     >
-                      Linux (AppImage)
+                      Linux — Coming Soon
                     </Button>
                   </Grid>
                 </Grid>
@@ -507,9 +565,9 @@ export default function DownloadPage() {
                   color={alpha('#fff', 0.3)}
                   display="block"
                   textAlign="center"
-                  mt={3}
+                  mt={2}
                 >
-                  Desktop releases will be available in a future update
+                  Windows and Linux builds are in development
                 </Typography>
               </CardContent>
             </Card>
@@ -664,13 +722,13 @@ export default function DownloadPage() {
             Desktop App
           </Typography>
           <Typography variant="body1" color={alpha('#fff', 0.5)} mb={4} textAlign="center">
-            Standalone application — currently in development
+            Standalone application — no Docker or technical setup required
           </Typography>
 
           <Card
             sx={{
               background: alpha('#fff', 0.03),
-              border: `1px solid ${alpha('#f59e0b', 0.15)}`,
+              border: `1px solid ${alpha('#10b981', 0.15)}`,
               borderRadius: 2,
               maxWidth: 800,
               mx: 'auto',
@@ -680,13 +738,13 @@ export default function DownloadPage() {
               <Grid container spacing={4}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle1" color="white" fontWeight={600} mb={2}>
-                    Planned Features
+                    Features
                   </Typography>
                   <Box component="ul" sx={{ color: alpha('#fff', 0.6), pl: 2, m: 0, '& li': { mb: 1.5 } }}>
                     <li>One-click install — no Docker or technical setup needed</li>
                     <li>Built-in SQLite database — everything runs locally</li>
-                    <li>Automatic updates</li>
-                    <li>Single-user mode — no login required</li>
+                    <li>356 pre-configured NIST CSF 2.0 & AI RMF metrics</li>
+                    <li>Single-user mode — optional password protection</li>
                     <li>Offline-capable — no internet needed after install</li>
                   </Box>
                 </Grid>
@@ -701,10 +759,10 @@ export default function DownloadPage() {
                         <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
                           macOS
                         </Typography>
-                        <Chip label="In Progress" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#f59e0b', 0.2), color: '#f59e0b' }} />
+                        <Chip label="Available" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#10b981', 0.2), color: '#10b981' }} />
                       </Box>
                       <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
-                        Apple Developer certification is being obtained. Code signing and notarization will be completed before release.
+                        Code-signed for Apple Silicon and Intel. Notarization pending — right-click and Open on first launch.
                       </Typography>
                     </Box>
                     <Box>
@@ -713,10 +771,10 @@ export default function DownloadPage() {
                         <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
                           Windows
                         </Typography>
-                        <Chip label="Planned" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
+                        <Chip label="Coming Soon" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
                       </Box>
                       <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
-                        Windows build with installer will follow the macOS release.
+                        Windows build with installer coming soon.
                       </Typography>
                     </Box>
                     <Box>
@@ -725,7 +783,7 @@ export default function DownloadPage() {
                         <Typography variant="body2" color={alpha('#fff', 0.7)} fontWeight={500}>
                           Linux
                         </Typography>
-                        <Chip label="Planned" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
+                        <Chip label="Coming Soon" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#fff', 0.1), color: alpha('#fff', 0.4) }} />
                       </Box>
                       <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
                         AppImage format for broad Linux distribution compatibility.
@@ -738,8 +796,8 @@ export default function DownloadPage() {
               <Divider sx={{ borderColor: alpha('#fff', 0.08), my: 3 }} />
 
               <Typography variant="body2" color={alpha('#fff', 0.5)} textAlign="center" fontStyle="italic">
-                The desktop app will include all the same features as the Docker version.
-                Use Docker in the meantime — it's production-ready and fully supported.
+                The desktop app includes all the same features as the Docker version.
+                Prefer Docker for multi-user or server deployments.
               </Typography>
             </CardContent>
           </Card>

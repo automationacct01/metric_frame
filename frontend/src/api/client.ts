@@ -200,6 +200,11 @@ class APIClient {
       return error.response.status === 408 || error.response.status === 429;
     }
 
+    // Don't retry on 503 Service Unavailable (typically means AI provider not configured)
+    if (error.response?.status === 503) {
+      return false;
+    }
+
     // Retry on network errors or server errors (5xx)
     return !error.response || error.response.status >= 500 || error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK';
   }

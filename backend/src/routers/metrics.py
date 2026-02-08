@@ -184,8 +184,13 @@ async def create_metric(
             metric_data['function_id'] = framework_func.id
             metric_data['framework_id'] = framework_func.framework_id
 
-    # Remove other legacy CSF fields that are computed properties
-    for field in ['csf_category_code', 'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome']:
+    # Remove computed properties that have no setter on the Metric model
+    computed_props = [
+        'csf_category_code', 'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
+        'ai_rmf_function', 'ai_rmf_function_name', 'ai_rmf_category_code', 'ai_rmf_category_name',
+        'ai_rmf_subcategory_code', 'ai_rmf_subcategory_outcome',
+    ]
+    for field in computed_props:
         metric_data.pop(field, None)
 
     # Convert direction enum to the model's enum type

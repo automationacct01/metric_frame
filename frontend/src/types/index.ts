@@ -96,6 +96,7 @@ export interface MetricRecommendation {
 
 export interface RecommendationsResponse {
   success: boolean;
+  ai_available?: boolean;
   framework_code: string;
   recommendations: MetricRecommendation[];
   gap_analysis?: {

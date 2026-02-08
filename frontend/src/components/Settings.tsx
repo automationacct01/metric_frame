@@ -543,7 +543,7 @@ export default function Settings() {
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
           <Tab icon={<TuneIcon />} iconPosition="start" label="General" />
           <Tab icon={<AIIcon />} iconPosition="start" label="AI Configuration" />
-          {isAdmin && <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />}
+          {isAdmin && !desktopAuth.isDesktopMode && <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />}
         </Tabs>
       </Box>
 
@@ -1000,8 +1000,8 @@ export default function Settings() {
         <AIProviderSettings userId="admin" />
       </TabPanel>
 
-      {/* Users Tab - Admin only */}
-      {isAdmin && (
+      {/* Users Tab - Admin only, hidden in desktop mode (single-user) */}
+      {isAdmin && !desktopAuth.isDesktopMode && (
         <TabPanel value={activeTab} index={2}>
           <UserManagement />
         </TabPanel>
