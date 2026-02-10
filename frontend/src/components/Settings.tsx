@@ -53,6 +53,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDesktopAuth } from '../contexts/DesktopAuthContext';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import HttpsIcon from '@mui/icons-material/Https';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
@@ -256,6 +257,19 @@ export default function Settings() {
   const [securityAnswer2, setSecurityAnswer2] = useState('');
   const [desktopAuthError, setDesktopAuthError] = useState<string | null>(null);
   const [desktopAuthSaving, setDesktopAuthSaving] = useState(false);
+
+  // Desktop TLS state
+  const [tlsEnabled, setTlsEnabled] = useState(false);
+  const [tlsLoading, setTlsLoading] = useState(false);
+
+  // Load desktop TLS setting on mount
+  useEffect(() => {
+    if (desktopAuth.isDesktopMode && (window as any).electronAPI?.getTlsEnabled) {
+      (window as any).electronAPI.getTlsEnabled().then((enabled: boolean) => {
+        setTlsEnabled(enabled);
+      });
+    }
+  }, [desktopAuth.isDesktopMode]);
 
   // Update current time every second for the timezone preview
   useEffect(() => {
@@ -532,6 +546,29 @@ export default function Settings() {
     }
   };
 
+  const handleTlsToggle = async () => {
+    if (!desktopAuth.isDesktopMode || !(window as any).electronAPI?.setTlsEnabled) return;
+
+    setTlsLoading(true);
+    try {
+      const newValue = !tlsEnabled;
+      await (window as any).electronAPI.setTlsEnabled(newValue);
+      setTlsEnabled(newValue);
+      // Sync to localStorage so the API client picks it up after restart
+      localStorage.setItem('metricframe_tls_enabled', String(newValue));
+      showSnackbar(
+        newValue
+          ? 'HTTPS enabled — please restart the application for changes to take effect'
+          : 'HTTPS disabled — please restart the application for changes to take effect',
+        'warning'
+      );
+    } catch (err) {
+      showSnackbar('Failed to update HTTPS setting', 'error');
+    } finally {
+      setTlsLoading(false);
+    }
+  };
+
   return (
     <ContentFrame>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -629,6 +666,48 @@ export default function Settings() {
                       </Button>
                     )}
                   </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Desktop Encrypted Connections - Only show in desktop mode */}
+          {desktopAuth.isDesktopMode && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  avatar={<HttpsIcon color="primary" />}
+                  title="Encrypted Connections"
+                  subheader="Encrypt communication between the app and its local server"
+                />
+                <CardContent>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    When enabled, MetricFrame uses HTTPS to encrypt all data between the app
+                    interface and the backend server. A security certificate is generated
+                    automatically on next launch.
+                  </Alert>
+
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tlsEnabled}
+                        onChange={handleTlsToggle}
+                        disabled={tlsLoading}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body1">
+                          Enable encrypted connections (HTTPS)
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {tlsEnabled
+                            ? 'Connections are encrypted with TLS — restart required to apply'
+                            : 'Connections use HTTP (unencrypted)'}
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 </CardContent>
               </Card>
             </Grid>

@@ -39,28 +39,37 @@ MetricFrame is designed with security as a core principle. This document explain
 | Backend → Redis | TCP | No* | No |
 | Backend → AI APIs | HTTPS | Yes (TLS 1.3) | Yes |
 
-*Local HTTP/TCP traffic never leaves your machine - see explanation below.
+*Local traffic does not leave your machine via the network interface, though other processes on the same host can access it. See [details and options below](#local-http-traffic--what-you-should-know).
 
-## Why Local HTTP is Secure
+## Local HTTP Traffic — What You Should Know
 
 ### The Loopback Interface
 
 When you access `localhost:3000`, your browser communicates with the app through your computer's **loopback interface** (127.0.0.1). This traffic:
 
-1. **Never touches the network** - It stays entirely within your computer's memory
-2. **Cannot be intercepted** - No external device can see loopback traffic
-3. **Is isolated by design** - The operating system prevents loopback traffic from leaving the machine
+1. **Does not leave your machine** - It stays within your computer's memory and is not routed to any network interface
+2. **Is not visible to other devices** - No external device on your network can observe loopback traffic
+3. **Is isolated by the OS** - The operating system prevents loopback traffic from being transmitted externally
 
-This is fundamentally different from HTTP traffic over a network, which can be intercepted.
+For a single-user machine where only you have access, this provides reasonable protection for local traffic. However, localhost HTTP is **not the same as encrypted traffic**, and there are scenarios where it may not be sufficient.
 
-### Why TLS on Localhost is Unnecessary
+### Residual Risks of Unencrypted Localhost
 
-Adding HTTPS/TLS for localhost would require:
-- Self-signed certificates (causing browser warnings)
-- Certificate management complexity
-- No actual security benefit for local-only traffic
+Even though loopback traffic doesn't leave your machine over the network, you should be aware of the following:
 
-The security industry consensus is that localhost HTTP is acceptable for local development and self-hosted applications.
+| Scenario | Risk | Who Should Care |
+|----------|------|-----------------|
+| **Shared machines** | Other user accounts on the same system can access open localhost ports | Multi-user servers, shared workstations |
+| **Binding to 0.0.0.0** | If the service binds to all interfaces instead of `127.0.0.1`, traffic is exposed on your local network | Docker deployments on shared networks |
+| **Local malware** | Compromised software running on your machine can intercept localhost traffic or make requests to localhost services | High-security environments |
+| **Endpoint monitoring** | Corporate DLP or endpoint agents may inspect local HTTP traffic | Regulated industries, corporate environments |
+| **DNS rebinding** | A malicious website could potentially craft requests to your localhost services | Users who browse untrusted sites while MetricFrame is running |
+
+### Our Recommendation
+
+For most users running MetricFrame on a personal machine or a dedicated server, the default HTTP configuration provides adequate protection. The risks above are edge cases, not everyday threats.
+
+That said, if you operate in a high-security environment, run MetricFrame on a shared system, or simply prefer defense in depth — we recommend [adding TLS to your deployment](#adding-tls-to-your-deployment). The setup takes a few minutes and eliminates these residual risks.
 
 ## Outbound API Calls (The Internet Connection)
 
@@ -239,16 +248,117 @@ If deploying MetricFrame on a server accessible by multiple users:
 
 ### For Local Network (Intranet)
 
-1. Keep using HTTP on port 3000
-2. Ensure firewall blocks external access
-3. Use network-level authentication if needed
+HTTP on a local network means traffic between machines is **unencrypted**. Anyone on the same network segment could potentially observe it.
+
+1. Consider [adding TLS](#adding-tls-to-your-deployment) if your network carries sensitive metric data or API credentials
+2. Ensure firewall rules block external access to port 3000
+3. Restrict access to trusted hosts only (e.g., bind to a specific interface rather than `0.0.0.0`)
+4. Use network-level authentication (802.1X, VPN) where possible
 
 ### For Internet-Facing Deployment
 
 1. Place behind a reverse proxy (nginx, Traefik, Caddy)
-2. Configure HTTPS with proper certificates (Let's Encrypt)
+2. **Configure HTTPS with proper certificates** (Let's Encrypt recommended)
 3. Use a VPN or zero-trust network
 4. Implement additional authentication layers
+
+## Adding TLS to Your Deployment
+
+MetricFrame includes built-in TLS setup for both Docker and Desktop platforms. No manual certificate generation or configuration file editing required — certificates are generated automatically using Python's `cryptography` library.
+
+### Docker
+
+#### During Installation
+
+When you run the install script, you'll be prompted to enable HTTPS:
+
+```bash
+curl -fsSL https://get.metricframe.ai/install.sh | bash
+```
+
+The installer will ask:
+
+```
+Optional: Enable HTTPS for encrypted local connections?
+Enable HTTPS? [y/N]
+```
+
+Type `y` and the installer will automatically:
+1. Generate a self-signed TLS certificate
+2. Configure nginx for HTTPS on port 443
+3. Set up HTTP-to-HTTPS redirect
+4. Update CORS origins
+
+Access MetricFrame at `https://localhost`. Your browser will show a certificate warning on first visit — this is expected for self-signed certificates. Click "Advanced" then "Proceed" to continue.
+
+#### After Installation
+
+If you initially chose not to enable HTTPS, you can enable it anytime:
+
+```bash
+cd ~/metricframe
+curl -fsSL https://get.metricframe.ai/enable-tls.sh | bash
+```
+
+To disable HTTPS later:
+
+```bash
+cd ~/metricframe
+rm docker-compose.override.yml nginx-tls.conf
+docker compose down && docker compose up -d
+```
+
+### Desktop
+
+1. Open MetricFrame Desktop
+2. Go to **Settings** → **General** tab
+3. Find the **Encrypted Connections** section
+4. Toggle **Enable encrypted connections (HTTPS)** to ON
+5. Restart the application
+
+The certificate is generated automatically on next launch. Electron trusts the certificate transparently — you won't see any browser warnings.
+
+### Certificate Details
+
+| Property | Value |
+|----------|-------|
+| **Type** | Self-signed X.509 |
+| **Key** | RSA 2048-bit |
+| **Validity** | 365 days |
+| **Subject** | `CN=localhost, O=MetricFrame` |
+| **SAN** | `localhost`, `127.0.0.1` |
+| **Docker location** | `~/metricframe/certs/` |
+| **Desktop location** | `~/Library/Application Support/metricframe/certs/` (macOS) |
+
+### Adding to System Trust Store (Optional)
+
+To suppress browser certificate warnings in Docker mode, you can add the certificate to your system's trust store:
+
+**macOS:**
+```bash
+sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain ~/metricframe/certs/metricframe.crt
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo cp ~/metricframe/certs/metricframe.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates
+```
+
+After adding to the trust store and restarting your browser, the certificate warning will no longer appear.
+
+### Troubleshooting TLS
+
+**Port 443 already in use (Docker):** Edit `docker-compose.override.yml` and change the port mapping to `"8443:443"`, then access via `https://localhost:8443`.
+
+**Certificate expired (after 1 year):** Docker: run `enable-tls.sh` again. Desktop: disable and re-enable HTTPS in Settings, then restart.
+
+**Cannot connect after enabling (Desktop):** Check logs at `~/Library/Application Support/metricframe/logs/metricframe.log`. Try disabling HTTPS, restarting, then re-enabling.
+
+**For internet-facing deployments:** Self-signed certificates are intended for localhost and local networks only. For production deployments exposed to the internet, use a proper CA-signed certificate (Let's Encrypt recommended) behind a reverse proxy.
+
+---
 
 ## Deployment-Specific Security
 

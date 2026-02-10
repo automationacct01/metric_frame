@@ -8,11 +8,12 @@
  * - Application lifecycle (start, quit)
  */
 
-const { app, BrowserWindow, dialog, shell } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const Store = require('electron-store');
 
 // Configuration store
@@ -20,6 +21,7 @@ const store = new Store({
   defaults: {
     windowBounds: { width: 1400, height: 900 },
     backendPort: 8000,
+    tlsEnabled: false,
   }
 });
 
@@ -225,21 +227,80 @@ function startBackend() {
       log(`Starting backend: ${config.command} ${config.args.join(' ')}`);
       updateSplashStatus('Starting backend server...');
 
+      // Check TLS setting
+      const tlsEnabled = store.get('tlsEnabled', false);
+      log(`TLS mode: ${tlsEnabled ? 'HTTPS' : 'HTTP'}`);
+
+      // Generate TLS certificate if enabled and missing
+      let sslKeyFile = '';
+      let sslCertFile = '';
+      if (tlsEnabled) {
+        const certDir = path.join(app.getPath('userData'), 'certs');
+        const certPath = path.join(certDir, 'metricframe.crt');
+        const keyPath = path.join(certDir, 'metricframe.key');
+
+        if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+          log('Generating TLS certificate...');
+          updateSplashStatus('Generating security certificate...');
+          try {
+            if (!fs.existsSync(certDir)) {
+              fs.mkdirSync(certDir, { recursive: true });
+            }
+            if (isDev) {
+              // Dev: use Python from venv
+              const pythonCmd = path.join(resourcesPath, 'backend', '.venv', 'bin', 'python');
+              execSync(`"${pythonCmd}" -m src.services.tls_cert "${certDir}" metricframe`, {
+                cwd: path.join(resourcesPath, 'backend'),
+                stdio: 'pipe',
+              });
+            } else {
+              // Production: use PyInstaller binary with --generate-cert flag
+              execSync(`"${config.command}" --generate-cert "${certDir}" metricframe`, {
+                cwd: config.cwd,
+                stdio: 'pipe',
+              });
+            }
+            log('TLS certificate generated');
+          } catch (certErr) {
+            log(`Failed to generate certificate: ${certErr.message}`, 'ERROR');
+            log('Falling back to HTTP', 'WARN');
+            store.set('tlsEnabled', false);
+          }
+        } else {
+          log('Using existing TLS certificate');
+        }
+
+        // Verify cert files exist after generation attempt
+        if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+          sslKeyFile = keyPath;
+          sslCertFile = certPath;
+        }
+      }
+
       // Set environment variables
       const env = {
         ...process.env,
         // Set desktop mode and SQLite database path
         METRICFRAME_DESKTOP_MODE: 'true',
         DATABASE_URL: `sqlite:///${path.join(app.getPath('userData'), 'metricframe.db')}`,
-        CORS_ORIGINS: 'http://localhost:8000,http://127.0.0.1:8000,file://',
+        CORS_ORIGINS: tlsEnabled && sslCertFile
+          ? 'http://localhost:8000,http://127.0.0.1:8000,https://localhost:8000,https://127.0.0.1:8000,file://'
+          : 'http://localhost:8000,http://127.0.0.1:8000,file://',
         // Disable debug for production
         DEBUG: 'false',
         // Encryption key for AI provider credentials
         AI_CREDENTIALS_MASTER_KEY: 'K2cLrptyN61-jcyNzDdLF-960i4i8d91nLeN10TKBv0=',
+        // TLS certificate paths (empty string if not using TLS)
+        ...(sslKeyFile && sslCertFile ? {
+          SSL_KEYFILE: sslKeyFile,
+          SSL_CERTFILE: sslCertFile,
+        } : {}),
       };
 
       log(`Database path: ${env.DATABASE_URL}`);
       log(`Working directory: ${config.cwd}`);
+      if (sslKeyFile) log(`SSL Key: ${sslKeyFile}`);
+      if (sslCertFile) log(`SSL Cert: ${sslCertFile}`);
 
       backendProcess = spawn(config.command, config.args, {
         cwd: config.cwd,
@@ -320,7 +381,12 @@ function waitForBackend(timeout) {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       updateSplashStatus(`Connecting to backend... (${elapsed}s)`);
 
-      const req = http.get('http://127.0.0.1:8000/health', (res) => {
+      const tlsMode = store.get('tlsEnabled', false);
+      const healthUrl = tlsMode ? 'https://127.0.0.1:8000/health' : 'http://127.0.0.1:8000/health';
+      const httpModule = tlsMode ? https : http;
+      const requestOptions = tlsMode ? { rejectUnauthorized: false } : {};
+
+      const req = httpModule.get(healthUrl, requestOptions, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -566,6 +632,33 @@ app.on('before-quit', () => {
   log('Application quitting...');
   isQuitting = true;
   stopBackend();
+});
+
+// Trust self-signed certificates for localhost only (desktop TLS)
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') {
+      log(`Trusting self-signed certificate for ${parsedUrl.hostname}`);
+      event.preventDefault();
+      callback(true);
+      return;
+    }
+  } catch (e) {
+    // URL parsing failed
+  }
+  callback(false);
+});
+
+// IPC handlers for TLS settings (used by Settings UI)
+ipcMain.handle('get-tls-enabled', () => {
+  return store.get('tlsEnabled', false);
+});
+
+ipcMain.handle('set-tls-enabled', (event, enabled) => {
+  store.set('tlsEnabled', enabled);
+  log(`TLS setting changed to: ${enabled}`);
+  return { success: true, requiresRestart: true };
 });
 
 // Handle uncaught exceptions

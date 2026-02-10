@@ -215,8 +215,10 @@ class APIClient {
     // When running as a desktop app, the frontend is loaded from file://
     // and the backend runs on localhost:8000
     if (window.location.protocol === 'file:') {
-      const desktopApiUrl = 'http://127.0.0.1:8000/api/v1';
-      if (import.meta.env.DEV) console.log('🖥️ Desktop mode detected (file:// protocol), using:', desktopApiUrl);
+      const tlsEnabled = localStorage.getItem('metricframe_tls_enabled') === 'true';
+      const protocol = tlsEnabled ? 'https' : 'http';
+      const desktopApiUrl = `${protocol}://127.0.0.1:8000/api/v1`;
+      if (import.meta.env.DEV) console.log(`🖥️ Desktop mode detected (file:// protocol, TLS: ${tlsEnabled}), using:`, desktopApiUrl);
       return desktopApiUrl;
     }
 
@@ -253,8 +255,10 @@ class APIClient {
         // Health endpoint is at /health (not /api/v1/health)
         // For desktop mode, use absolute URL; for web, use relative
         const isDesktop = window.location.protocol === 'file:';
+        const tlsEnabled = localStorage.getItem('metricframe_tls_enabled') === 'true';
+        const protocol = tlsEnabled ? 'https' : 'http';
         const healthUrl = isDesktop
-          ? 'http://127.0.0.1:8000/health'
+          ? `${protocol}://127.0.0.1:8000/health`
           : '/health';
 
         const healthResponse = await axios.get<HealthResponse>(healthUrl, {

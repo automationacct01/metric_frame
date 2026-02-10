@@ -22,6 +22,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => {
     ipcRenderer.send('open-external', url);
   },
+
+  // TLS settings
+  getTlsEnabled: () => ipcRenderer.invoke('get-tls-enabled'),
+  setTlsEnabled: (enabled) => ipcRenderer.invoke('set-tls-enabled', enabled),
 });
 
 // The frontend should use the backend API at localhost:8000
