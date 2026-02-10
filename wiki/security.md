@@ -262,21 +262,24 @@ HTTP on a local network means traffic between machines is **unencrypted**. Anyon
 3. Use a VPN or zero-trust network
 4. Implement additional authentication layers
 
-## Adding TLS to Your Deployment
+## Enabling HTTPS (TLS Encryption)
 
-MetricFrame includes built-in TLS setup for both Docker and Desktop platforms. No manual certificate generation or configuration file editing required — certificates are generated automatically using Python's `cryptography` library.
+MetricFrame includes built-in HTTPS support for both Docker and Desktop. Certificates are generated automatically — no manual `openssl` commands or config editing required.
 
-### Docker
+By default, MetricFrame runs over HTTP on `localhost:3000`. This is safe for single-machine use (traffic never leaves your computer), but you may want HTTPS if:
 
-#### During Installation
+- **Multiple people share the machine** — other users could potentially inspect network traffic
+- **You access MetricFrame over a local network** — traffic between your browser and the server crosses the network unencrypted
+- **Compliance or policy requires encryption** — even for internal tools
+- **You want defense-in-depth** — encryption adds protection against local malware or DNS rebinding
 
-When you run the install script, you'll be prompted to enable HTTPS:
+### Docker — Enable During Installation
+
+When you run the install script interactively, you'll be prompted:
 
 ```bash
 curl -fsSL https://get.metricframe.ai/install.sh | bash
 ```
-
-The installer will ask:
 
 ```
 Optional: Enable HTTPS for encrypted local connections?
@@ -285,30 +288,28 @@ Enable HTTPS? [y/N]
 
 Type `y` and the installer will automatically:
 1. Generate a self-signed TLS certificate
-2. Configure nginx for HTTPS on port 443
-3. Set up HTTP-to-HTTPS redirect
-4. Update CORS origins
+2. Configure nginx to serve HTTPS on port 3000
+3. Update CORS settings
 
-Access MetricFrame at `https://localhost`. Your browser will show a certificate warning on first visit — this is expected for self-signed certificates. Click "Advanced" then "Proceed" to continue.
+You'll access MetricFrame at **`https://localhost:3000`**.
 
-#### After Installation
+### Docker — Enable After Installation
 
-If you initially chose not to enable HTTPS, you can enable it anytime:
+If you skipped HTTPS during install, enable it anytime with one command:
 
 ```bash
-cd ~/metricframe
 curl -fsSL https://get.metricframe.ai/enable-tls.sh | bash
 ```
 
-To disable HTTPS later:
+### Docker — Disable HTTPS
+
+To switch back to plain HTTP:
 
 ```bash
-cd ~/metricframe
-rm docker-compose.override.yml nginx-tls.conf
-docker compose down && docker compose up -d
+curl -fsSL https://get.metricframe.ai/disable-tls.sh | bash
 ```
 
-### Desktop
+### Desktop App
 
 1. Open MetricFrame Desktop
 2. Go to **Settings** → **General** tab
@@ -316,23 +317,27 @@ docker compose down && docker compose up -d
 4. Toggle **Enable encrypted connections (HTTPS)** to ON
 5. Restart the application
 
-The certificate is generated automatically on next launch. Electron trusts the certificate transparently — you won't see any browser warnings.
+The certificate is generated automatically on next launch. Electron trusts the certificate transparently — you won't see any browser warnings in the desktop app.
 
-### Certificate Details
+To disable, toggle the switch OFF and restart.
 
-| Property | Value |
-|----------|-------|
-| **Type** | Self-signed X.509 |
-| **Key** | RSA 2048-bit |
-| **Validity** | 365 days |
-| **Subject** | `CN=localhost, O=MetricFrame` |
-| **SAN** | `localhost`, `127.0.0.1` |
-| **Docker location** | `~/metricframe/certs/` |
-| **Desktop location** | `~/Library/Application Support/metricframe/certs/` (macOS) |
+### Understanding the Browser Certificate Warning
 
-### Adding to System Trust Store (Optional)
+When HTTPS is enabled in Docker, your browser will show a warning on first visit:
 
-To suppress browser certificate warnings in Docker mode, you can add the certificate to your system's trust store:
+> **"Your connection is not private"** or **"NET::ERR_CERT_AUTHORITY_UNKNOWN"**
+
+**This is normal and expected.** Here's why:
+
+MetricFrame uses a **self-signed certificate** — a certificate that wasn't issued by a public Certificate Authority (CA) like Let's Encrypt or DigiCert. Browsers only trust certificates from known CAs, so they warn you about self-signed ones.
+
+**The encryption is identical.** Self-signed certificates provide the same AES-256 encryption as CA-signed certificates. The only difference is that no third party has verified the server's identity — which doesn't matter for `localhost` because you *are* the server.
+
+**To proceed:** Click **"Advanced"** → **"Proceed to localhost (unsafe)"**. You only need to do this once per browser. The word "unsafe" refers to the lack of CA verification, not a problem with the encryption itself.
+
+### Eliminating the Browser Warning (Optional)
+
+To permanently suppress the warning, add the certificate to your system trust store:
 
 **macOS:**
 ```bash
@@ -346,17 +351,28 @@ sudo cp ~/metricframe/certs/metricframe.crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates
 ```
 
-After adding to the trust store and restarting your browser, the certificate warning will no longer appear.
+Restart your browser after adding the certificate.
+
+### Certificate Details
+
+| Property | Value |
+|----------|-------|
+| **Type** | Self-signed X.509 |
+| **Key** | RSA 2048-bit |
+| **Algorithm** | SHA-256 |
+| **Validity** | 365 days (auto-renewable) |
+| **Subject** | `CN=localhost, O=MetricFrame, OU=Self-Signed` |
+| **SAN** | `DNS:localhost`, `IP:127.0.0.1` |
+| **Docker location** | `~/metricframe/certs/` |
+| **Desktop location** | `~/Library/Application Support/metricframe/certs/` (macOS) |
 
 ### Troubleshooting TLS
 
-**Port 443 already in use (Docker):** Edit `docker-compose.override.yml` and change the port mapping to `"8443:443"`, then access via `https://localhost:8443`.
+**Certificate expired (after 1 year):** Docker: delete the `certs/` directory and run `enable-tls.sh` again. Desktop: disable and re-enable HTTPS in Settings, then restart.
 
-**Certificate expired (after 1 year):** Docker: run `enable-tls.sh` again. Desktop: disable and re-enable HTTPS in Settings, then restart.
+**Cannot connect after enabling (Desktop):** Check logs at `~/Library/Application Support/metricframe/logs/metricframe.log`. Try disabling HTTPS in Settings, restarting, then re-enabling.
 
-**Cannot connect after enabling (Desktop):** Check logs at `~/Library/Application Support/metricframe/logs/metricframe.log`. Try disabling HTTPS, restarting, then re-enabling.
-
-**For internet-facing deployments:** Self-signed certificates are intended for localhost and local networks only. For production deployments exposed to the internet, use a proper CA-signed certificate (Let's Encrypt recommended) behind a reverse proxy.
+**For internet-facing deployments:** Self-signed certificates are for localhost and local networks only. For production deployments exposed to the internet, use a CA-signed certificate (Let's Encrypt recommended) behind a reverse proxy.
 
 ---
 
