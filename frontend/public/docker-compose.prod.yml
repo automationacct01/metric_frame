@@ -31,7 +31,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metricframe}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
     networks:
       - metricframe
 
@@ -46,7 +47,8 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 5s
     networks:
       - metricframe
 
@@ -71,10 +73,10 @@ services:
       AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 45s
     networks:
       - metricframe
 
@@ -91,6 +93,12 @@ services:
       - backend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - metricframe
 

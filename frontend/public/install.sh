@@ -45,6 +45,34 @@ success() { echo -e "${GREEN}[OK]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
+# Run a command with a timeout and progress dots
+# Returns 124 on timeout, or the command's exit code
+run_with_timeout() {
+    local timeout_secs=$1
+    local description=$2
+    shift 2
+
+    "$@" &
+    local pid=$!
+    local elapsed=0
+
+    while kill -0 $pid 2>/dev/null; do
+        if [ $elapsed -ge $timeout_secs ]; then
+            kill $pid 2>/dev/null
+            wait $pid 2>/dev/null
+            warn "$description timed out after ${timeout_secs}s"
+            return 124
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+        printf "."
+    done
+    echo ""
+
+    wait $pid
+    return $?
+}
+
 # Print banner
 echo ""
 echo "============================================"
@@ -194,16 +222,45 @@ if [ -t 0 ]; then
     fi
 fi
 
-# Step 6: Start containers
-info "Pulling latest images..."
-if ! docker compose pull; then
-    error "Failed to pull Docker images. Check your internet connection."
+# Step 6: Pull images and start containers
+info "Pulling latest images (this may take a few minutes on first install)..."
+if ! run_with_timeout 300 "Image pull" docker compose pull --quiet; then
+    # Check if images are already cached — if so, continue with a warning
+    if docker images --format '{{.Repository}}' | grep -q "metric_frame"; then
+        warn "Pull timed out but cached images found. Continuing with cached images."
+    else
+        error "Failed to pull Docker images. Check your internet connection and Docker Desktop."
+    fi
 fi
 
-# Generate proper Fernet encryption key using the backend image
+# Generate proper Fernet encryption key
 if grep -q "AI_CREDENTIALS_MASTER_KEY=PENDING" .env 2>/dev/null; then
     info "Generating encryption key for AI credentials..."
-    MASTER_KEY=$(docker run --rm ghcr.io/automationacct01/metric_frame-backend:latest python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null)
+    MASTER_KEY=""
+
+    # Try Python 3 locally first (fast, no Docker container needed)
+    if command -v python3 &> /dev/null; then
+        MASTER_KEY=$(python3 -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())" 2>/dev/null)
+    fi
+
+    # Fall back to Docker container (with manual timeout for macOS compatibility)
+    if [ -z "$MASTER_KEY" ]; then
+        docker run --rm ghcr.io/automationacct01/metric_frame-backend:latest \
+            python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > /tmp/mf_key.tmp 2>/dev/null &
+        KEY_PID=$!
+        KEY_ELAPSED=0
+        while kill -0 $KEY_PID 2>/dev/null; do
+            if [ $KEY_ELAPSED -ge 30 ]; then
+                kill $KEY_PID 2>/dev/null; wait $KEY_PID 2>/dev/null
+                break
+            fi
+            sleep 1; KEY_ELAPSED=$((KEY_ELAPSED + 1))
+        done
+        wait $KEY_PID 2>/dev/null
+        MASTER_KEY=$(cat /tmp/mf_key.tmp 2>/dev/null)
+        rm -f /tmp/mf_key.tmp
+    fi
+
     if [ -n "$MASTER_KEY" ]; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s|AI_CREDENTIALS_MASTER_KEY=PENDING|AI_CREDENTIALS_MASTER_KEY=${MASTER_KEY}|" .env
@@ -312,8 +369,8 @@ NGINX_EOF
 fi
 
 info "Starting MetricFrame..."
-if ! docker compose up -d; then
-    error "Failed to start containers. Check docker compose logs for details."
+if ! run_with_timeout 120 "Container startup" docker compose up -d; then
+    error "Failed to start containers. Check Docker Desktop is running and try: docker compose up -d"
 fi
 
 # Done!
@@ -353,9 +410,25 @@ echo "  Documentation: https://github.com/automationacct01/metric_frame"
 echo ""
 
 # Verify it's running
-sleep 2
-if docker compose ps | grep -q "running"; then
-    success "MetricFrame containers are running"
+HEALTH_URL="http://localhost:${FRONTEND_PORT:-3000}/health"
+if [ "$TLS_ENABLED" = "true" ]; then
+    HEALTH_URL="https://localhost:${FRONTEND_PORT:-3000}/health"
+fi
+
+info "Waiting for MetricFrame to become healthy..."
+healthy=false
+for i in $(seq 1 12); do
+    sleep 5
+    if curl -skf "$HEALTH_URL" > /dev/null 2>&1; then
+        healthy=true
+        break
+    fi
+    printf "."
+done
+echo ""
+
+if [ "$healthy" = "true" ]; then
+    success "MetricFrame is running and healthy"
 else
-    warn "Containers may still be starting. Run 'docker compose logs -f' to check status."
+    warn "MetricFrame may still be starting. Run 'docker compose logs -f' to check status."
 fi

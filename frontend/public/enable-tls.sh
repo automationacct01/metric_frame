@@ -137,8 +137,31 @@ success "Created nginx-tls.conf"
 
 # Restart containers
 info "Restarting MetricFrame with HTTPS..."
-docker compose down
-docker compose up -d
+docker compose down 2>/dev/null &
+STOP_PID=$!
+ELAPSED=0
+while kill -0 $STOP_PID 2>/dev/null; do
+    if [ $ELAPSED -ge 60 ]; then
+        kill $STOP_PID 2>/dev/null; wait $STOP_PID 2>/dev/null
+        warn "Timed out stopping containers. Trying force..."
+        docker compose kill 2>/dev/null
+        break
+    fi
+    sleep 2; ELAPSED=$((ELAPSED + 2))
+done
+wait $STOP_PID 2>/dev/null
+
+docker compose up -d 2>&1 &
+START_PID=$!
+ELAPSED=0
+while kill -0 $START_PID 2>/dev/null; do
+    if [ $ELAPSED -ge 120 ]; then
+        kill $START_PID 2>/dev/null; wait $START_PID 2>/dev/null
+        error "Failed to start containers. Run 'docker compose logs' for details."
+    fi
+    sleep 2; ELAPSED=$((ELAPSED + 2))
+done
+wait $START_PID || error "Failed to start containers. Run 'docker compose logs' for details."
 
 echo ""
 echo -e "${GREEN}============================================${NC}"
