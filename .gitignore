@@ -116,6 +116,7 @@ secrets/
 backend-dist/
 *.spec
 desktop/release/
+desktop/build-temp/
 *.dmg
 *.zip
 *.blockmap
