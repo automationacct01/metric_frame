@@ -677,14 +677,19 @@ export default function Settings() {
               <Card>
                 <CardHeader
                   avatar={<HttpsIcon color="primary" />}
-                  title="Encrypted Connections"
-                  subheader="Encrypt communication between the app and its local server"
+                  title="Local Traffic Encryption"
+                  subheader="Encrypt communication between the app interface and the local backend server"
                 />
                 <CardContent>
                   <Alert severity="info" sx={{ mb: 2 }}>
-                    When enabled, MetricFrame uses HTTPS to encrypt all data between the app
-                    interface and the backend server. A security certificate is generated
-                    automatically on next launch.
+                    This setting controls encryption for <strong>local traffic only</strong> — data
+                    sent between the app interface and the backend server running on your machine.
+                    When enabled, a self-signed TLS certificate is generated automatically on next launch.
+                  </Alert>
+                  <Alert severity="success" sx={{ mb: 2 }} icon={<HttpsIcon fontSize="inherit" />}>
+                    <strong>AI API connections are always encrypted.</strong> All traffic between
+                    MetricFrame and external AI providers (OpenAI, Anthropic, etc.) uses
+                    HTTPS/TLS encryption regardless of this setting.
                   </Alert>
 
                   <FormControlLabel
@@ -698,12 +703,12 @@ export default function Settings() {
                     label={
                       <Box>
                         <Typography variant="body1">
-                          Enable encrypted connections (HTTPS)
+                          Enable local HTTPS encryption
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {tlsEnabled
-                            ? 'Connections are encrypted with TLS — restart required to apply'
-                            : 'Connections use HTTP (unencrypted)'}
+                            ? 'Local connections are encrypted with TLS — restart required to apply'
+                            : 'Local connections use HTTP (unencrypted on localhost)'}
                         </Typography>
                       </Box>
                     }
