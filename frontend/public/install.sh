@@ -194,6 +194,13 @@ FRONTEND_PORT=3000
 AI_CREDENTIALS_MASTER_KEY=PENDING
 EOF
 
+    # Clean up stale Docker volumes from a previous install (old password won't match new .env)
+    if docker compose ps -q 2>/dev/null | grep -q . || docker volume ls -q 2>/dev/null | grep -q "metricframe_postgres"; then
+        info "Removing stale containers and volumes from previous install..."
+        docker compose down -v 2>/dev/null || true
+        success "Cleaned up previous installation data"
+    fi
+
     success "Created .env with secure random database password"
 else
     success "Using existing .env configuration"

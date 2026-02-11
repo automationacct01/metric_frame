@@ -258,9 +258,10 @@ export default function Settings() {
   const [desktopAuthError, setDesktopAuthError] = useState<string | null>(null);
   const [desktopAuthSaving, setDesktopAuthSaving] = useState(false);
 
-  // Desktop TLS state
+  // TLS state
   const [tlsEnabled, setTlsEnabled] = useState(false);
   const [tlsLoading, setTlsLoading] = useState(false);
+  const isCurrentlyHttps = window.location.protocol === 'https:';
 
   // Load desktop TLS setting on mount
   useEffect(() => {
@@ -713,6 +714,58 @@ export default function Settings() {
                       </Box>
                     }
                   />
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Docker/Web Encrypted Connections - Only show in non-desktop mode */}
+          {!desktopAuth.isDesktopMode && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  avatar={<HttpsIcon color="primary" />}
+                  title="Local Traffic Encryption"
+                  subheader="Encrypt communication between your browser and the MetricFrame server"
+                  action={
+                    <Chip
+                      label={isCurrentlyHttps ? 'HTTPS Active' : 'HTTP (No Encryption)'}
+                      color={isCurrentlyHttps ? 'success' : 'default'}
+                      size="small"
+                    />
+                  }
+                />
+                <CardContent>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    This controls encryption for <strong>local traffic only</strong> — data
+                    sent between your browser and the MetricFrame server.
+                    TLS is managed via Docker configuration and requires a container restart.
+                  </Alert>
+                  <Alert severity="success" sx={{ mb: 2 }} icon={<HttpsIcon fontSize="inherit" />}>
+                    <strong>AI API connections are always encrypted.</strong> All traffic between
+                    MetricFrame and external AI providers (OpenAI, Anthropic, etc.) uses
+                    HTTPS/TLS encryption regardless of this setting.
+                  </Alert>
+
+                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                    {isCurrentlyHttps ? 'To disable HTTPS:' : 'To enable HTTPS:'}
+                  </Typography>
+                  <Box sx={{
+                    bgcolor: darkMode ? 'grey.900' : 'grey.100',
+                    p: 1.5,
+                    borderRadius: 1,
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    overflowX: 'auto',
+                  }}>
+                    {isCurrentlyHttps
+                      ? 'curl -fsSL https://get.metricframe.ai/disable-tls.sh | bash'
+                      : 'curl -fsSL https://get.metricframe.ai/enable-tls.sh | bash'}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Run this command in your terminal from the MetricFrame install directory.
+                    Containers will be restarted automatically.
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
