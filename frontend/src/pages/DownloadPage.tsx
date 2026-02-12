@@ -422,7 +422,7 @@ export default function DownloadPage() {
                       />
                       <Chip
                         icon={<VerifiedIcon sx={{ fontSize: 14 }} />}
-                        label="Code Signed"
+                        label="Signed & Notarized"
                         size="small"
                         sx={{
                           bgcolor: alpha('#22c55e', 0.2),
@@ -502,15 +502,17 @@ export default function DownloadPage() {
                   sx={{
                     mt: 2,
                     p: 1.5,
-                    bgcolor: alpha('#f59e0b', 0.1),
-                    border: `1px solid ${alpha('#f59e0b', 0.2)}`,
+                    bgcolor: alpha('#22c55e', 0.1),
+                    border: `1px solid ${alpha('#22c55e', 0.2)}`,
                     borderRadius: 1,
                   }}
                 >
-                  <Typography variant="caption" color={alpha('#f59e0b', 0.9)} display="block">
-                    The app is code-signed with a Developer ID certificate. Apple notarization is in progress — Apple is experiencing a backlog and we are working on it.
-                    On first launch, right-click the app and select <strong>Open</strong> to bypass Gatekeeper.
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <VerifiedIcon sx={{ fontSize: 14, color: '#22c55e' }} />
+                    <Typography variant="caption" color={alpha('#22c55e', 0.9)} display="block">
+                      Code-signed and notarized by Apple. No Gatekeeper warnings — just download, open, and run.
+                    </Typography>
+                  </Box>
                 </Box>
 
                 <Divider sx={{ borderColor: alpha('#fff', 0.1), my: 3 }} />
@@ -762,7 +764,7 @@ export default function DownloadPage() {
                         <Chip label="Available" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha('#10b981', 0.2), color: '#10b981' }} />
                       </Box>
                       <Typography variant="caption" color={alpha('#fff', 0.4)} display="block" pl={3.5}>
-                        Code-signed for Apple Silicon and Intel. Notarization pending — right-click and Open on first launch.
+                        Code-signed and notarized for Apple Silicon and Intel.
                       </Typography>
                     </Box>
                     <Box>
