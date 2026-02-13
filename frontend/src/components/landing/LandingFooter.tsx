@@ -65,6 +65,7 @@ const inputSx = {
 function ContactForm() {
   const [form, setForm] = useState({ name: '', email: '', company: '', subject: '', message: '' });
   const [hp, setHp] = useState('');
+  const [mountTime] = useState(() => Date.now());
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -81,7 +82,7 @@ function ContactForm() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, _hp: hp }),
+        body: JSON.stringify({ ...form, _hp: hp, _t: mountTime }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
