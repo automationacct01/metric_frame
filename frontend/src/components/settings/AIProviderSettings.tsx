@@ -71,7 +71,21 @@ const PROVIDER_COLORS: Record<string, string> = {
   azure: '#0078D4',
   bedrock: '#FF9900',
   vertex: '#4285F4',
+  local: '#22C55E',
 };
+
+/**
+ * Detect if the app is running inside Docker and return the appropriate
+ * default Ollama endpoint URL. In Docker, localhost inside the container
+ * doesn't reach the host machine — need host.docker.internal instead.
+ */
+function getDefaultLocalEndpoint(): string {
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return 'http://localhost:11434/v1'; // Desktop app
+  }
+  // Both dev (5175) and prod (3000) run the backend inside Docker
+  return 'http://host.docker.internal:11434/v1';
+}
 
 interface AIProviderSettingsProps {
   userId?: string;
@@ -95,6 +109,13 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Local provider discovery state
+  const [discoveredModels, setDiscoveredModels] = useState<Array<{model_id: string; display_name: string; description?: string}>>([]);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [connectionTested, setConnectionTested] = useState(false);
+  const [connectionValid, setConnectionValid] = useState(false);
 
   // Expanded provider cards
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
@@ -145,9 +166,20 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
 
   const handleOpenConfigDialog = (provider: AIProvider) => {
     setSelectedProvider(provider);
-    setCredentialValues({});
-    setSelectedModel(provider.models?.[0]?.model_id || '');
     setShowPasswords({});
+    // Reset discovery state
+    setDiscoveredModels([]);
+    setDiscoveryError(null);
+    setConnectionTested(false);
+    setConnectionValid(false);
+    // Pre-fill local endpoint URL with Docker-aware default
+    if (provider.dynamic_models) {
+      setCredentialValues({ local_endpoint: getDefaultLocalEndpoint() });
+      setSelectedModel('');
+    } else {
+      setCredentialValues({});
+      setSelectedModel(provider.models?.[0]?.model_id || '');
+    }
     setConfigDialogOpen(true);
   };
 
@@ -156,6 +188,11 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
     setSelectedProvider(null);
     setCredentialValues({});
     setSelectedModel('');
+    // Reset discovery state
+    setDiscoveredModels([]);
+    setDiscoveryError(null);
+    setConnectionTested(false);
+    setConnectionValid(false);
   };
 
   const handleCredentialChange = (fieldName: string, value: string) => {
@@ -254,6 +291,127 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
     } catch (err: any) {
       console.error('Delete failed:', err);
       setError(err.response?.data?.detail || 'Failed to delete configuration');
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!selectedProvider || !selectedProvider.dynamic_models) return;
+
+    const endpoint = credentialValues['local_endpoint']?.trim();
+    if (!endpoint) {
+      setDiscoveryError('Please enter an endpoint URL');
+      return;
+    }
+
+    setDiscovering(true);
+    setDiscoveryError(null);
+    setDiscoveredModels([]);
+    setConnectionTested(false);
+    setConnectionValid(false);
+
+    try {
+      // Save/update config first (backend needs saved creds to discover models)
+      const existingConfig = getConfigForProvider(selectedProvider.code);
+
+      if (existingConfig) {
+        await apiClient.updateAIConfiguration(existingConfig.id, {
+          credentials: credentialValues,
+        });
+      } else {
+        const config: AIConfigurationCreate = {
+          provider_code: selectedProvider.code,
+          credentials: credentialValues,
+          model_id: undefined,
+        };
+        await apiClient.createAIConfiguration(config, userId);
+        await loadData();
+      }
+
+      // Now discover models from the endpoint
+      const models = await apiClient.discoverProviderModels(selectedProvider.code);
+
+      setConnectionTested(true);
+      setConnectionValid(true);
+      setDiscoveredModels(models);
+
+      if (models.length > 0 && !selectedModel) {
+        setSelectedModel(models[0].model_id);
+      } else if (models.length === 0) {
+        setDiscoveryError('Connected, but no models found. Pull a model first: ollama pull llama3.2');
+      }
+    } catch (err: any) {
+      setConnectionTested(true);
+      setConnectionValid(false);
+      const detail = err.response?.data?.detail || '';
+      if (detail.includes('not reachable') || detail.includes('Connection error') || detail.includes('Could not connect')) {
+        setDiscoveryError('Could not reach the server. Is Ollama running? Try: ollama serve');
+      } else {
+        setDiscoveryError(detail || 'Connection failed. Check the endpoint URL and make sure the server is running.');
+      }
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const handleSaveAndActivateLocal = async () => {
+    if (!selectedProvider) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const existingConfig = getConfigForProvider(selectedProvider.code);
+
+      let configId: string;
+
+      if (existingConfig) {
+        // Config was already created during test-connection; just update model
+        if (selectedModel) {
+          await apiClient.updateAIConfiguration(existingConfig.id, {
+            model_id: selectedModel,
+          });
+        }
+        configId = existingConfig.id;
+      } else {
+        // No test was run; save fresh
+        const config: AIConfigurationCreate = {
+          provider_code: selectedProvider.code,
+          credentials: credentialValues,
+          model_id: selectedModel || undefined,
+        };
+        const savedConfig = await apiClient.createAIConfiguration(config, userId);
+        configId = savedConfig.id;
+      }
+
+      // Activate immediately
+      await apiClient.activateAIConfiguration(configId);
+
+      handleCloseConfigDialog();
+      setSuccess(`${selectedProvider.name} is now active! Using model: ${selectedModel || 'auto-detect'}`);
+      await loadData();
+    } catch (err: any) {
+      console.error('Failed to save and activate local provider:', err);
+      setError(err.response?.data?.detail || 'Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscoverModelsForCard = async (providerCode: string) => {
+    setDiscovering(true);
+    setDiscoveryError(null);
+
+    try {
+      const models = await apiClient.discoverProviderModels(providerCode);
+      setDiscoveredModels(models);
+      if (models.length === 0) {
+        setDiscoveryError('Connected but no models found. Pull a model first: ollama pull llama3.2');
+      }
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      setDiscoveryError(detail || 'Could not connect to the local model server.');
+    } finally {
+      setDiscovering(false);
     }
   };
 
@@ -423,6 +581,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
           const isActive = config?.is_active;
           const isValidated = config?.credentials_validated;
           const isExpanded = expandedProviders[provider.code];
+          const isComingSoon = provider.code === 'local';
 
           return (
             <Grid item xs={12} md={6} lg={4} key={provider.code}>
@@ -432,14 +591,22 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                   display: 'flex',
                   flexDirection: 'column',
                   borderLeft: `4px solid ${PROVIDER_COLORS[provider.code] || '#888'}`,
-                  opacity: provider.available !== false ? 1 : 0.6,
+                  opacity: (provider.available !== false && !isComingSoon) ? 1 : 0.5,
                 }}
               >
                 <CardHeader
                   title={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="h6">{provider.name}</Typography>
-                      {isActive && (
+                      {isComingSoon && (
+                        <Chip
+                          size="small"
+                          label="Coming Soon"
+                          color="default"
+                          variant="outlined"
+                        />
+                      )}
+                      {isActive && !isComingSoon && (
                         <Chip
                           size="small"
                           icon={<StarIcon />}
@@ -477,8 +644,9 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                     )}
                     <Chip
                       size="small"
-                      label={`${provider.models?.length || 0} models`}
+                      label={provider.dynamic_models ? 'Dynamic models' : `${provider.models?.length || 0} models`}
                       variant="outlined"
+                      color={provider.dynamic_models ? 'info' : undefined}
                     />
                   </Box>
 
@@ -488,7 +656,7 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                       {config && (
                         <>
                           <Typography variant="body2" color="text.secondary">
-                            <strong>Model:</strong> {config.model_id || 'Default'}
+                            <strong>Model:</strong> {config.model_id || 'Auto-detect'}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             <strong>Last Validated:</strong>{' '}
@@ -501,13 +669,68 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                               {config.validation_error}
                             </Alert>
                           )}
+
+                          {/* Local Provider: Discover & Switch Models */}
+                          {provider.dynamic_models && (
+                            <Box sx={{ mt: 2 }}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => handleDiscoverModelsForCard(provider.code)}
+                                disabled={discovering}
+                                startIcon={discovering ? <CircularProgress size={14} /> : <RefreshIcon />}
+                                sx={{ mb: 1 }}
+                              >
+                                {discovering ? 'Discovering...' : 'Refresh Models'}
+                              </Button>
+
+                              {discoveryError && (
+                                <Alert severity="warning" sx={{ mt: 1 }} variant="outlined">
+                                  <Typography variant="caption">{discoveryError}</Typography>
+                                </Alert>
+                              )}
+
+                              {discoveredModels.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                                    Available models (click to switch):
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                    {discoveredModels.map((m) => (
+                                      <Chip
+                                        key={m.model_id}
+                                        label={m.model_id}
+                                        size="small"
+                                        variant={config.model_id === m.model_id ? 'filled' : 'outlined'}
+                                        color={config.model_id === m.model_id ? 'primary' : 'default'}
+                                        onClick={async () => {
+                                          try {
+                                            await apiClient.updateAIConfiguration(config.id, { model_id: m.model_id });
+                                            setSuccess(`Model changed to ${m.model_id}`);
+                                            await loadData();
+                                          } catch (err: any) {
+                                            setError('Failed to update model');
+                                          }
+                                        }}
+                                        sx={{ cursor: 'pointer' }}
+                                      />
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                            </Box>
+                          )}
                         </>
                       )}
                     </Box>
                   </Collapse>
                 </CardContent>
                 <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
-                  {isConfigured ? (
+                  {isComingSoon ? (
+                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                      Future enhancement coming
+                    </Typography>
+                  ) : isConfigured ? (
                     <>
                       <Tooltip title="Validate Credentials">
                         <IconButton
@@ -519,14 +742,16 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                         </IconButton>
                       </Tooltip>
                       <Tooltip title={isActive ? 'Active Provider' : 'Set as Active'}>
-                        <IconButton
-                          onClick={() => handleActivateConfiguration(config!.id)}
-                          disabled={isActive || !isValidated}
-                          size="small"
-                          color={isActive ? 'primary' : 'default'}
-                        >
-                          {isActive ? <StarIcon /> : <StarBorderIcon />}
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            onClick={() => handleActivateConfiguration(config!.id)}
+                            disabled={isActive}
+                            size="small"
+                            color={isActive ? 'primary' : 'default'}
+                          >
+                            {isActive ? <StarIcon /> : <StarBorderIcon />}
+                          </IconButton>
+                        </span>
                       </Tooltip>
                       <Tooltip title="Delete Configuration">
                         <IconButton
@@ -570,14 +795,43 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
             </DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Enter your credentials for {selectedProvider.name}. Your credentials will be
-                  encrypted and stored securely.
-                </Typography>
+                {selectedProvider.dynamic_models ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Connect to a model running on your own machine. No API key or billing required.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Enter your credentials for {selectedProvider.name}. Your credentials will be
+                    encrypted and stored securely.
+                  </Typography>
+                )}
 
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  Your API account must have available credits or an active billing plan for credential validation to succeed.
-                </Alert>
+                {/* Billing reminder — only for cloud providers */}
+                {!selectedProvider.dynamic_models && (
+                  <Alert severity="info" sx={{ mb: 3 }}>
+                    Your API account must have available credits or an active billing plan for credential validation to succeed.
+                  </Alert>
+                )}
+
+                {/* Quick-start guide for local models */}
+                {selectedProvider.dynamic_models && (
+                  <Alert severity="success" icon={false} sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                      Quick Start
+                    </Typography>
+                    <Typography variant="body2" component="div">
+                      <strong>1.</strong> Install <strong>Ollama</strong> from <strong>ollama.com</strong> (or <code>brew install ollama</code> on macOS)<br />
+                      <strong>2.</strong> Pull a model: <code>ollama pull llama3.2</code><br />
+                      <strong>3.</strong> Start the server: <code>ollama serve</code><br />
+                      <strong>4.</strong> Click <strong>Test Connection</strong> below, pick a model, and activate
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+                      <strong>Linux + Docker:</strong> Ollama must listen on the Docker bridge —
+                      run <code>OLLAMA_HOST=172.17.0.1 ollama serve</code> instead of plain <code>ollama serve</code>.
+                      macOS and Windows work without changes.
+                    </Typography>
+                  </Alert>
+                )}
 
                 {/* Credential Fields */}
                 {selectedProvider.auth_fields.map(renderAuthField)}
@@ -607,31 +861,118 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
                     </FormHelperText>
                   </FormControl>
                 )}
+
+                {/* Local Provider: Test Connection + Model Picker */}
+                {selectedProvider.dynamic_models && (
+                  <Box sx={{ mt: 2 }}>
+                    {/* Test Connection Button */}
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      onClick={handleTestConnection}
+                      disabled={discovering || !credentialValues['local_endpoint']?.trim()}
+                      startIcon={discovering ? <CircularProgress size={18} /> : <RefreshIcon />}
+                      color={connectionTested ? (connectionValid ? 'success' : 'error') : 'primary'}
+                      sx={{ mb: 2, py: 1.2 }}
+                    >
+                      {discovering
+                        ? 'Connecting...'
+                        : connectionTested
+                          ? (connectionValid
+                            ? `Connected — ${discoveredModels.length} model${discoveredModels.length !== 1 ? 's' : ''} found`
+                            : 'Connection Failed — Retry')
+                          : 'Test Connection & Discover Models'}
+                    </Button>
+
+                    {/* Discovery Error */}
+                    {discoveryError && (
+                      <Alert severity={connectionValid ? 'warning' : 'error'} sx={{ mb: 2 }}>
+                        {discoveryError}
+                      </Alert>
+                    )}
+
+                    {/* Discovered Models Selector */}
+                    {discoveredModels.length > 0 && (
+                      <FormControl fullWidth sx={{ mb: 2 }}>
+                        <InputLabel>Select Model</InputLabel>
+                        <Select
+                          value={selectedModel}
+                          label="Select Model"
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                        >
+                          {discoveredModels.map((model) => (
+                            <MenuItem key={model.model_id} value={model.model_id}>
+                              <Typography variant="body2">{model.display_name || model.model_id}</Typography>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                        <FormHelperText>
+                          Choose the model to use for AI features
+                        </FormHelperText>
+                      </FormControl>
+                    )}
+
+                    {/* Fallback manual entry if connected but 0 models */}
+                    {connectionTested && connectionValid && discoveredModels.length === 0 && (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Model Name"
+                        placeholder="e.g., llama3.2:latest"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        helperText="No models found automatically. Enter the model name manually."
+                        sx={{ mb: 2 }}
+                      />
+                    )}
+
+                    {/* Docker hint — only before testing */}
+                    {!connectionTested && (
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        <Typography variant="caption">
+                          The endpoint URL is pre-filled for your environment. If Ollama is running on a different machine, update the URL above.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                )}
               </Box>
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseConfigDialog}>
                 Cancel
               </Button>
-              <Button
-                variant="contained"
-                onClick={handleSaveConfiguration}
-                disabled={saving || validating}
-              >
-                {saving ? (
-                  <>
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                    Saving...
-                  </>
-                ) : validating ? (
-                  <>
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                    Validating...
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </Button>
+              {selectedProvider?.dynamic_models ? (
+                <Button
+                  variant="contained"
+                  onClick={handleSaveAndActivateLocal}
+                  disabled={saving || (!connectionValid && !selectedModel)}
+                  startIcon={saving ? <CircularProgress size={18} /> : <StarIcon />}
+                  color="primary"
+                >
+                  {saving ? 'Saving...' : 'Save & Activate'}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleSaveConfiguration}
+                  disabled={saving || validating}
+                >
+                  {saving ? (
+                    <>
+                      <CircularProgress size={20} sx={{ mr: 1 }} />
+                      Saving...
+                    </>
+                  ) : validating ? (
+                    <>
+                      <CircularProgress size={20} sx={{ mr: 1 }} />
+                      Validating...
+                    </>
+                  ) : (
+                    'Save Configuration'
+                  )}
+                </Button>
+              )}
             </DialogActions>
           </>
         )}
@@ -647,16 +988,20 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {pendingActivationValidated ? (
-              <><CheckIcon color="success" />Credentials Validated</>
+              <><CheckIcon color="success" />{pendingActivationProviderName === 'Local Models' ? 'Connection Verified' : 'Credentials Validated'}</>
             ) : (
-              <><WarningIcon color="warning" />Credentials Saved</>
+              <><WarningIcon color="warning" />{pendingActivationProviderName === 'Local Models' ? 'Configuration Saved' : 'Credentials Saved'}</>
             )}
           </Box>
         </DialogTitle>
         <DialogContent>
           {pendingActivationValidated ? (
             <Typography variant="body1" sx={{ mb: 2 }}>
-              Your {pendingActivationProviderName} credentials have been validated successfully.
+              Your {pendingActivationProviderName} {pendingActivationProviderName === 'Local Models' ? 'connection' : 'credentials'} validated successfully.
+            </Typography>
+          ) : pendingActivationProviderName === 'Local Models' ? (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Your endpoint has been saved but the server could not be reached. Make sure your local model server is running (e.g., <code>ollama serve</code>) and try again. You can still activate the provider now and connect later.
             </Typography>
           ) : (
             <Typography variant="body1" sx={{ mb: 2 }}>
@@ -681,6 +1026,28 @@ export default function AIProviderSettings({ userId = 'admin', onStatusChange }:
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Web Search Settings */}
+      <Card sx={{ mt: 3 }}>
+        <CardHeader
+          title="Web Search"
+          subheader="Allow the AI assistant to search the web for current information"
+          titleTypographyProps={{ variant: 'h6' }}
+        />
+        <CardContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            When enabled, the AI assistant can search the web for real-time information in <strong>Explain</strong> and <strong>Report</strong> modes.
+            This does not affect metric generation, catalog operations, or recommendations — those use internal data only.
+          </Typography>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            Web search uses DuckDuckGo by default (free, no configuration needed).
+            For higher quality AI-optimized results, set a <code>TAVILY_API_KEY</code> in your environment.
+          </Alert>
+          <Typography variant="caption" color="text.secondary">
+            Toggle web search per-conversation using the globe icon in the AI Chat input area.
+          </Typography>
+        </CardContent>
+      </Card>
     </Box>
   );
 }

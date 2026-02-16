@@ -256,6 +256,7 @@ class AIResponse(BaseModel):
     assistant_message: str
     actions: List[AIAction] = []
     needs_confirmation: bool = True
+    search_used: bool = False
 
 
 class AIChatRequest(BaseModel):
@@ -263,6 +264,7 @@ class AIChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     mode: str = Field("metrics", pattern=r"^(metrics|explain|report)$")
     context_opts: Optional[Dict[str, Any]] = None
+    web_search: bool = Field(False, description="Enable web search for additional context")
 
 
 class AIApplyRequest(BaseModel):
@@ -614,6 +616,7 @@ class AuthType(str, Enum):
     AZURE = "azure"
     AWS_IAM = "aws_iam"
     GCP = "gcp"
+    LOCAL_ENDPOINT = "local_endpoint"
 
 
 class AuthFieldSchema(BaseModel):
@@ -649,6 +652,8 @@ class AIProviderSchema(BaseModel):
     default_model: Optional[str] = None
     available: bool = True
     unavailable_reason: Optional[str] = None
+    dynamic_models: bool = False
+    note: Optional[str] = None
 
 
 class AIProviderListResponse(BaseModel):
@@ -672,6 +677,8 @@ class AIConfigurationCredentials(BaseModel):
     gcp_project: Optional[str] = Field(None, max_length=200)
     gcp_location: Optional[str] = Field(None, max_length=200)
     gcp_credentials_json: Optional[str] = Field(None, max_length=10000)
+    # Local/OpenAI-compatible endpoint
+    local_endpoint: Optional[str] = Field(None, max_length=500)
 
     @field_validator('gcp_credentials_json')
     @classmethod

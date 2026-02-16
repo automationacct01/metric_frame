@@ -69,6 +69,8 @@ services:
       API_PREFIX: /api/v1
       # Encryption key for user AI credentials (REQUIRED - generate your own!)
       AI_CREDENTIALS_MASTER_KEY: ${AI_CREDENTIALS_MASTER_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

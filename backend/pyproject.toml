@@ -25,6 +25,8 @@ boto3 = "^1.35.0"
 google-genai = "^1.0.0"
 azure-identity = "^1.19.0"
 cryptography = "^42.0.0"
+# Web search
+ddgs = "^9.0.0"
 PyJWT = "^2.8.0"
 bcrypt = "^4.2.0"
 slowapi = "^0.1.9"

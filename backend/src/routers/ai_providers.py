@@ -66,6 +66,7 @@ def _credentials_from_schema(creds: dict, provider_type: ProviderType) -> Provid
         gcp_project=creds.get("gcp_project"),
         gcp_location=creds.get("gcp_location"),
         gcp_credentials_json=creds.get("gcp_credentials_json"),
+        local_endpoint=creds.get("local_endpoint"),
     )
 
 
@@ -105,6 +106,8 @@ def _build_provider_response(provider_info: dict) -> AIProviderSchema:
         default_model=provider_info.get("default_model"),
         available=provider_info.get("available", True),
         unavailable_reason=provider_info.get("unavailable_reason"),
+        dynamic_models=provider_info.get("dynamic_models", False),
+        note=provider_info.get("note"),
     )
 
 
@@ -567,6 +570,88 @@ async def deactivate_configuration(
 # NOTE: These must be defined AFTER /configurations routes because {provider_code}
 # would otherwise match "configurations" as a path parameter.
 # ==============================================================================
+
+@router.get("/{provider_code}/discover-models", response_model=List[AIModelSchema])
+async def discover_provider_models(
+    provider_code: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Discover models from a dynamic provider endpoint (e.g., local models).
+
+    Queries the provider's model listing API to find available models.
+    Requires the provider to be configured first.
+    """
+    provider_type = _provider_type_from_code(provider_code)
+    if not provider_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Provider '{provider_code}' not found",
+        )
+
+    # Get user's configuration for this provider
+    provider_db = db.query(AIProvider).filter(AIProvider.code == provider_code).first()
+    if not provider_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Provider '{provider_code}' not configured in database",
+        )
+
+    user_config = db.query(UserAIConfiguration).filter(
+        UserAIConfiguration.user_id == current_user.id,
+        UserAIConfiguration.provider_id == provider_db.id,
+    ).first()
+
+    if not user_config:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider not configured. Save your endpoint URL first.",
+        )
+
+    # Decrypt credentials and initialize provider
+    encryption = CredentialEncryption()
+    if not encryption.is_available:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Encryption not configured",
+        )
+
+    try:
+        creds_dict = encryption.decrypt_credentials(user_config.encrypted_credentials)
+        credentials = _credentials_from_schema(creds_dict, provider_type)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to decrypt credentials",
+        )
+
+    # Initialize provider and discover models
+    provider_instance = get_provider(provider_type)
+    initialized = await provider_instance.initialize(credentials)
+    if not initialized:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not connect to the local model endpoint. Is the server running?",
+        )
+
+    if hasattr(provider_instance, 'discover_models'):
+        models = await provider_instance.discover_models()
+    else:
+        models = provider_instance.get_available_models()
+
+    return [
+        AIModelSchema(
+            model_id=m.model_id,
+            display_name=m.display_name,
+            description=m.description,
+            context_window=m.context_window,
+            max_output_tokens=m.max_output_tokens,
+            supports_vision=m.supports_vision,
+            supports_function_calling=m.supports_function_calling,
+        )
+        for m in models
+    ]
+
 
 @router.get("/{provider_code}", response_model=AIProviderSchema)
 async def get_provider_info(

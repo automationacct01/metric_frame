@@ -910,10 +910,26 @@ class APIClient {
   }
 
   /**
+   * Discover models from a dynamic provider endpoint (e.g., local models)
+   */
+  async discoverProviderModels(providerCode: string): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/ai-providers/${providerCode}/discover-models`);
+    return response.data;
+  }
+
+  /**
    * Get extended AI status including provider info
    */
   async getAIProviderStatus(): Promise<AIProviderStatus> {
     const response = await this.client.get<AIProviderStatus>('/ai/status');
+    return response.data;
+  }
+
+  /**
+   * Get web search configuration status
+   */
+  async getSearchConfig(): Promise<any> {
+    const response = await this.client.get('/ai/search/config');
     return response.data;
   }
 

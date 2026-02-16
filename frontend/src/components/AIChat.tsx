@@ -40,6 +40,7 @@ import {
   SmartToy as BotIcon,
   Person as PersonIcon,
   PictureAsPdf as PdfIcon,
+  TravelExplore as TravelExploreIcon,
 } from '@mui/icons-material';
 import { apiClient } from '../api/client';
 import { ContentFrame } from './layout';
@@ -58,6 +59,7 @@ interface ChatMessage {
   timestamp: Date;
   actions?: AIAction[];
   needsConfirmation?: boolean;
+  searchUsed?: boolean;
 }
 
 type AIView = 'chat' | 'recommendations' | 'create' | 'gaps';
@@ -77,6 +79,7 @@ interface AIChatState {
   aiHistory: any[];
   aiStatus: any;
   activeView: AIView;
+  webSearchEnabled: boolean;
 }
 
 export default function AIChat() {
@@ -103,6 +106,7 @@ export default function AIChat() {
     aiHistory: [],
     aiStatus: null,
     activeView: 'chat',
+    webSearchEnabled: false,
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -297,6 +301,7 @@ export default function AIChat() {
         context_opts: {
           conversation_history: state.messages.slice(-5), // Last 5 messages for context
         },
+        web_search: state.webSearchEnabled && (state.mode === 'explain' || state.mode === 'report'),
       };
 
       const response = await apiClient.chatWithAI(request, frameworkCode);
@@ -308,6 +313,7 @@ export default function AIChat() {
         timestamp: new Date(),
         actions: response.actions,
         needsConfirmation: response.needs_confirmation,
+        searchUsed: response.search_used,
       };
 
       setState(prev => ({
@@ -718,9 +724,21 @@ export default function AIChat() {
                     </Box>
                   )}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                      {message.timestamp.toLocaleTimeString()}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                        {message.timestamp.toLocaleTimeString()}
+                      </Typography>
+                      {message.searchUsed && (
+                        <Chip
+                          icon={<TravelExploreIcon sx={{ fontSize: 14 }} />}
+                          label="Web Search"
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.7rem', px: 0.5 } }}
+                        />
+                      )}
+                    </Box>
                     {message.role === 'assistant' && state.mode === 'report' && (
                       <Tooltip title="Export as PDF">
                         <IconButton
@@ -818,7 +836,23 @@ export default function AIChat() {
             />
           </Grid>
           <Grid item>
-            <Box display="flex" gap={1}>
+            <Box display="flex" gap={1} alignItems="center">
+              {(state.mode === 'explain' || state.mode === 'report') && (
+                <Tooltip title={state.webSearchEnabled ? 'Web search ON — AI will search the web for current info' : 'Enable web search for additional context'}>
+                  <IconButton
+                    onClick={() => setState(prev => ({ ...prev, webSearchEnabled: !prev.webSearchEnabled }))}
+                    color={state.webSearchEnabled ? 'primary' : 'default'}
+                    size="small"
+                    sx={{
+                      border: state.webSearchEnabled ? '1px solid' : '1px solid transparent',
+                      borderColor: state.webSearchEnabled ? 'primary.main' : 'transparent',
+                      bgcolor: state.webSearchEnabled ? 'primary.50' : 'transparent',
+                    }}
+                  >
+                    <TravelExploreIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Button
                 variant="contained"
                 endIcon={state.loading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}

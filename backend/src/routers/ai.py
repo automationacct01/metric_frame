@@ -16,6 +16,7 @@ Supports multiple AI providers:
 """
 
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -55,6 +56,8 @@ from ..services.metric_recommendations import (
     get_metric_distribution,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -72,9 +75,10 @@ async def get_active_provider(db: Session, user_id: Optional[UUID] = None) -> Ba
     """Get the active AI provider for the current context.
 
     Priority:
-    1. Dev mode: Use system env vars if AI_DEV_MODE=true
-    2. User config: Use user's active AI configuration
-    3. Raise error if no provider configured
+    1. User config: Use user's active AI configuration (explicit choice wins)
+    2. Dev mode: Use system env vars if AI_DEV_MODE=true (fallback)
+    3. Legacy: Use ANTHROPIC_API_KEY env var (backwards compatibility)
+    4. Raise error if no provider configured
 
     Args:
         db: Database session
@@ -86,67 +90,7 @@ async def get_active_provider(db: Session, user_id: Optional[UUID] = None) -> Ba
     Raises:
         HTTPException: If no provider is configured or available
     """
-    # Check dev mode first (env var override for local development)
-    if os.getenv("AI_DEV_MODE", "").lower() == "true":
-        dev_provider = os.getenv("AI_DEV_PROVIDER", "anthropic").lower()
-        dev_model = os.getenv("AI_DEV_MODEL")
-
-        # Get appropriate credentials based on provider
-        credentials = ProviderCredentials()
-
-        if dev_provider == "anthropic":
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise HTTPException(
-                    status_code=503,
-                    detail="AI_DEV_MODE enabled but ANTHROPIC_API_KEY not set"
-                )
-            credentials.api_key = api_key
-            provider_type = ProviderType.ANTHROPIC
-
-        elif dev_provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise HTTPException(
-                    status_code=503,
-                    detail="AI_DEV_MODE enabled but OPENAI_API_KEY not set"
-                )
-            credentials.api_key = api_key
-            provider_type = ProviderType.OPENAI
-
-        elif dev_provider == "together":
-            api_key = os.getenv("TOGETHER_API_KEY")
-            if not api_key:
-                raise HTTPException(
-                    status_code=503,
-                    detail="AI_DEV_MODE enabled but TOGETHER_API_KEY not set"
-                )
-            credentials.api_key = api_key
-            provider_type = ProviderType.TOGETHER
-
-        else:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Unsupported AI_DEV_PROVIDER: {dev_provider}"
-            )
-
-        provider = await create_initialized_provider(provider_type, credentials)
-        if not provider:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Failed to initialize {dev_provider} provider in dev mode"
-            )
-        return provider
-
-    # Check for legacy env var (backwards compatibility)
-    legacy_api_key = os.getenv("ANTHROPIC_API_KEY")
-    if legacy_api_key and legacy_api_key != "your-anthropic-api-key-here":
-        credentials = ProviderCredentials(api_key=legacy_api_key)
-        provider = await create_initialized_provider(ProviderType.ANTHROPIC, credentials)
-        if provider:
-            return provider
-
-    # If user_id provided, check for user's active configuration
+    # Priority 1: User's active configuration (explicit user choice wins)
     if user_id:
         user_config = (
             db.query(UserAIConfiguration)
@@ -173,7 +117,75 @@ async def get_active_provider(db: Session, user_id: Optional[UUID] = None) -> Ba
 
                 provider = await create_initialized_provider(provider_type, credentials)
                 if provider:
+                    # Attach user's configured model if set
+                    if user_config.model_id:
+                        provider._configured_model = user_config.model_id
                     return provider
+
+    # Priority 2: Dev mode fallback (env var override for local development)
+    if os.getenv("AI_DEV_MODE", "").lower() == "true":
+        dev_provider = os.getenv("AI_DEV_PROVIDER", "anthropic").lower()
+        dev_model = os.getenv("AI_DEV_MODEL")
+
+        # Get appropriate credentials based on provider
+        credentials = ProviderCredentials()
+
+        if dev_provider == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if api_key:
+                credentials.api_key = api_key
+                provider_type = ProviderType.ANTHROPIC
+            else:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but ANTHROPIC_API_KEY not set"
+                )
+
+        elif dev_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                credentials.api_key = api_key
+                provider_type = ProviderType.OPENAI
+            else:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but OPENAI_API_KEY not set"
+                )
+
+        elif dev_provider == "together":
+            api_key = os.getenv("TOGETHER_API_KEY")
+            if api_key:
+                credentials.api_key = api_key
+                provider_type = ProviderType.TOGETHER
+            else:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI_DEV_MODE enabled but TOGETHER_API_KEY not set"
+                )
+
+        elif dev_provider == "local":
+            endpoint = os.getenv("LOCAL_AI_ENDPOINT", "http://localhost:11434/v1")
+            credentials.local_endpoint = endpoint
+            credentials.api_key = os.getenv("LOCAL_AI_API_KEY")
+            provider_type = ProviderType.LOCAL
+
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Unsupported AI_DEV_PROVIDER: {dev_provider}"
+            )
+
+        provider = await create_initialized_provider(provider_type, credentials)
+        if provider:
+            return provider
+
+    # Priority 3: Legacy env var (backwards compatibility)
+    legacy_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if legacy_api_key and legacy_api_key != "your-anthropic-api-key-here":
+        credentials = ProviderCredentials(api_key=legacy_api_key)
+        provider = await create_initialized_provider(ProviderType.ANTHROPIC, credentials)
+        if provider:
+            return provider
 
     raise HTTPException(
         status_code=403,
@@ -305,6 +317,11 @@ def get_default_model_for_provider(provider: BaseAIProvider) -> str:
     Returns:
         Default model ID string
     """
+    # Check for user-configured model (set by get_active_provider)
+    configured = getattr(provider, '_configured_model', None)
+    if configured:
+        return configured
+
     if isinstance(provider, AnthropicProvider):
         return "claude-sonnet-4-5-20250929"
 
@@ -320,6 +337,13 @@ def get_default_model_for_provider(provider: BaseAIProvider) -> str:
             return "anthropic.claude-3-5-sonnet-20241022-v2:0"
         elif provider.provider_type == ProviderType.VERTEX:
             return "gemini-1.5-pro"
+        elif provider.provider_type == ProviderType.LOCAL:
+            # Use discovered models for local provider
+            default = provider.get_default_model()
+            if default:
+                return default
+            models = provider.get_available_models()
+            return models[0].model_id if models else "default"
 
     return "default"
 
@@ -388,11 +412,37 @@ async def ai_chat(
                     ]
                 })
 
+        # Web search integration (only for explain/report modes)
+        search_context = ""
+        search_used = False
+        if request.web_search and request.mode in ("explain", "report"):
+            try:
+                from ..services.search import SearchService, SearchProvider
+                tavily_key = os.getenv("TAVILY_API_KEY")
+                search_provider = SearchProvider.TAVILY if tavily_key else SearchProvider.DUCKDUCKGO
+                search_service = SearchService(provider=search_provider, tavily_api_key=tavily_key)
+                search_query = request.message[:200]
+                search_response = await search_service.search(search_query, max_results=5)
+                search_context = SearchService.format_results_for_context(search_response)
+                if search_context:
+                    search_used = True
+            except Exception as e:
+                logger.warning(f"Web search failed (non-fatal): {e}")
+
         # Build messages for provider
         system_prompt = get_system_prompt_for_mode(request.mode, framework)
+        if search_used:
+            system_prompt += "\n\nYou have been provided with web search results for additional context. Use these results to supplement your knowledge when relevant. Cite sources when using specific information from search results."
+
         user_message = request.message
+        parts = []
         if context_str:
-            user_message = f"Context:\n{context_str}\n\nRequest:\n{request.message}"
+            parts.append(f"Context:\n{context_str}")
+        if search_context:
+            parts.append(f"Web Search Results:\n{search_context}")
+        if parts:
+            parts.append(f"Request:\n{request.message}")
+            user_message = "\n\n".join(parts)
 
         messages = [{"role": "user", "content": user_message}]
 
@@ -435,6 +485,9 @@ async def ai_chat(
                 "actions": [],
                 "needs_confirmation": False,
             }
+
+        # Add search indicator
+        ai_response["search_used"] = search_used
 
         # Log the interaction
         change_log = AIChangeLog(
@@ -719,9 +772,28 @@ async def get_ai_status(current_user: User = Depends(get_current_user), db: Sess
         "dev_mode": dev_mode,
         "dev_provider": dev_provider,
         "legacy_api_key_present": legacy_available,
-        "supported_providers": ["anthropic", "openai", "together", "azure", "bedrock", "vertex"],
+        "supported_providers": ["anthropic", "openai", "together", "azure", "bedrock", "vertex", "local"],
         "supported_modes": ["metrics", "explain", "report", "recommendations"],
         "supported_frameworks": ["csf_2_0", "ai_rmf", "cyber_ai_profile"],
+    }
+
+
+# ==============================================================================
+# WEB SEARCH CONFIGURATION
+# ==============================================================================
+
+@router.get("/search/config")
+async def get_search_config(current_user: User = Depends(get_current_user)):
+    """Get web search configuration status."""
+    tavily_key = os.getenv("TAVILY_API_KEY")
+    return {
+        "search_available": True,  # DuckDuckGo always available
+        "default_provider": "tavily" if tavily_key else "duckduckgo",
+        "tavily_configured": bool(tavily_key),
+        "providers": [
+            {"code": "duckduckgo", "name": "DuckDuckGo", "requires_key": False, "available": True},
+            {"code": "tavily", "name": "Tavily", "requires_key": True, "available": bool(tavily_key)},
+        ],
     }
 
 

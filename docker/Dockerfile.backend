@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir \
     fastapi uvicorn[standard] sqlalchemy alembic psycopg2-binary \
     python-dotenv pandas python-multipart pydantic cryptography \
     anthropic openai together boto3 google-genai azure-identity \
-    email-validator pyjwt bcrypt slowapi
+    email-validator pyjwt bcrypt slowapi ddgs
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app

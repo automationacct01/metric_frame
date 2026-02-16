@@ -352,6 +352,7 @@ export interface AIResponse {
   assistant_message: string;
   actions: AIAction[];
   needs_confirmation: boolean;
+  search_used?: boolean;
 }
 
 export interface AIChatRequest {
@@ -359,6 +360,7 @@ export interface AIChatRequest {
   mode: 'metrics' | 'explain' | 'report' | 'recommendations';
   framework?: string;  // Framework code (csf_2_0, ai_rmf, cyber_ai_profile)
   context_opts?: Record<string, any>;
+  web_search?: boolean;
 }
 
 // Dashboard Types
@@ -495,7 +497,7 @@ export interface CSFSuggestionResponse {
 // AI PROVIDER TYPES
 // ==============================================================================
 
-export type AIAuthType = 'api_key' | 'azure' | 'aws_iam' | 'gcp';
+export type AIAuthType = 'api_key' | 'azure' | 'aws_iam' | 'gcp' | 'local_endpoint';
 
 export interface AuthField {
   name: string;
@@ -534,6 +536,8 @@ export interface AIProvider {
   default_model?: string;
   available?: boolean;
   unavailable_reason?: string;
+  dynamic_models?: boolean;
+  note?: string;
 }
 
 export interface AIConfiguration {
@@ -585,6 +589,18 @@ export interface AIProviderStatus {
   supported_providers: string[];
   supported_modes: string[];
   supported_frameworks: string[];
+}
+
+export interface SearchConfig {
+  search_available: boolean;
+  default_provider: string;
+  tavily_configured: boolean;
+  providers: {
+    code: string;
+    name: string;
+    requires_key: boolean;
+    available: boolean;
+  }[];
 }
 
 // ==============================================================================

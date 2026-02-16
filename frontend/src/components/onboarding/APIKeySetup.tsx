@@ -103,6 +103,16 @@ const PROVIDERS: ProviderConfig[] = [
     helpText: 'Google Cloud Console',
     defaultModel: 'gemini-1.5-pro',
   },
+  // Local Models — hidden from onboarding until UX is production-ready
+  // {
+  //   code: 'local',
+  //   name: 'Local Models',
+  //   description: 'Ollama, LM Studio, vLLM — run Llama, DeepSeek, Mistral on your own hardware. No billing needed.',
+  //   placeholder: 'http://host.docker.internal:11434/v1',
+  //   helpUrl: 'https://ollama.ai',
+  //   helpText: 'ollama.ai',
+  //   defaultModel: '',
+  // },
 ];
 
 interface APIKeySetupProps {
@@ -146,10 +156,11 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
         const provider = PROVIDERS.find(p => p.code === providerCode);
         if (!provider) continue;
 
+        const isLocal = providerCode === 'local';
         const config = await apiClient.createAIConfiguration({
           provider_code: providerCode,
-          model_id: provider.defaultModel,
-          credentials: { api_key: apiKey },
+          model_id: provider.defaultModel || undefined,
+          credentials: isLocal ? { local_endpoint: apiKey } : { api_key: apiKey },
         }, 'admin');
 
         const validation = await apiClient.validateAIConfiguration(config.id);
@@ -183,57 +194,80 @@ export function APIKeySetup({ onComplete, onSkip }: APIKeySetupProps) {
   const primaryProviders = PROVIDERS.slice(0, 2);
   const additionalProviders = PROVIDERS.slice(2);
 
-  const renderProviderInput = (provider: ProviderConfig) => (
-    <Box key={provider.code} sx={{ mb: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <Typography variant="subtitle1" fontWeight={600}>
-          {provider.name}
+  const renderProviderInput = (provider: ProviderConfig) => {
+    const isLocal = provider.code === 'local';
+    return (
+      <Box key={provider.code} sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {provider.name}
+          </Typography>
+          {provider.recommended && (
+            <Chip
+              label="Recommended"
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          )}
+          {isLocal && (
+            <Chip
+              label="No billing"
+              size="small"
+              color="success"
+              variant="outlined"
+            />
+          )}
+          {validationStatus[provider.code] === true && (
+            <CheckCircleIcon color="success" fontSize="small" />
+          )}
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          {provider.description}
         </Typography>
-        {provider.recommended && (
-          <Chip
-            label="Recommended"
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
-        )}
-        {validationStatus[provider.code] === true && (
-          <CheckCircleIcon color="success" fontSize="small" />
-        )}
+        <TextField
+          fullWidth
+          size="small"
+          label={isLocal ? 'Endpoint URL' : `${provider.name} API Key`}
+          placeholder={provider.placeholder}
+          type={isLocal ? 'text' : (showKeys[provider.code] ? 'text' : 'password')}
+          value={apiKeys[provider.code] || ''}
+          onChange={(e) => updateApiKey(provider.code, e.target.value)}
+          InputProps={isLocal ? undefined : {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => toggleShowKey(provider.code)}
+                  edge="end"
+                  size="small"
+                >
+                  {showKeys[provider.code] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+          {isLocal ? (
+            <>
+              Install from{' '}
+              <Link href={provider.helpUrl} target="_blank" rel="noopener">
+                {provider.helpText}
+              </Link>
+              {' '}· Endpoint URL is pre-filled for your environment
+            </>
+          ) : (
+            <>
+              Get your API key from{' '}
+              <Link href={provider.helpUrl} target="_blank" rel="noopener">
+                {provider.helpText}
+              </Link>
+            </>
+          )}
+        </Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        {provider.description}
-      </Typography>
-      <TextField
-        fullWidth
-        size="small"
-        label={`${provider.name} API Key`}
-        placeholder={provider.placeholder}
-        type={showKeys[provider.code] ? 'text' : 'password'}
-        value={apiKeys[provider.code] || ''}
-        onChange={(e) => updateApiKey(provider.code, e.target.value)}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                onClick={() => toggleShowKey(provider.code)}
-                edge="end"
-                size="small"
-              >
-                {showKeys[provider.code] ? <VisibilityOffIcon /> : <VisibilityIcon />}
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-        Get your API key from{' '}
-        <Link href={provider.helpUrl} target="_blank" rel="noopener">
-          {provider.helpText}
-        </Link>
-      </Typography>
-    </Box>
-  );
+    );
+  };
 
   return (
     <Box

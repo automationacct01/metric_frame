@@ -19,6 +19,7 @@ class ProviderType(str, Enum):
     AZURE = "azure"
     BEDROCK = "bedrock"
     VERTEX = "vertex"
+    LOCAL = "local"
 
 
 class AuthType(str, Enum):
@@ -27,6 +28,7 @@ class AuthType(str, Enum):
     AZURE = "azure"  # Azure AD or API key with endpoint
     AWS_IAM = "aws_iam"
     GCP = "gcp"  # Service account or ADC
+    LOCAL_ENDPOINT = "local_endpoint"  # Base URL + optional API key
 
 
 @dataclass
@@ -57,6 +59,9 @@ class ProviderCredentials:
     gcp_project: Optional[str] = None
     gcp_location: Optional[str] = None
     gcp_credentials_json: Optional[str] = None  # Service account JSON
+
+    # Local/OpenAI-compatible endpoint
+    local_endpoint: Optional[str] = None  # e.g., http://localhost:11434/v1
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""

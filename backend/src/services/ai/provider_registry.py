@@ -549,6 +549,21 @@ PROVIDER_REGISTRY: Dict[ProviderType, Dict[str, Any]] = {
         ],
         "default_model": "gemini-2.5-pro",
     },
+
+    ProviderType.LOCAL: {
+        "code": "local",
+        "name": "Local Models",
+        "description": "Connect to locally hosted models via Ollama, LM Studio, vLLM, or similar. Run Llama, DeepSeek, Mistral, Qwen, and more on your own hardware. No API key or billing required.",
+        "auth_type": AuthType.LOCAL_ENDPOINT,
+        "auth_fields": [
+            {"name": "local_endpoint", "label": "Endpoint URL", "type": "text", "required": True, "placeholder": "http://localhost:11434/v1"},
+            {"name": "api_key", "label": "API Key (optional)", "type": "password", "required": False, "placeholder": "Optional — only if your endpoint requires authentication"},
+        ],
+        "models": [],  # Models are discovered dynamically from the endpoint
+        "default_model": None,
+        "dynamic_models": True,
+        "note": "Models are discovered automatically from your local endpoint. No billing required. In Docker, use http://host.docker.internal:11434/v1 to reach the host machine.",
+    },
 }
 
 

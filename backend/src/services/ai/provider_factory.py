@@ -146,6 +146,12 @@ def _register_default_providers():
     except ImportError as e:
         logger.debug(f"Vertex AI provider not available: {e}")
 
+    try:
+        from .providers.local_provider import LocalProvider
+        register_provider(ProviderType.LOCAL, LocalProvider)
+    except ImportError as e:
+        logger.debug(f"Local provider not available: {e}")
+
 
 # Auto-register providers on module load
 _register_default_providers()
