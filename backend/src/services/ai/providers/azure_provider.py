@@ -1,6 +1,6 @@
-"""Azure OpenAI provider implementation.
+"""Azure AI Foundry provider implementation.
 
-Provides integration with Azure OpenAI Service including:
+Provides integration with Azure AI Foundry including:
 - GPT-4o deployments
 - GPT-4 Turbo deployments
 - Custom model deployments
@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 class AzureOpenAIProvider(BaseAIProvider):
-    """Azure OpenAI AI provider.
+    """Azure AI Foundry AI provider.
 
-    Implements the BaseAIProvider interface for Azure OpenAI Service.
+    Implements the BaseAIProvider interface for Azure AI Foundry Service.
     Requires endpoint, deployment name, API version, and API key.
     """
 
@@ -50,7 +50,7 @@ class AzureOpenAIProvider(BaseAIProvider):
         self._default_model = "gpt-4o"
 
     async def initialize(self, credentials: ProviderCredentials) -> bool:
-        """Initialize the Azure OpenAI client with credentials.
+        """Initialize the Azure AI Foundry client with credentials.
 
         Args:
             credentials: Must contain:
@@ -63,15 +63,15 @@ class AzureOpenAIProvider(BaseAIProvider):
             True if initialization succeeded
         """
         if not credentials.api_key:
-            logger.error("Azure OpenAI initialization failed: No API key provided")
+            logger.error("Azure AI Foundry initialization failed: No API key provided")
             return False
 
         if not credentials.azure_endpoint:
-            logger.error("Azure OpenAI initialization failed: No endpoint provided")
+            logger.error("Azure AI Foundry initialization failed: No endpoint provided")
             return False
 
         if not credentials.azure_deployment:
-            logger.error("Azure OpenAI initialization failed: No deployment name provided")
+            logger.error("Azure AI Foundry initialization failed: No deployment name provided")
             return False
 
         api_version = credentials.azure_api_version or "2024-10-21"
@@ -85,14 +85,14 @@ class AzureOpenAIProvider(BaseAIProvider):
             self._deployment_name = credentials.azure_deployment
             self._credentials = credentials
             self._initialized = True
-            logger.info(f"Azure OpenAI provider initialized: endpoint={credentials.azure_endpoint}, deployment={credentials.azure_deployment}")
+            logger.info(f"Azure AI Foundry provider initialized: endpoint={credentials.azure_endpoint}, deployment={credentials.azure_deployment}")
             return True
         except Exception as e:
-            logger.error(f"Azure OpenAI initialization failed: {e}")
+            logger.error(f"Azure AI Foundry initialization failed: {e}")
             return False
 
     async def validate_credentials(self, credentials: ProviderCredentials) -> bool:
-        """Validate Azure OpenAI credentials by making a minimal API call.
+        """Validate Azure AI Foundry credentials by making a minimal API call.
 
         Args:
             credentials: Credentials to validate
@@ -121,10 +121,10 @@ class AzureOpenAIProvider(BaseAIProvider):
             )
             return True
         except OpenAIAuthError:
-            logger.warning("Azure OpenAI credential validation failed: Invalid credentials")
+            logger.warning("Azure AI Foundry credential validation failed: Invalid credentials")
             return False
         except Exception as e:
-            logger.error(f"Azure OpenAI credential validation error: {e}")
+            logger.error(f"Azure AI Foundry credential validation error: {e}")
             return False
 
     async def generate_response(
@@ -136,7 +136,7 @@ class AzureOpenAIProvider(BaseAIProvider):
         system_prompt: Optional[str] = None,
         **kwargs
     ) -> AIResponse:
-        """Generate a response using Azure OpenAI.
+        """Generate a response using Azure AI Foundry.
 
         Args:
             messages: List of message dicts with 'role' and 'content'
@@ -201,11 +201,11 @@ class AzureOpenAIProvider(BaseAIProvider):
                 raise ServerError(str(e), ProviderType.AZURE)
             raise InvalidRequestError(str(e), ProviderType.AZURE)
         except Exception as e:
-            logger.error(f"Azure OpenAI API error: {e}")
+            logger.error(f"Azure AI Foundry API error: {e}")
             raise ServerError(str(e), ProviderType.AZURE)
 
     def get_available_models(self) -> List[ModelInfo]:
-        """Get available Azure OpenAI models.
+        """Get available Azure AI Foundry models.
 
         Note: Actual model availability depends on Azure deployment configuration.
 

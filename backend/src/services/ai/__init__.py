@@ -4,7 +4,7 @@ This package provides a unified interface for interacting with multiple AI provi
 - Anthropic Claude
 - OpenAI GPT
 - Together.ai (Llama, Mistral, etc.)
-- Azure OpenAI
+- Azure AI Foundry
 - AWS Bedrock
 - GCP Vertex AI
 

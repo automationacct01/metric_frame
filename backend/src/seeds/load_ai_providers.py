@@ -77,8 +77,8 @@ AI_PROVIDERS = [
     },
     {
         "code": "azure",
-        "name": "Azure OpenAI",
-        "description": "Microsoft Azure-hosted OpenAI models with enterprise security and compliance",
+        "name": "Azure AI Foundry",
+        "description": "Enterprise AI models hosted on Microsoft Azure AI Foundry with compliance features",
         "auth_type": "azure",
         "auth_fields": {
             "fields": [
@@ -87,8 +87,8 @@ AI_PROVIDERS = [
                     "label": "Azure Endpoint",
                     "type": "text",
                     "required": True,
-                    "placeholder": "https://your-resource.openai.azure.com/",
-                    "help_text": "Your Azure OpenAI resource endpoint URL"
+                    "placeholder": "https://your-resource.services.ai.azure.com/",
+                    "help_text": "Your Azure AI Foundry resource endpoint URL"
                 },
                 {
                     "name": "azure_deployment",
@@ -104,7 +104,7 @@ AI_PROVIDERS = [
                     "type": "password",
                     "required": True,
                     "placeholder": "...",
-                    "help_text": "Your Azure OpenAI API key"
+                    "help_text": "Your Azure AI Foundry API key"
                 },
                 {
                     "name": "azure_api_version",
@@ -112,7 +112,7 @@ AI_PROVIDERS = [
                     "type": "text",
                     "required": False,
                     "default": "2024-02-15-preview",
-                    "help_text": "Azure OpenAI API version"
+                    "help_text": "Azure AI Foundry API version"
                 }
             ]
         },

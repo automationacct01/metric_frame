@@ -33,7 +33,7 @@ class TestAIProvidersAPI:
 
         assert "providers" in data
         assert "total" in data
-        assert data["total"] == 6  # 6 providers
+        assert data["total"] == 7  # 7 providers (including Local Models)
 
         # Verify provider structure
         providers = data["providers"]

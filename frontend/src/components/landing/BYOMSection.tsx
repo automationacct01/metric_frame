@@ -35,7 +35,7 @@ const providers = [
     moreCount: 20,
   },
   {
-    name: 'Azure OpenAI',
+    name: 'Azure AI Foundry',
     description: 'Enterprise GPT-5',
     color: '#00BCF2',
     models: ['GPT-5 Family', 'DeepSeek-R1', 'Llama 4'],

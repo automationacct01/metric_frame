@@ -134,7 +134,7 @@ export default function DownloadPage() {
               { name: 'Anthropic', color: '#D4A574' },
               { name: 'OpenAI', color: '#10A37F' },
               { name: 'Together.ai', color: '#6366F1' },
-              { name: 'Azure OpenAI', color: '#00BCF2' },
+              { name: 'Azure AI Foundry', color: '#00BCF2' },
               { name: 'AWS Bedrock', color: '#FF9900' },
               { name: 'GCP Vertex AI', color: '#EA4335' },
             ].map((provider) => (

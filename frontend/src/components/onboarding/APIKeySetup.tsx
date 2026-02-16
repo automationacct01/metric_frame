@@ -78,11 +78,11 @@ const PROVIDERS: ProviderConfig[] = [
   },
   {
     code: 'azure_openai',
-    name: 'Azure OpenAI',
-    description: 'Enterprise-grade OpenAI models hosted on Microsoft Azure with compliance features.',
+    name: 'Azure AI Foundry',
+    description: 'Enterprise AI models hosted on Microsoft Azure AI Foundry with compliance features.',
     placeholder: 'your-azure-api-key',
-    helpUrl: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub',
-    helpText: 'portal.azure.com',
+    helpUrl: 'https://ai.azure.com/',
+    helpText: 'ai.azure.com',
     defaultModel: 'gpt-4o',
   },
   {

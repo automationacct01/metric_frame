@@ -1,4 +1,4 @@
-"""Tests for the Azure OpenAI provider."""
+"""Tests for the Azure AI Foundry provider."""
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -11,7 +11,7 @@ class TestAzureOpenAIProvider:
 
     @pytest.fixture
     def provider(self):
-        """Create an Azure OpenAI provider instance."""
+        """Create an Azure AI Foundry provider instance."""
         return AzureOpenAIProvider()
 
     @pytest.fixture

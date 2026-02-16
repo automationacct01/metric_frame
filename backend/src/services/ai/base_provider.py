@@ -37,7 +37,7 @@ class ProviderCredentials:
 
     Different providers require different credential fields:
     - api_key: Anthropic, OpenAI, Together.ai
-    - azure_*: Azure OpenAI
+    - azure_*: Azure AI Foundry
     - aws_*: AWS Bedrock
     - gcp_*: GCP Vertex AI
     """

@@ -968,7 +968,7 @@ Returns the current AI provider status for the user.
 | `anthropic` | API Key | Claude Opus/Sonnet/Haiku 4.5 |
 | `openai` | API Key | GPT-5 family |
 | `together` | API Key | DeepSeek, Qwen, Llama 4, Mistral |
-| `azure` | API Key + Config | Azure OpenAI Service |
+| `azure` | API Key + Config | Azure AI Foundry |
 | `bedrock` | IAM Credentials | AWS Bedrock models |
 | `vertex` | Service Account | GCP Vertex AI models |
 

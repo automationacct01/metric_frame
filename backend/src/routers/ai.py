@@ -10,7 +10,7 @@ Supports multiple AI providers:
 - Anthropic Claude (default)
 - OpenAI GPT-4
 - Together.ai
-- Azure OpenAI
+- Azure AI Foundry
 - AWS Bedrock
 - GCP Vertex AI
 """

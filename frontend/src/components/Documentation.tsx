@@ -1105,7 +1105,7 @@ function AIAssistantContent() {
         <SubSection title="AI Configuration">
           <Typography variant="body2" paragraph>
             Configure your AI provider through <strong>Settings → AI Configuration</strong> in the app.
-            Bring your own API key and choose from 6 provider options including Anthropic Claude, OpenAI, Together.ai, Azure OpenAI, AWS Bedrock, and GCP Vertex AI.
+            Bring your own API key and choose from 6 provider options including Anthropic Claude, OpenAI, Together.ai, Azure AI Foundry, AWS Bedrock, and GCP Vertex AI.
           </Typography>
           <Typography variant="body2" paragraph>Optional environment settings:</Typography>
           <Box component="pre" sx={codeBlockStyles}>

@@ -206,11 +206,11 @@ PROVIDER_REGISTRY: Dict[ProviderType, Dict[str, Any]] = {
 
     ProviderType.AZURE: {
         "code": "azure",
-        "name": "Azure OpenAI",
-        "description": "OpenAI models hosted on Microsoft Azure with enterprise features",
+        "name": "Azure AI Foundry",
+        "description": "Enterprise AI models hosted on Microsoft Azure AI Foundry",
         "auth_type": AuthType.AZURE,
         "auth_fields": [
-            {"name": "azure_endpoint", "label": "Endpoint URL", "type": "text", "required": True, "placeholder": "https://your-resource.openai.azure.com"},
+            {"name": "azure_endpoint", "label": "Endpoint URL", "type": "text", "required": True, "placeholder": "https://your-resource.services.ai.azure.com"},
             {"name": "azure_deployment", "label": "Deployment Name", "type": "text", "required": True, "placeholder": "gpt-5.2"},
             {"name": "azure_api_version", "label": "API Version", "type": "text", "required": True, "placeholder": "2025-12-11", "default": "2025-12-11"},
             {"name": "api_key", "label": "API Key", "type": "password", "required": True, "placeholder": "..."},

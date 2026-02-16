@@ -33,7 +33,7 @@ MetricFrame supports a "Bring Your Own Model" architecture, giving you full cont
 | **Anthropic Claude** | API Key | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 |
 | **OpenAI** | API Key | GPT-5.2, GPT-5.2 Codex, GPT-5.1, GPT-5, GPT-5 Mini, GPT-5 Pro |
 | **Together.ai** | API Key | DeepSeek V3.1/R1, Qwen3 Coder, Llama 4, Mistral Small 3 |
-| **Azure OpenAI** | API Key + Endpoint | GPT-5 family, DeepSeek-R1, Llama 4, Mistral Large 3 |
+| **Azure AI Foundry** | API Key + Endpoint | GPT-5 family, DeepSeek-R1, Llama 4, Mistral Large 3 |
 | **AWS Bedrock** | IAM Credentials | Claude 4.5, Amazon Nova, Llama 4, Mistral, DeepSeek, Qwen3 |
 | **GCP Vertex AI** | Service Account | Gemini 3/2.5, Claude 4.5, Llama 4, Mistral, DeepSeek |
 
@@ -48,7 +48,7 @@ MetricFrame supports a "Bring Your Own Model" architecture, giving you full cont
 | Anthropic | API Key |
 | OpenAI | API Key |
 | Together.ai | API Key |
-| Azure OpenAI | API Key, Endpoint, Deployment Name, API Version |
+| Azure AI Foundry | API Key, Endpoint, Deployment Name, API Version |
 | AWS Bedrock | Access Key, Secret Key, Region |
 | GCP Vertex | Project ID, Location, Service Account JSON |
 

@@ -41,7 +41,7 @@ MetricFrame requires your own AI API key for the AI assistant features. Choose f
 | **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/account/keys) |
 | **OpenAI** | GPT-5.2, GPT-5.1, GPT-5, GPT-5 Mini, GPT-5 Pro | [platform.openai.com](https://platform.openai.com/api-keys) |
 | **Together.ai** | DeepSeek-V3.1, DeepSeek-R1, Qwen3, Llama 4, Mistral | [api.together.xyz](https://api.together.xyz/) |
-| **Azure OpenAI** | GPT-5.2, GPT-5, DeepSeek-R1, Llama 4, Mistral Large 3 | [azure.microsoft.com](https://azure.microsoft.com/en-us/products/ai-services/openai-service) |
+| **Azure AI Foundry** | GPT-5.2, GPT-5, DeepSeek-R1, Llama 4, Mistral Large 3 | [ai.azure.com](https://ai.azure.com/) |
 | **AWS Bedrock** | Claude 4.5, Amazon Nova, Llama 4, DeepSeek-R1, Qwen3 | [aws.amazon.com](https://aws.amazon.com/bedrock/) |
 | **GCP Vertex AI** | Gemini 3, Gemini 2.5, Claude 4.5, Llama 4, DeepSeek-R1 | [cloud.google.com](https://cloud.google.com/vertex-ai) |
 

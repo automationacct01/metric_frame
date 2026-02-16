@@ -6,7 +6,7 @@
  * - Anthropic Claude
  * - OpenAI
  * - Together.ai
- * - Azure OpenAI
+ * - Azure AI Foundry
  * - AWS Bedrock
  * - GCP Vertex AI
  */
