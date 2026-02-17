@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(data.user);
             setToken(storedToken);
             apiClient.setAuthToken(storedToken);
-            apiClient.setCurrentUserEmail(data.user.email);
+
           } else {
             // Token invalid, clear storage
             localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token);
     setHasUsers(true);
     apiClient.setAuthToken(data.token);
-    apiClient.setCurrentUserEmail(data.user.email);
+
   };
 
   const register = async (
@@ -168,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token);
     setHasUsers(true);
     apiClient.setAuthToken(data.token);
-    apiClient.setCurrentUserEmail(data.user.email);
+
 
     // Return recovery key if present (for first admin)
     if (data.recovery_key) {
@@ -195,7 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     apiClient.setAuthToken(null);
-    apiClient.setCurrentUserEmail(null);
   };
 
   const value: AuthContextType = {

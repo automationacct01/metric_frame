@@ -957,7 +957,7 @@ class APIClient {
   }
 
   /**
-   * Get current user profile from X-User-Email header
+   * Get current user profile from auth token
    */
   async getCurrentUser(): Promise<any> {
     const response = await this.client.get<any>('/users/me');
@@ -994,18 +994,6 @@ class APIClient {
   async assignUserRole(userId: string, role: string): Promise<any> {
     const response = await this.client.put<any>(`/users/${userId}/role`, { role });
     return response.data;
-  }
-
-  /**
-   * Set the current user email header for all subsequent requests.
-   * This is used for role-based access control.
-   */
-  setCurrentUserEmail(email: string | null): void {
-    if (email) {
-      this.client.defaults.headers.common['X-User-Email'] = email;
-    } else {
-      delete this.client.defaults.headers.common['X-User-Email'];
-    }
   }
 
   /**

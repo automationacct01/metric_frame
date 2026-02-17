@@ -22,8 +22,12 @@ import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from ..db import get_db
 from ..models import Metric, AIChangeLog, UserAIConfiguration, AIProvider as AIProviderModel, User
@@ -349,8 +353,10 @@ def get_default_model_for_provider(provider: BaseAIProvider) -> str:
 
 
 @router.post("/chat", response_model=AIResponseSchema)
+@limiter.limit("20/minute")
 async def ai_chat(
-    request: AIChatRequest,
+    chat_request: AIChatRequest,
+    request: Request,
     framework: str = Query("csf_2_0", description="Framework code (csf_2_0, ai_rmf, cyber_ai_profile)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -386,7 +392,7 @@ async def ai_chat(
         # Prepare context based on mode
         context_str = ""
 
-        if request.mode == "report":
+        if chat_request.mode == "report":
             # Get current scores for report generation
             function_scores = compute_function_scores(db)
             attention_metrics = get_metrics_needing_attention(db, limit=5)
@@ -396,9 +402,9 @@ async def ai_chat(
                 "metrics_needing_attention": attention_metrics[:3],
             })
 
-        elif request.mode == "metrics" and request.context_opts:
+        elif chat_request.mode == "metrics" and chat_request.context_opts:
             # Get existing metrics context if requested
-            if request.context_opts.get("include_existing_metrics"):
+            if chat_request.context_opts.get("include_existing_metrics"):
                 existing_metrics = db.query(Metric).filter(Metric.active == True).limit(20).all()
                 context_str = json.dumps({
                     "framework": framework,
@@ -415,13 +421,13 @@ async def ai_chat(
         # Web search integration (only for explain/report modes)
         search_context = ""
         search_used = False
-        if request.web_search and request.mode in ("explain", "report"):
+        if chat_request.web_search and chat_request.mode in ("explain", "report"):
             try:
                 from ..services.search import SearchService, SearchProvider
                 tavily_key = os.getenv("TAVILY_API_KEY")
                 search_provider = SearchProvider.TAVILY if tavily_key else SearchProvider.DUCKDUCKGO
                 search_service = SearchService(provider=search_provider, tavily_api_key=tavily_key)
-                search_query = request.message[:200]
+                search_query = chat_request.message[:200]
                 search_response = await search_service.search(search_query, max_results=5)
                 search_context = SearchService.format_results_for_context(search_response)
                 if search_context:
@@ -430,18 +436,18 @@ async def ai_chat(
                 logger.warning(f"Web search failed (non-fatal): {e}")
 
         # Build messages for provider
-        system_prompt = get_system_prompt_for_mode(request.mode, framework)
+        system_prompt = get_system_prompt_for_mode(chat_request.mode, framework)
         if search_used:
             system_prompt += "\n\nYou have been provided with web search results for additional context. Use these results to supplement your knowledge when relevant. Cite sources when using specific information from search results."
 
-        user_message = request.message
+        user_message = chat_request.message
         parts = []
         if context_str:
             parts.append(f"Context:\n{context_str}")
         if search_context:
             parts.append(f"Web Search Results:\n{search_context}")
         if parts:
-            parts.append(f"Request:\n{request.message}")
+            parts.append(f"Request:\n{chat_request.message}")
             user_message = "\n\n".join(parts)
 
         messages = [{"role": "user", "content": user_message}]
@@ -456,22 +462,27 @@ async def ai_chat(
         )
 
         # Parse response based on mode
-        if request.mode == "metrics":
+        if chat_request.mode == "metrics":
             # Try to parse JSON response for metrics mode
-            # Strip markdown code block wrappers if present
+            # Extract JSON from markdown code blocks — AI may add text after the closing fence
             content = response.content.strip()
-            if content.startswith("```"):
-                # Remove opening ```json or ``` and closing ```
-                lines = content.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]  # Remove opening fence
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]  # Remove closing fence
-                content = "\n".join(lines).strip()
+            import re
+            json_match = re.search(r'```(?:json)?\s*\n([\s\S]*?)\n\s*```', content)
+            if json_match:
+                content = json_match.group(1).strip()
 
             try:
                 parsed = json.loads(content)
                 ai_response = parsed
+                # If the AI included explanatory text outside the JSON block,
+                # append it to assistant_message so the user still sees it
+                if json_match:
+                    extra_text = content  # already extracted JSON portion
+                    full_text = response.content.strip()
+                    # Get text after the closing fence
+                    after_json = full_text[json_match.end():].strip()
+                    if after_json and isinstance(ai_response.get("assistant_message"), str):
+                        ai_response["assistant_message"] += "\n\n" + after_json
             except json.JSONDecodeError:
                 # If not valid JSON, wrap in standard format
                 ai_response = {
@@ -492,7 +503,7 @@ async def ai_chat(
         # Log the interaction
         change_log = AIChangeLog(
             operation_type="chat",
-            user_prompt=request.message,
+            user_prompt=chat_request.message,
             ai_response_json=ai_response,
             applied=False,
         )
@@ -510,9 +521,10 @@ async def ai_chat(
 
 
 @router.post("/actions/apply")
+@limiter.limit("30/minute")
 async def apply_ai_actions(
-    request: AIApplyRequest,
-    token: str,
+    apply_request: AIApplyRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
 ):
@@ -522,13 +534,13 @@ async def apply_ai_actions(
     """
     applied_by = current_user.email
 
-    if not request.user_confirmation:
+    if not apply_request.user_confirmation:
         raise HTTPException(status_code=400, detail="User confirmation required")
-    
+
     applied_results = []
     errors = []
-    
-    for action in request.actions:
+
+    for action in apply_request.actions:
         try:
             if action.action == "add_metric":
                 if not action.metric:
@@ -541,8 +553,67 @@ async def apply_ai_actions(
                     errors.append(f"Metric '{action.metric.name}' already exists")
                     continue
                 
-                # Create new metric
-                db_metric = Metric(**action.metric.model_dump())
+                # Create new metric - strip computed @property fields and resolve FKs
+                metric_data = action.metric.model_dump()
+
+                # Capture function/category codes before stripping
+                func_code = (metric_data.get('function_code') or metric_data.get('csf_function') or '').lower()
+                cat_code = metric_data.get('csf_category_code', '')
+                subcat_code = metric_data.get('csf_subcategory_code', '')
+
+                computed_props = [
+                    'csf_function', 'csf_category_code', 'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
+                    'ai_rmf_function', 'ai_rmf_function_name', 'ai_rmf_category_code', 'ai_rmf_category_name',
+                    'ai_rmf_subcategory_code', 'ai_rmf_subcategory_outcome',
+                ]
+                for field in computed_props:
+                    metric_data.pop(field, None)
+                # Also strip function_code — not a DB column
+                metric_data.pop('function_code', None)
+
+                # Resolve function_code to framework_id/function_id FKs
+                if func_code and not metric_data.get('framework_id'):
+                    from ..models import Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory
+                    fw = db.query(Framework).filter(Framework.code == 'csf_2_0').first()
+                    if not fw:
+                        fw = db.query(Framework).first()
+                    if fw:
+                        func = db.query(FrameworkFunction).filter(
+                            FrameworkFunction.code == func_code,
+                            FrameworkFunction.framework_id == fw.id
+                        ).first()
+                        if func:
+                            metric_data['framework_id'] = func.framework_id
+                            metric_data['function_id'] = func.id
+                            # Resolve category
+                            if cat_code:
+                                category = db.query(FrameworkCategory).filter(
+                                    FrameworkCategory.code == cat_code,
+                                    FrameworkCategory.function_id == func.id
+                                ).first()
+                                if category:
+                                    metric_data['category_id'] = category.id
+                                    # Resolve subcategory
+                                    if subcat_code:
+                                        subcategory = db.query(FrameworkSubcategory).filter(
+                                            FrameworkSubcategory.code == subcat_code,
+                                            FrameworkSubcategory.category_id == category.id
+                                        ).first()
+                                        if subcategory:
+                                            metric_data['subcategory_id'] = subcategory.id
+                            # Generate metric_number
+                            prefix = "CSF" if fw.code == 'csf_2_0' else "AIRMF"
+                            func_prefix = func_code.upper()
+                            existing_nums = db.query(Metric).filter(
+                                Metric.metric_number.like(f"{prefix}-{func_prefix}-%")
+                            ).all()
+                            next_num = len(existing_nums) + 1
+                            metric_data['metric_number'] = f"{prefix}-{func_prefix}-{next_num:03d}"
+
+                # Strip None values to use model defaults
+                metric_data = {k: v for k, v in metric_data.items() if v is not None}
+
+                db_metric = Metric(**metric_data)
                 db.add(db_metric)
                 db.commit()
                 db.refresh(db_metric)
@@ -559,7 +630,7 @@ async def apply_ai_actions(
                     operation_type="create",
                     metric_id=db_metric.id,
                     user_prompt=f"Applied AI action: add_metric for {action.metric.name}",
-                    ai_response_json={"action": action.model_dump()},
+                    ai_response_json={"action": action.model_dump(mode="json")},
                     applied=True,
                     applied_by=applied_by,
                     applied_at=datetime.utcnow(),
@@ -576,9 +647,24 @@ async def apply_ai_actions(
                     errors.append(f"Metric {action.metric_id} not found")
                     continue
                 
-                # Apply changes
+                # Apply changes (only allow fields that are in MetricUpdate schema)
+                ALLOWED_UPDATE_FIELDS = {
+                    "metric_number", "name", "description", "formula", "calc_expr_json",
+                    "csf_function", "csf_category_code", "csf_subcategory_code",
+                    "csf_category_name", "csf_subcategory_outcome",
+                    "ai_rmf_function", "ai_rmf_function_name",
+                    "ai_rmf_category_code", "ai_rmf_category_name",
+                    "ai_rmf_subcategory_code", "ai_rmf_subcategory_outcome",
+                    "trustworthiness_characteristic",
+                    "framework_id", "function_id", "category_id", "subcategory_id",
+                    "priority_rank", "weight", "direction",
+                    "target_value", "target_units", "tolerance_low", "tolerance_high",
+                    "owner_function", "data_source", "collection_frequency",
+                    "current_value", "current_label", "notes",
+                    "risk_definition", "business_impact", "active",
+                }
                 for field, value in action.changes.items():
-                    if hasattr(metric, field):
+                    if field in ALLOWED_UPDATE_FIELDS and hasattr(metric, field):
                         setattr(metric, field, value)
                 
                 db.commit()
@@ -596,7 +682,7 @@ async def apply_ai_actions(
                     operation_type="update",
                     metric_id=metric.id,
                     user_prompt=f"Applied AI action: update_metric for {metric.name}",
-                    ai_response_json={"action": action.model_dump()},
+                    ai_response_json={"action": action.model_dump(mode="json")},
                     applied=True,
                     applied_by=applied_by,
                     applied_at=datetime.utcnow(),
@@ -629,7 +715,7 @@ async def apply_ai_actions(
                     operation_type="delete",
                     metric_id=metric.id,
                     user_prompt=f"Applied AI action: delete_metric for {metric.name}",
-                    ai_response_json={"action": action.model_dump()},
+                    ai_response_json={"action": action.model_dump(mode="json")},
                     applied=True,
                     applied_by=applied_by,
                     applied_at=datetime.utcnow(),

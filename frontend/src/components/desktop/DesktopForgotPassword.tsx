@@ -74,8 +74,8 @@ export default function DesktopForgotPassword({ onBack, onSuccess }: DesktopForg
       setLocalError('Please answer both security questions');
       return;
     }
-    if (newPassword.length < 4) {
-      setLocalError('New password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setLocalError('New password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -241,7 +241,7 @@ export default function DesktopForgotPassword({ onBack, onSuccess }: DesktopForg
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={isLoading}
-                helperText="Minimum 4 characters"
+                helperText="Minimum 8 characters"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

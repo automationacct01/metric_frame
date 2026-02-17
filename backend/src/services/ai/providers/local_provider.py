@@ -11,11 +11,55 @@ Uses the OpenAI Python SDK with a custom base_url to communicate
 with any OpenAI-compatible local model server.
 """
 import asyncio
+import ipaddress
 import logging
 import time
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from openai import OpenAI, APIError, APIConnectionError, APITimeoutError
+
+
+# Cloud metadata and link-local IP ranges that must be blocked to prevent SSRF
+BLOCKED_IP_RANGES = [
+    ipaddress.ip_network("169.254.0.0/16"),      # AWS/Azure metadata (link-local)
+    ipaddress.ip_network("fd00:ec2::/32"),        # AWS IMDSv2 IPv6
+    ipaddress.ip_network("100.100.100.0/24"),     # Alibaba Cloud metadata
+]
+
+
+def _validate_local_endpoint(url: str) -> str:
+    """Validate a local AI provider endpoint URL to prevent SSRF attacks.
+
+    Allows: http/https to localhost, private IPs, and LAN addresses.
+    Blocks: cloud metadata endpoints, non-http schemes.
+    """
+    parsed = urlparse(url)
+
+    # Only allow http and https schemes
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Only http and https are allowed.")
+
+    if not parsed.hostname:
+        raise ValueError("Invalid URL: no hostname specified.")
+
+    # Resolve hostname to check against blocked ranges
+    hostname = parsed.hostname
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for blocked_range in BLOCKED_IP_RANGES:
+            if addr in blocked_range:
+                raise ValueError(
+                    f"Blocked endpoint: {hostname} is in a restricted IP range (cloud metadata). "
+                    "Use a non-metadata IP address for your local AI server."
+                )
+    except ValueError as e:
+        if "restricted IP range" in str(e) or "Invalid URL" in str(e) or "no hostname" in str(e):
+            raise
+        # hostname is not an IP literal (it's a domain name) -- allow it
+        # DNS resolution check could be added here for extra security
+
+    return url
 
 from ..base_provider import (
     BaseAIProvider,
@@ -70,6 +114,8 @@ class LocalProvider(BaseAIProvider):
             return False
 
         try:
+            # Validate endpoint URL to prevent SSRF
+            _validate_local_endpoint(credentials.local_endpoint)
             base_url = credentials.local_endpoint.rstrip("/")
             # OpenAI SDK requires an api_key; use placeholder for local servers
             api_key = credentials.api_key or "not-needed"

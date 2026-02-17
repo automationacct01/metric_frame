@@ -8,12 +8,13 @@
  * - Application lifecycle (start, quit)
  */
 
-const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain, safeStorage } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const Store = require('electron-store');
 
 // Configuration store
@@ -60,6 +61,59 @@ function initLogging() {
     console.error('Log file:', logFile);
     // Don't throw - continue without file logging
   }
+}
+
+/**
+ * Get or create a per-installation encryption master key.
+ *
+ * On first launch, generates a unique Fernet-compatible key and stores it
+ * encrypted in the macOS Keychain via Electron's safeStorage API.
+ * On subsequent launches, reads the key back from the keychain-protected file.
+ */
+function getOrCreateMasterKey() {
+  const keyFilePath = path.join(app.getPath('userData'), '.credentials_key');
+
+  // Try to read existing key from keychain-protected file
+  if (fs.existsSync(keyFilePath)) {
+    try {
+      const encryptedBuffer = fs.readFileSync(keyFilePath);
+      if (safeStorage.isEncryptionAvailable()) {
+        const key = safeStorage.decryptString(encryptedBuffer);
+        log('Loaded per-installation encryption key from keychain');
+        return key;
+      } else {
+        // Fallback: file was stored as plain text
+        const key = encryptedBuffer.toString('utf-8');
+        log('Loaded per-installation encryption key from file (no OS encryption)');
+        return key;
+      }
+    } catch (e) {
+      log(`Failed to read stored key, generating new one: ${e.message}`, 'WARN');
+    }
+  }
+
+  // Generate new Fernet-compatible key: URL-safe base64 encoding of 32 random bytes
+  const newKey = crypto.randomBytes(32)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  // Store with OS keychain protection
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(newKey);
+      fs.writeFileSync(keyFilePath, encrypted);
+      log('Generated and stored new per-installation encryption key (keychain-protected)');
+    } else {
+      fs.writeFileSync(keyFilePath, newKey, { mode: 0o600 });
+      log('Generated and stored new per-installation encryption key (file-based, no OS encryption)');
+    }
+  } catch (e) {
+    log(`Failed to persist encryption key: ${e.message}`, 'ERROR');
+    // Key is still usable for this session even if we couldn't persist it
+  }
+
+  return newKey;
 }
 
 /**
@@ -277,6 +331,11 @@ function startBackend() {
         }
       }
 
+      // Per-installation encryption key (stored in macOS Keychain via safeStorage)
+      const HARDCODED_OLD_KEY = 'K2cLrptyN61-jcyNzDdLF-960i4i8d91nLeN10TKBv0=';
+      const masterKey = getOrCreateMasterKey();
+      const isNewKey = masterKey !== HARDCODED_OLD_KEY;
+
       // Set environment variables
       const env = {
         ...process.env,
@@ -288,8 +347,10 @@ function startBackend() {
           : 'http://localhost:8000,http://127.0.0.1:8000,file://',
         // Disable debug for production
         DEBUG: 'false',
-        // Encryption key for AI provider credentials
-        AI_CREDENTIALS_MASTER_KEY: 'K2cLrptyN61-jcyNzDdLF-960i4i8d91nLeN10TKBv0=',
+        // Per-installation encryption key for AI provider credentials
+        AI_CREDENTIALS_MASTER_KEY: masterKey,
+        // Pass old hardcoded key so backend can migrate existing credentials
+        ...(isNewKey ? { AI_CREDENTIALS_OLD_KEY: HARDCODED_OLD_KEY } : {}),
         // TLS certificate paths (empty string if not using TLS)
         ...(sslKeyFile && sslCertFile ? {
           SSL_KEYFILE: sslKeyFile,
@@ -497,9 +558,18 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Open external links in default browser
+  // Open external links in default browser (only allow http/https)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        shell.openExternal(url);
+      } else {
+        log(`Blocked opening URL with disallowed scheme: ${parsedUrl.protocol}`);
+      }
+    } catch (e) {
+      log(`Blocked opening invalid URL: ${url}`);
+    }
     return { action: 'deny' };
   });
 }

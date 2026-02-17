@@ -10,7 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..models import User
 from ..schemas import FunctionScore, ScoresResponse, CategoryScore, CategoryScoresResponse, CategoryDetailScore
+from .auth import get_current_user, require_admin
 from ..services.scoring import (
     compute_function_scores,
     compute_overall_score,
@@ -48,7 +50,8 @@ def _get_function_name(function_code: str) -> str:
 async def get_current_scores(
     catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
     owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get current risk scores for all CSF functions.
@@ -78,6 +81,7 @@ async def get_current_scores(
 async def get_function_score(
     function_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get detailed score for a specific CSF function."""
     
@@ -104,6 +108,7 @@ async def get_function_categories(
     catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
     owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get category scores for a specific CSF function."""
     
@@ -155,6 +160,7 @@ async def get_function_categories(
 async def get_category_details(
     category_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get detailed score and metrics for a specific category."""
     
@@ -183,6 +189,7 @@ async def get_category_details(
 async def get_metrics_attention_endpoint(
     limit: int = 10,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """
     Get metrics that need attention (lowest scoring, highest priority).
@@ -197,7 +204,8 @@ async def get_metrics_attention_endpoint(
 async def get_dashboard_summary(
     catalog_id: Optional[UUID] = Query(None, description="Catalog ID to use for scoring"),
     owner: Optional[str] = Query(None, description="Owner to get active catalog for"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get comprehensive dashboard summary with all key metrics.
@@ -240,6 +248,7 @@ async def get_function_trend(
     function_code: str,
     days: int = 30,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get historical trend data for a specific function.
@@ -274,6 +283,7 @@ async def get_function_trend(
 @router.post("/recalculate")
 async def recalculate_scores(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> Dict[str, Any]:
     """
     Recalculate all scores and return updated results.
@@ -292,7 +302,9 @@ async def recalculate_scores(
 
 
 @router.get("/thresholds")
-async def get_risk_thresholds():
+async def get_risk_thresholds(
+    current_user: User = Depends(get_current_user),
+):
     """Get current risk rating thresholds."""
     import os
 
@@ -322,6 +334,7 @@ async def get_risk_thresholds():
 async def get_framework_scores(
     framework_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get scores for any supported framework (CSF 2.0, AI RMF, etc.).
@@ -363,6 +376,7 @@ async def get_framework_scores(
 async def get_framework_function_scores_endpoint(
     framework_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """
     Get function-level scores for a specific framework.
@@ -385,6 +399,7 @@ async def get_framework_category_scores_endpoint(
     framework_code: str,
     function_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get category-level scores for a specific function within a framework.
@@ -420,6 +435,7 @@ async def get_framework_category_scores_endpoint(
 async def get_framework_coverage_endpoint(
     framework_code: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get metric coverage statistics for a framework.
@@ -451,6 +467,7 @@ async def get_framework_attention_metrics(
     framework_code: str,
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """
     Get metrics needing attention for a specific framework.

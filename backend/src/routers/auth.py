@@ -61,7 +61,7 @@ class RegisterRequest(BaseModel):
     """Registration request schema - for claiming an invited account."""
     name: str = Field(..., min_length=1, max_length=255)
     email: EmailSyntax
-    password: str = Field(..., min_length=4, max_length=100)
+    password: str = Field(..., min_length=8, max_length=100)
     # Security questions (required for first admin, optional for others)
     security_question_1: Optional[str] = None
     security_answer_1: Optional[str] = None
@@ -269,27 +269,15 @@ async def get_auth_status(db: Session = Depends(get_db)):
 
 
 @router.post("/invite")
-async def invite_user(request: InviteUserRequest, token: str, db: Session = Depends(get_db)):
+async def invite_user(
+    request: InviteUserRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Admin: Invite a new user by email with assigned role.
 
     Creates a pending user account that the user can claim by registering.
     """
-    # Verify admin token
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
@@ -310,7 +298,7 @@ async def invite_user(request: InviteUserRequest, token: str, db: Session = Depe
     db.commit()
     db.refresh(new_user)
 
-    logger.info(f"Admin {session.email} invited user {request.email} with role {request.role}")
+    logger.info(f"Admin {current_user.email} invited user {request.email} with role {request.role}")
 
     return {
         "message": f"User {request.email} invited as {request.role}",
@@ -462,21 +450,22 @@ async def login(body: LoginRequest, request: Request, db: Session = Depends(get_
         )
 
     # Check password
-    # If no password hash set, allow any password (for initial setup/demo)
-    if user.password_hash:
-        if not verify_password(body.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-        # Migrate legacy SHA-256 hash to bcrypt on successful login
-        if _is_legacy_sha256_hash(user.password_hash):
-            user.password_hash = hash_password(body.password)
-            logger.info(f"Migrated password hash to bcrypt for user {user.email}")
-    else:
-        # First login - set the password
+    if not user.password_hash:
+        # User was invited but hasn't registered yet — must use the register flow
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account not yet activated. Please use the registration form to set your password."
+        )
+
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    # Migrate legacy SHA-256 hash to bcrypt on successful login
+    if _is_legacy_sha256_hash(user.password_hash):
         user.password_hash = hash_password(body.password)
-        logger.info(f"Set initial password for user {user.email}")
+        logger.info(f"Migrated password hash to bcrypt for user {user.email}")
 
     # Update last login
     user.last_login_at = datetime.utcnow()
@@ -567,42 +556,35 @@ async def validate_token(
     }
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
 @router.post("/change-password")
 async def change_password(
-    current_password: str,
-    new_password: str,
-    token: str,
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Change user's password."""
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    user = db.query(User).filter(User.email == session.email).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
+    """Change user's password. Requires Authorization: Bearer header."""
     # Verify current password (skip if no password set)
-    if user.password_hash and not verify_password(current_password, user.password_hash):
+    if current_user.password_hash and not verify_password(body.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect"
         )
 
     # Set new password
-    user.password_hash = hash_password(new_password)
+    current_user.password_hash = hash_password(body.new_password)
     db.commit()
 
-    logger.info(f"Password changed for user {session.email}")
+    logger.info(f"Password changed for user {current_user.email}")
     return {"message": "Password changed successfully"}
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 
 # Admin endpoint to reset a user's password
@@ -610,26 +592,16 @@ async def change_password(
 @limiter.limit("10/minute")
 async def reset_user_password(
     user_id: str,
-    new_password: str,
-    token: str,
+    body: ResetPasswordRequest,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Admin: Reset another user's password.
+    """Admin: Reset another user's password. Requires Authorization: Bearer header.
 
     Rate limited to 10 attempts per minute per IP.
     """
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    # Check if requester is admin
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
+    if not current_user or current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -645,33 +617,21 @@ async def reset_user_password(
         )
 
     # Set new password
-    target_user.password_hash = hash_password(new_password)
+    target_user.password_hash = hash_password(body.new_password)
     db.commit()
 
-    logger.info(f"Admin {session.email} reset password for user {target_user.email}")
+    logger.info(f"Admin {current_user.email} reset password for user {target_user.email}")
     return {"message": f"Password reset for {target_user.email}"}
 
 
 # ============== User Management Endpoints (Admin Only) ==============
 
 @router.get("/users")
-async def list_users(token: str, db: Session = Depends(get_db)):
+async def list_users(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Admin: List all users."""
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-
     users = db.query(User).order_by(User.created_at.desc()).all()
 
     return {
@@ -700,25 +660,10 @@ class UpdateUserRoleRequest(BaseModel):
 async def update_user_role(
     user_id: str,
     request: UpdateUserRoleRequest,
-    token: str,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
     """Admin: Update a user's role."""
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(
@@ -727,7 +672,7 @@ async def update_user_role(
         )
 
     # Prevent admin from demoting themselves if they're the only admin
-    if str(target_user.id) == str(admin_user.id) and request.role != "admin":
+    if str(target_user.id) == str(current_user.id) and request.role != "admin":
         admin_count = db.query(User).filter(User.role == "admin", User.active == True).count()
         if admin_count <= 1:
             raise HTTPException(
@@ -739,7 +684,7 @@ async def update_user_role(
     target_user.role = request.role
     db.commit()
 
-    logger.info(f"Admin {session.email} changed role for {target_user.email}: {old_role} -> {request.role}")
+    logger.info(f"Admin {current_user.email} changed role for {target_user.email}: {old_role} -> {request.role}")
 
     return {
         "message": f"Role updated to {request.role}",
@@ -755,25 +700,10 @@ async def update_user_role(
 async def update_user_active(
     user_id: str,
     active: bool,
-    token: str,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
     """Admin: Activate or deactivate a user."""
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(
@@ -782,7 +712,7 @@ async def update_user_active(
         )
 
     # Prevent admin from deactivating themselves
-    if str(target_user.id) == str(admin_user.id) and not active:
+    if str(target_user.id) == str(current_user.id) and not active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot deactivate your own account"
@@ -795,7 +725,7 @@ async def update_user_active(
     if not active:
         _invalidate_user_sessions(target_user.email)
 
-    logger.info(f"Admin {session.email} {'activated' if active else 'deactivated'} user {target_user.email}")
+    logger.info(f"Admin {current_user.email} {'activated' if active else 'deactivated'} user {target_user.email}")
 
     return {
         "message": f"User {'activated' if active else 'deactivated'}",
@@ -808,23 +738,12 @@ async def update_user_active(
 
 
 @router.delete("/users/{user_id}")
-async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
+async def delete_user(
+    user_id: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Admin: Delete a user."""
-    session = _get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    admin_user = db.query(User).filter(User.email == session.email).first()
-
-    if not admin_user or admin_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(
@@ -833,7 +752,7 @@ async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
         )
 
     # Prevent admin from deleting themselves
-    if str(target_user.id) == str(admin_user.id):
+    if str(target_user.id) == str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete your own account"
@@ -846,7 +765,7 @@ async def delete_user(user_id: str, token: str, db: Session = Depends(get_db)):
     db.delete(target_user)
     db.commit()
 
-    logger.info(f"Admin {session.email} deleted user {email}")
+    logger.info(f"Admin {current_user.email} deleted user {email}")
 
     return {"message": f"User {email} deleted"}
 
@@ -857,7 +776,7 @@ class RecoveryKeyRequest(BaseModel):
     """Request to recover password using recovery key."""
     email: EmailSyntax
     recovery_key: str
-    new_password: str = Field(..., min_length=4, max_length=100)
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 
 class SecurityQuestionsRequest(BaseModel):
@@ -865,7 +784,7 @@ class SecurityQuestionsRequest(BaseModel):
     email: EmailSyntax
     answer_1: str
     answer_2: str
-    new_password: str = Field(..., min_length=4, max_length=100)
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 
 @router.get("/recovery-questions/{email}")

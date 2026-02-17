@@ -28,17 +28,26 @@ FROM nginx:alpine
 # Install curl for health checks
 RUN apk add --no-cache curl
 
+# Create non-root user and fix permissions for nginx temp directories
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup && \
+    chown -R appuser:appgroup /var/cache/nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && chown appuser:appgroup /var/run/nginx.pid
+
 # Copy custom nginx config
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Switch to non-root user
+USER appuser
+
 # Health check using curl (nginx:alpine doesn't have wget by default)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/ || exit 1
 
-# Expose port (3000 is industry standard for web apps, non-privileged)
+# Expose port (3000 is non-privileged, works without root)
 EXPOSE 3000
 
 # Run nginx

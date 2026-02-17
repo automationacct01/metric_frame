@@ -105,21 +105,11 @@ export function FrameworkProvider({ children }: FrameworkProviderProps) {
     }
   }, []);
 
-  // Initialize user email for API authentication
+  // Initialize default user email in localStorage (for display purposes only)
   useEffect(() => {
     const storedEmail = localStorage.getItem('userEmail');
-    const defaultEmail = storedEmail || 'admin@example.com';
-
-    console.log('🔐 Auth initialization:', {
-      storedEmail,
-      usingEmail: defaultEmail,
-      isAdmin: defaultEmail === 'admin@example.com'
-    });
-
-    apiClient.setCurrentUserEmail(defaultEmail);
-
     if (!storedEmail) {
-      localStorage.setItem('userEmail', defaultEmail);
+      localStorage.setItem('userEmail', 'admin@example.com');
     }
   }, []);
 

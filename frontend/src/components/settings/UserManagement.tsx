@@ -153,7 +153,9 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/auth/users?token=${token}`);
+      const response = await fetch(`${API_BASE}/api/v1/auth/users`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
       if (!response.ok) {
         throw new Error('Failed to load users');
       }
@@ -182,9 +184,12 @@ const UserManagement: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_BASE}/api/v1/auth/users/${userId}/role?token=${token}`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/users/${userId}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ role: newRole }),
       });
 
@@ -208,8 +213,11 @@ const UserManagement: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/v1/auth/users/${user.id}/active?token=${token}&active=${!user.active}`,
-        { method: 'PUT' }
+        `${API_BASE}/api/v1/auth/users/${user.id}/active?active=${!user.active}`,
+        {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
       );
 
       if (!response.ok) {
@@ -250,9 +258,12 @@ const UserManagement: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/auth/invite?token=${token}`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/invite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
           email: formData.email.trim(),
           role: formData.role,
@@ -282,8 +293,11 @@ const UserManagement: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/v1/auth/users/${userToDelete.id}?token=${token}`,
-        { method: 'DELETE' }
+        `${API_BASE}/api/v1/auth/users/${userToDelete.id}`,
+        {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
       );
 
       if (!response.ok) {
@@ -309,16 +323,25 @@ const UserManagement: React.FC = () => {
       return;
     }
 
-    if (newPassword.length < 4) {
-      showSnackbar('Password must be at least 4 characters', 'error');
+    if (newPassword.length < 8) {
+      showSnackbar('Password must be at least 8 characters', 'error');
       return;
     }
 
     setResetLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/v1/auth/reset-password/${userToReset.id}?token=${token}&new_password=${encodeURIComponent(newPassword)}`,
-        { method: 'POST' }
+        `${API_BASE}/api/v1/auth/reset-password/${userToReset.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            new_password: newPassword,
+          }),
+        }
       );
 
       if (!response.ok) {
@@ -709,7 +732,7 @@ const UserManagement: React.FC = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 margin="normal"
                 disabled={resetLoading}
-                helperText="Minimum 4 characters"
+                helperText="Minimum 8 characters"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

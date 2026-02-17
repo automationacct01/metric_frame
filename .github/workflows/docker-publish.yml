@@ -206,9 +206,11 @@ jobs:
           cp "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/"
 
           if [ ! -f "$INSTALL_DIR/.env" ]; then
-              cat > "$INSTALL_DIR/.env" << 'ENV_EOF'
+              # Generate a random password for offline installations
+              OFFLINE_DB_PASS=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
+              cat > "$INSTALL_DIR/.env" << ENV_EOF
           POSTGRES_USER=metricframe
-          POSTGRES_PASSWORD=metricframe_offline
+          POSTGRES_PASSWORD=${OFFLINE_DB_PASS}
           POSTGRES_DB=metricframe
           FRONTEND_PORT=3000
           ENV_EOF
@@ -243,7 +245,7 @@ jobs:
 
       - name: Add to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2  # pinned major version
         with:
           files: |
             metricframe-docker-images.tar.gz

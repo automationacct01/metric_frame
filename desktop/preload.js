@@ -18,11 +18,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Platform info
   platform: process.platform,
 
-  // Open external URL in default browser
-  openExternal: (url) => {
-    ipcRenderer.send('open-external', url);
-  },
-
   // TLS settings
   getTlsEnabled: () => ipcRenderer.invoke('get-tls-enabled'),
   setTlsEnabled: (enabled) => ipcRenderer.invoke('set-tls-enabled', enabled),

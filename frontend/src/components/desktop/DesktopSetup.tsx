@@ -84,8 +84,8 @@ export default function DesktopSetup() {
   const handlePasswordNext = () => {
     setValidationError(null);
 
-    if (password.length < 4) {
-      setValidationError('Password must be at least 4 characters');
+    if (password.length < 8) {
+      setValidationError('Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -216,7 +216,7 @@ export default function DesktopSetup() {
         Create Your Password
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }} textAlign="center">
-        Choose a password you'll remember. Minimum 4 characters.
+        Choose a password you'll remember. Minimum 8 characters.
       </Typography>
 
       <Stack spacing={3}>

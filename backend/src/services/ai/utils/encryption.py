@@ -158,3 +158,60 @@ class CredentialEncryption:
             return True
         except Exception:
             return False
+
+    def migrate_credentials_from_old_key(self, old_key: str, db) -> int:
+        """Re-encrypt credentials from an old Fernet key to the current key.
+
+        Called on desktop startup when AI_CREDENTIALS_OLD_KEY env var is present,
+        indicating the app was updated from the hardcoded key to a per-installation key.
+
+        Args:
+            old_key: The previous Fernet key (hardcoded in older desktop builds)
+            db: SQLAlchemy Session
+
+        Returns:
+            Count of migrated credentials
+        """
+        if not self._fernet:
+            logger.warning("Cannot migrate: current encryption key not available")
+            return 0
+
+        try:
+            old_fernet = Fernet(old_key.encode())
+        except Exception as e:
+            logger.error(f"Invalid old encryption key: {e}")
+            return 0
+
+        from ...models import UserAIConfiguration
+
+        configs = db.query(UserAIConfiguration).filter(
+            UserAIConfiguration.encrypted_credentials.isnot(None)
+        ).all()
+
+        if not configs:
+            return 0
+
+        migrated = 0
+        for config in configs:
+            # Try current key first (already migrated or freshly encrypted)
+            try:
+                self._fernet.decrypt(config.encrypted_credentials.encode())
+                continue  # Already decryptable with current key
+            except InvalidToken:
+                pass
+
+            # Try old key and re-encrypt with new key
+            try:
+                plaintext = old_fernet.decrypt(config.encrypted_credentials.encode()).decode()
+                config.encrypted_credentials = self._fernet.encrypt(plaintext.encode()).decode()
+                migrated += 1
+            except InvalidToken:
+                logger.warning(
+                    f"Config {config.id}: cannot decrypt with old or new key, skipping"
+                )
+
+        if migrated > 0:
+            db.commit()
+            logger.info(f"Migrated {migrated} credential(s) to per-installation key")
+
+        return migrated

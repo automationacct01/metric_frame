@@ -15,18 +15,21 @@ load_dotenv()
 
 
 def is_desktop_mode():
-    """Detect if running as a desktop app (PyInstaller bundle or explicit desktop mode)."""
+    """Detect if running as a desktop app (PyInstaller bundle or explicit desktop mode).
+
+    Only activates desktop mode when:
+    1. Running from a PyInstaller bundle (sys.frozen), OR
+    2. METRICFRAME_DESKTOP_MODE=true is explicitly set
+
+    This prevents accidental desktop mode activation in misconfigured Docker
+    deployments, which would grant unauthenticated admin access.
+    """
     # Check if running from PyInstaller bundle
     if getattr(sys, 'frozen', False):
         return True
     # Check for explicit desktop mode environment variable
     if os.getenv("METRICFRAME_DESKTOP_MODE", "").lower() == "true":
         return True
-    # Check if DATABASE_URL is not set and we're not in a Docker environment
-    if not os.getenv("DATABASE_URL") and not os.getenv("DOCKER_ENV"):
-        # Additional check: if no PostgreSQL-related env vars are set, assume desktop
-        if not any(os.getenv(var) for var in ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]):
-            return True
     return False
 
 

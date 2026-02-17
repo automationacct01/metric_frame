@@ -167,10 +167,10 @@ async def setup_desktop_auth(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password required when auth_mode is 'password'"
             )
-        if len(request.password) < 4:
+        if len(request.password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 4 characters"
+                detail="Password must be at least 8 characters"
             )
         if not all([
             request.security_question_1,
@@ -310,10 +310,10 @@ async def recover_password(
         )
 
     # Validate new password
-    if len(request.new_password) < 4:
+    if len(request.new_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 4 characters"
+            detail="Password must be at least 8 characters"
         )
 
     # Update password
@@ -363,10 +363,10 @@ async def change_auth_mode(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="New password required"
             )
-        if len(request.new_password) < 4:
+        if len(request.new_password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 4 characters"
+                detail="Password must be at least 8 characters"
             )
         if not all([
             request.security_question_1,
@@ -420,10 +420,10 @@ async def change_password(
         )
 
     # Validate new password
-    if len(request.new_password) < 4:
+    if len(request.new_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 4 characters"
+            detail="Password must be at least 8 characters"
         )
 
     # Update password

@@ -159,8 +159,8 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
       setPasswordError('All fields are required');
       return;
     }
-    if (newPassword.length < 4) {
-      setPasswordError('New password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -171,8 +171,18 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
     setPasswordLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/v1/auth/change-password?token=${token}&current_password=${encodeURIComponent(currentPassword)}&new_password=${encodeURIComponent(newPassword)}`,
-        { method: 'POST' }
+        `${API_BASE}/api/v1/auth/change-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+          }),
+        }
       );
 
       if (!response.ok) {
@@ -526,7 +536,7 @@ export default function Navbar({ window, collapsed, onToggleCollapse }: NavbarPr
                 onChange={(e) => setNewPassword(e.target.value)}
                 margin="normal"
                 disabled={passwordLoading}
-                helperText="Minimum 4 characters"
+                helperText="Minimum 8 characters"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

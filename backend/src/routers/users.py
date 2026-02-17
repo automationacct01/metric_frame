@@ -1,7 +1,6 @@
 """API endpoints for user management.
 
-Admin-assigned roles (viewer, editor, admin) with no password authentication.
-Users are identified by X-User-Email header.
+Admin-assigned roles (viewer, editor, admin) with token-based authentication.
 """
 
 import logging
@@ -14,11 +13,9 @@ from sqlalchemy import and_
 
 from ..db import get_db
 from ..models import User
-from ..middleware.roles import (
-    UserRole,
-    get_current_user,
-    require_role,
-)
+from .auth import get_current_user, require_admin
+
+VALID_ROLES = ["viewer", "editor", "admin"]
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +73,12 @@ class UserResponse(BaseModel):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get the current user's profile from X-User-Email header.
+    """Get the current user's profile.
 
-    No role requirement - any valid user can access their own profile.
-    Returns 404 if no user matches the provided email.
+    No role requirement - any authenticated user can access their own profile.
     """
-    if not current_user:
-        raise HTTPException(
-            status_code=404,
-            detail="No user found for the provided email. Ensure X-User-Email header is set.",
-        )
     return UserResponse.model_validate(current_user)
 
 
@@ -96,7 +87,7 @@ async def list_users(
     active_only: bool = Query(False, description="Filter to active users only"),
     role: Optional[str] = Query(None, description="Filter by role"),
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """List all users. Requires admin role."""
     query = db.query(User)
@@ -105,10 +96,10 @@ async def list_users(
         query = query.filter(User.active == True)
 
     if role:
-        if role not in UserRole.ALL:
+        if role not in VALID_ROLES:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid role filter. Must be one of: {UserRole.ALL}",
+                detail=f"Invalid role filter. Must be one of: {VALID_ROLES}",
             )
         query = query.filter(User.role == role)
 
@@ -120,14 +111,14 @@ async def list_users(
 async def create_user(
     user_data: UserCreateRequest,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Create a new user. Requires admin role."""
     # Validate role
-    if user_data.role not in UserRole.ALL:
+    if user_data.role not in VALID_ROLES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid role '{user_data.role}'. Must be one of: {UserRole.ALL}",
+            detail=f"Invalid role '{user_data.role}'. Must be one of: {VALID_ROLES}",
         )
 
     # Check for duplicate email
@@ -156,7 +147,7 @@ async def create_user(
 async def get_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Get a user by ID. Requires admin role."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -170,7 +161,7 @@ async def update_user(
     user_id: UUID,
     user_data: UserUpdateRequest,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Update a user's fields. Requires admin role."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -180,10 +171,10 @@ async def update_user(
     update_fields = user_data.model_dump(exclude_unset=True)
 
     # Validate role if being updated
-    if "role" in update_fields and update_fields["role"] not in UserRole.ALL:
+    if "role" in update_fields and update_fields["role"] not in VALID_ROLES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid role '{update_fields['role']}'. Must be one of: {UserRole.ALL}",
+            detail=f"Invalid role '{update_fields['role']}'. Must be one of: {VALID_ROLES}",
         )
 
     # Check email uniqueness if being updated
@@ -211,7 +202,7 @@ async def update_user(
 async def delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Soft delete a user (set active=False). Requires admin role."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -237,13 +228,13 @@ async def assign_role(
     user_id: UUID,
     role_data: UserRoleAssignRequest,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Assign a role to a user. Requires admin role."""
-    if role_data.role not in UserRole.ALL:
+    if role_data.role not in VALID_ROLES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid role '{role_data.role}'. Must be one of: {UserRole.ALL}",
+            detail=f"Invalid role '{role_data.role}'. Must be one of: {VALID_ROLES}",
         )
 
     user = db.query(User).filter(User.id == user_id).first()

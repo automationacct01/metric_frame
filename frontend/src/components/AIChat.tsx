@@ -14,6 +14,7 @@ import {
   CircularProgress,
   Card,
   CardContent,
+  CardActions,
   Grid,
   FormControl,
   InputLabel,
@@ -112,6 +113,7 @@ export default function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
+  const [appliedActions, setAppliedActions] = useState<Set<string>>(new Set());
 
   const exportToPdf = async (messageId: string) => {
     const element = reportRefs.current[messageId];
@@ -709,7 +711,11 @@ export default function AIChat() {
                         },
                       }}
                     >
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <ReactMarkdown>
+                        {message.actions && message.actions.length > 0
+                          ? message.content.replace(/```json\s*[\s\S]*?```/g, '').trim()
+                          : message.content}
+                      </ReactMarkdown>
                     </Box>
                   ) : (
                     <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -717,10 +723,73 @@ export default function AIChat() {
                     </Typography>
                   )}
                   {message.actions && message.actions.length > 0 && (
-                    <Box sx={{ mt: 1 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Actions: {message.actions.length}
-                      </Typography>
+                    <Box sx={{ mt: 2 }}>
+                      {message.actions.filter(a => a.action === 'add_metric' && a.metric).map((action, idx) => {
+                        const actionKey = `${message.id}-${idx}`;
+                        const isApplied = appliedActions.has(actionKey);
+                        return (
+                          <Card key={idx} sx={{ mt: 1, border: '2px solid', borderColor: isApplied ? 'grey.400' : 'success.light', bgcolor: isApplied ? 'action.hover' : undefined }}>
+                            <CardContent sx={{ pb: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <CheckIcon sx={{ mr: 1, color: isApplied ? 'grey.500' : 'success.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  {isApplied ? 'Metric Created' : 'Suggested Metric'}
+                                </Typography>
+                              </Box>
+                              <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
+                                {action.metric?.name || 'Unnamed Metric'}
+                              </Typography>
+                              {action.metric?.description && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                  {action.metric.description}
+                                </Typography>
+                              )}
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {action.metric?.csf_function && (
+                                  <Chip size="small" label={`Function: ${action.metric.csf_function.toUpperCase()}`} variant="outlined" />
+                                )}
+                                {action.metric?.target_value != null && (
+                                  <Chip size="small" label={`Target: ${action.metric.target_value}${action.metric?.target_units || '%'}`} variant="outlined" />
+                                )}
+                                {action.metric?.direction && (
+                                  <Chip size="small" label={action.metric.direction.replace(/_/g, ' ')} variant="outlined" />
+                                )}
+                                {action.metric?.priority_rank != null && (
+                                  <Chip
+                                    size="small"
+                                    label={`Priority: ${action.metric.priority_rank === 1 ? 'High' : action.metric.priority_rank === 2 ? 'Medium' : 'Low'}`}
+                                    variant="outlined"
+                                    color={action.metric.priority_rank === 1 ? 'error' : action.metric.priority_rank === 2 ? 'warning' : 'default'}
+                                  />
+                                )}
+                              </Box>
+                            </CardContent>
+                            {isEditor && !isApplied && (
+                              <CardActions sx={{ pt: 0 }}>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="success"
+                                  startIcon={<CheckIcon />}
+                                  disabled={state.loading}
+                                  onClick={async () => {
+                                    await handleApplyActions([action], true);
+                                    setAppliedActions(prev => new Set(prev).add(actionKey));
+                                  }}
+                                >
+                                  Apply
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={() => setAppliedActions(prev => new Set(prev).add(actionKey))}
+                                >
+                                  Dismiss
+                                </Button>
+                              </CardActions>
+                            )}
+                          </Card>
+                        );
+                      })}
                     </Box>
                   )}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>

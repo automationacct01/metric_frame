@@ -467,8 +467,8 @@ export default function Settings() {
   const handleChangePassword = async () => {
     setDesktopAuthError(null);
 
-    if (newPassword.length < 4) {
-      setDesktopAuthError('New password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setDesktopAuthError('New password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -491,8 +491,8 @@ export default function Settings() {
   const handleEnablePassword = async () => {
     setDesktopAuthError(null);
 
-    if (newPassword.length < 4) {
-      setDesktopAuthError('Password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setDesktopAuthError('Password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -1203,7 +1203,7 @@ export default function Settings() {
                   type={showPasswords ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  helperText="Minimum 4 characters"
+                  helperText="Minimum 8 characters"
                 />
                 <TextField
                   fullWidth
@@ -1224,7 +1224,7 @@ export default function Settings() {
                   type={showPasswords ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  helperText="Minimum 4 characters"
+                  helperText="Minimum 8 characters"
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">

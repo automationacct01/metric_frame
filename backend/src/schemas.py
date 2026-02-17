@@ -662,6 +662,44 @@ class AIProviderListResponse(BaseModel):
     total: int
 
 
+def _validate_endpoint_url(url: str) -> str:
+    """Validate AI provider endpoint URLs to prevent SSRF attacks.
+
+    Allows: http/https to any host (including localhost for local providers).
+    Blocks: cloud metadata IPs, non-http schemes.
+    """
+    import ipaddress
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Only http and https are allowed.")
+
+    if not parsed.hostname:
+        raise ValueError("Invalid URL: no hostname specified.")
+
+    BLOCKED_RANGES = [
+        ipaddress.ip_network("169.254.0.0/16"),    # AWS/Azure metadata (link-local)
+        ipaddress.ip_network("fd00:ec2::/32"),      # AWS IMDSv2 IPv6
+        ipaddress.ip_network("100.100.100.0/24"),   # Alibaba Cloud metadata
+    ]
+
+    try:
+        addr = ipaddress.ip_address(parsed.hostname)
+        for blocked in BLOCKED_RANGES:
+            if addr in blocked:
+                raise ValueError(
+                    f"Blocked: {parsed.hostname} is in a restricted IP range (cloud metadata)."
+                )
+    except ValueError as e:
+        if "restricted IP range" in str(e) or "Invalid URL" in str(e) or "no hostname" in str(e):
+            raise
+        # Not an IP literal (domain name) — allow
+
+    return url
+
+
 class AIConfigurationCredentials(BaseModel):
     """Credentials for AI provider configuration (input only, never returned)."""
     api_key: Optional[str] = Field(None, max_length=500)
@@ -689,6 +727,20 @@ class AIConfigurationCredentials(BaseModel):
                 json_module.loads(v)
             except (json_module.JSONDecodeError, TypeError):
                 raise ValueError("gcp_credentials_json must be valid JSON")
+        return v
+
+    @field_validator('local_endpoint')
+    @classmethod
+    def validate_local_endpoint(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            _validate_endpoint_url(v)
+        return v
+
+    @field_validator('azure_endpoint')
+    @classmethod
+    def validate_azure_endpoint(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            _validate_endpoint_url(v)
         return v
 
 

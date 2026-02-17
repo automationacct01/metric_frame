@@ -18,7 +18,7 @@ jobs:
 
       - name: Bump version and push tag
         id: tag
-        uses: anothrNick/github-tag-action@v1
+        uses: anothrNick/github-tag-action@1.70.0  # pinned version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BUMP: patch

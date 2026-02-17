@@ -30,7 +30,7 @@ from ..schemas import (
 )
 from ..services.scoring import compute_metric_score, compute_gap_to_target
 from ..services.metric_versioning import create_version_snapshot, get_version_diff
-from ..middleware.roles import require_role
+from .auth import get_current_user, require_editor, require_admin
 
 
 def _add_scores_to_response(metric: Metric) -> MetricResponse:
@@ -56,6 +56,7 @@ async def list_metrics(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List metrics with filtering and pagination.
@@ -144,7 +145,7 @@ async def list_metrics(
 async def create_metric(
     metric: MetricCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Create a new metric."""
     from ..models import Framework, FrameworkFunction
@@ -220,6 +221,7 @@ async def create_metric(
 async def get_metric(
     metric_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a metric by ID."""
 
@@ -265,7 +267,7 @@ async def update_metric(
     metric_id: UUID,
     metric_update: MetricUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Update a metric (full update). Auto-creates version snapshot and optionally history entry.
 
@@ -436,7 +438,7 @@ async def patch_metric(
     metric_id: UUID,
     metric_update: MetricUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Partially update a metric."""
     return await update_metric(metric_id, metric_update, db)
@@ -447,7 +449,7 @@ async def delete_metric(
     metric_id: UUID,
     hard_delete: bool = Query(False, description="Permanently delete instead of soft delete"),
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_role(["admin"])),
+    _admin: User = Depends(require_admin),
 ):
     """Delete a metric (soft delete by default)."""
     
@@ -470,7 +472,7 @@ async def add_metric_value(
     metric_id: UUID,
     history: MetricHistoryCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Add a new value to metric history and update current value."""
     
@@ -508,6 +510,7 @@ async def get_metric_history(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get metric history with pagination."""
     
@@ -537,6 +540,7 @@ async def get_metric_versions(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get version history for a metric, newest first."""
 
@@ -561,6 +565,7 @@ async def get_metric_version(
     metric_id: UUID,
     version_number: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific version snapshot for a metric."""
 
@@ -587,6 +592,7 @@ async def get_metric_version_diff(
     version_a: int = Query(..., description="First version number"),
     version_b: int = Query(..., description="Second version number"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Compare two version snapshots and return a field-level diff."""
 
@@ -625,7 +631,9 @@ async def get_metric_version_diff(
 
 
 @router.get("/functions/list")
-async def list_csf_functions():
+async def list_csf_functions(
+    current_user: User = Depends(get_current_user),
+):
     """Get list of available CSF functions."""
     return {
         "functions": [
@@ -640,7 +648,10 @@ async def list_csf_functions():
 
 
 @router.get("/stats/summary")
-async def get_metrics_summary(db: Session = Depends(get_db)):
+async def get_metrics_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get summary statistics for metrics."""
     
     total_metrics = db.query(Metric).filter(Metric.active == True).count()
@@ -694,6 +705,7 @@ async def export_metrics_csv(
     search: Optional[str] = None,
     owner_function: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Export metrics to CSV with all available columns. Supports multi-framework filtering."""
     from sqlalchemy.orm import joinedload
@@ -843,7 +855,7 @@ async def lock_metric(
     metric_id: UUID,
     locked_by: Optional[str] = Query(None, description="User who locked the metric"),
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Lock a metric to prevent editing."""
 
@@ -869,7 +881,7 @@ async def unlock_metric(
     metric_id: UUID,
     unlocked_by: Optional[str] = Query(None, description="User who unlocked the metric"),
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Unlock a metric to allow editing."""
 
@@ -896,7 +908,7 @@ async def update_metric_field(
     field: str = Query(..., description="Field name to update"),
     value: str = Query(..., description="New value for the field"),
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Update a single field of a metric (requires metric to be unlocked).
 
@@ -1006,7 +1018,7 @@ async def toggle_metric_lock(
     metric_id: UUID,
     user: Optional[str] = Query(None, description="User performing the action"),
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_role(["editor", "admin"])),
+    _editor: User = Depends(require_editor),
 ):
     """Toggle the lock state of a metric."""
 

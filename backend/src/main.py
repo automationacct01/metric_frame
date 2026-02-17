@@ -86,6 +86,24 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         seed_database_if_empty()  # Auto-seed on first run
 
+    # Migrate AI credentials if old key is provided (desktop key rotation)
+    old_key = os.getenv("AI_CREDENTIALS_OLD_KEY")
+    if old_key and IS_DESKTOP_MODE:
+        try:
+            from .services.ai.utils.encryption import CredentialEncryption
+            encryption = CredentialEncryption()
+            if encryption.is_available:
+                from .db import SessionLocal
+                migration_db = SessionLocal()
+                try:
+                    count = encryption.migrate_credentials_from_old_key(old_key, migration_db)
+                    if count > 0:
+                        print(f"Migrated {count} AI credential(s) to per-installation key")
+                finally:
+                    migration_db.close()
+        except Exception as e:
+            print(f"Warning: AI credential migration failed (non-fatal): {e}")
+
     yield
     # Shutdown
     print("Shutting down Multi-Framework Cybersecurity Metrics API...")
@@ -121,7 +139,7 @@ app.add_middleware(
     allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-User-Email"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Include routers

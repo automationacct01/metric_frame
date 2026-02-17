@@ -128,8 +128,8 @@ export default function ForgotPassword() {
       return;
     }
 
-    if (newPassword.length < 4) {
-      setError('Password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
@@ -173,8 +173,8 @@ export default function ForgotPassword() {
       return;
     }
 
-    if (newPassword.length < 4) {
-      setError('Password must be at least 4 characters');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 

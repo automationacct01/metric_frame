@@ -13,15 +13,19 @@ from typing import List, Optional
 from uuid import UUID
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from ..db import get_db
 from ..models import MetricCatalog, MetricCatalogItem, MetricCatalogCSFMapping, CSFFunction, MetricDirection, CollectionFrequency, Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory, User as UserModel, MappingMethod, Metric
-from ..middleware.roles import require_role
+from .auth import get_current_user, require_editor, require_admin
 from ..schemas import (
     MetricCatalogResponse,
     MetricCatalogCreate,
@@ -112,7 +116,8 @@ def _compute_catalog_item_gap(current_value, target_value, direction) -> Optiona
 async def list_catalogs(
     owner: Optional[str] = None,
     active_only: bool = False,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """List all metric catalogs."""
     query = db.query(MetricCatalog)
@@ -169,14 +174,16 @@ def clean_row_for_json(row_dict: dict) -> dict:
 
 
 @router.post("/upload", response_model=CatalogImportResponse)
+@limiter.limit("10/minute")
 async def upload_catalog(
+    request: Request,
     file: UploadFile = File(...),
     catalog_name: str = Form(...),
     description: Optional[str] = Form(None),
     owner: Optional[str] = Form(None),
     framework: str = Form("csf_2_0", description="Target framework (csf_2_0, ai_rmf)"),
     db: Session = Depends(get_db),
-    _editor: UserModel = Depends(require_role(["editor", "admin"])),
+    _editor: UserModel = Depends(require_editor),
 ):
     """
     Upload and import a metric catalog file.
@@ -188,6 +195,17 @@ async def upload_catalog(
 
     AI-powered mapping uses Claude to suggest framework mappings for each metric.
     """
+
+    # Enforce file size limit (10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is 10MB, got {len(content) / (1024*1024):.1f}MB"
+        )
+    # Reset file position for downstream processing
+    await file.seek(0)
 
     # Validate framework
     valid_frameworks = ["csf_2_0", "ai_rmf", "cyber_ai_profile"]
@@ -355,7 +373,8 @@ async def upload_catalog(
 async def get_catalog_mappings(
     catalog_id: UUID,
     framework: str = Query("csf_2_0", description="Target framework for mapping"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """
     Get framework mapping suggestions for a catalog.
@@ -384,7 +403,8 @@ async def get_catalog_mappings(
 async def get_catalog_enhancements(
     catalog_id: UUID,
     framework: str = Query("csf_2_0", description="Framework for enhancement context"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """
     Get AI-powered metric enhancement suggestions for a catalog.
@@ -408,7 +428,7 @@ async def apply_catalog_enhancements(
     catalog_id: UUID,
     enhancements: List[dict],
     db: Session = Depends(get_db),
-    _editor: UserModel = Depends(require_role(["editor", "admin"])),
+    _editor: UserModel = Depends(require_editor),
 ):
     """
     Apply accepted enhancements to catalog items.
@@ -478,7 +498,7 @@ async def save_catalog_mappings(
     catalog_id: UUID,
     mappings: List[MetricCatalogCSFMappingCreate],
     db: Session = Depends(get_db),
-    _editor: UserModel = Depends(require_role(["editor", "admin"])),
+    _editor: UserModel = Depends(require_editor),
 ):
     """Save CSF mappings for catalog items."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -608,7 +628,7 @@ async def activate_catalog(
     catalog_id: UUID,
     request: CatalogActivationRequest,
     db: Session = Depends(get_db),
-    _editor: UserModel = Depends(require_role(["editor", "admin"])),
+    _editor: UserModel = Depends(require_editor),
 ):
     """Activate or deactivate a catalog."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -640,7 +660,8 @@ async def activate_catalog(
 @router.get("/{catalog_id}", response_model=MetricCatalogResponse)
 async def get_catalog(
     catalog_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """Get a specific catalog by ID."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -673,7 +694,7 @@ async def get_catalog(
 async def delete_catalog(
     catalog_id: UUID,
     db: Session = Depends(get_db),
-    _admin: UserModel = Depends(require_role(["admin"])),
+    _admin: UserModel = Depends(require_admin),
 ):
     """Delete a catalog and all its items."""
     catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
@@ -797,7 +818,8 @@ async def get_active_catalog_metrics(
     search: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """Get metrics from the active catalog for the specified owner."""
     
@@ -890,6 +912,7 @@ async def export_active_catalog_metrics_csv(
     priority_rank: Optional[int] = Query(None, ge=1, le=3),
     search: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """Export active catalog metrics to CSV with all available columns."""
     
