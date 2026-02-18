@@ -38,6 +38,7 @@ const optionalFields = [
   { key: 'weight', label: 'Weight', description: 'Weighting factor for scoring' },
   { key: 'owner_function', label: 'Owner Function', description: 'Responsible team or function' },
   { key: 'data_source', label: 'Data Source', description: 'Source of metric data' },
+  { key: 'collection_frequency', label: 'Collection Frequency', description: 'How often data is collected (daily, weekly, monthly, quarterly, ad_hoc)' },
   { key: 'formula', label: 'Formula', description: 'Calculation method' },
   { key: 'target_units', label: 'Target Units', description: 'Units of measurement' },
   { key: 'tolerance_low', label: 'Tolerance Low', description: 'Lower tolerance bound' },
@@ -59,17 +60,31 @@ const FieldMappingStep: React.FC<FieldMappingStepProps> = ({ state, updateState 
         { target: 'direction', patterns: ['direction', 'direction_type', 'scoring_direction'] },
         { target: 'description', patterns: ['description', 'desc', 'details'] },
         { target: 'target_value', patterns: ['target_value', 'target', 'goal', 'objective'] },
-        { target: 'current_value', patterns: ['current_value', 'current', 'actual', 'value'] },
+        { target: 'current_value', patterns: ['current_value', 'current', 'actual'] },
+        { target: 'priority_rank', patterns: ['priority_rank', 'priority', 'rank'] },
+        { target: 'weight', patterns: ['weight'] },
+        { target: 'owner_function', patterns: ['owner_function', 'owner'] },
+        { target: 'data_source', patterns: ['data_source', 'source'] },
+        { target: 'collection_frequency', patterns: ['collection_frequency', 'frequency'] },
+        { target: 'formula', patterns: ['formula', 'calculation'] },
+        { target: 'target_units', patterns: ['target_units', 'units', 'unit'] },
+        { target: 'tolerance_low', patterns: ['tolerance_low'] },
+        { target: 'tolerance_high', patterns: ['tolerance_high'] },
       ];
-      
+
+      // Track columns already mapped to prevent duplicates
+      const usedColumns = new Set<string>();
+
       mappingRules.forEach(rule => {
         const matchedColumn = availableColumns.find((col: string) =>
+          !usedColumns.has(col) &&
           rule.patterns.some(pattern =>
             col.toLowerCase().includes(pattern.toLowerCase())
           )
         );
         if (matchedColumn) {
           autoMappings[rule.target] = matchedColumn;
+          usedColumns.add(matchedColumn);
         }
       });
       

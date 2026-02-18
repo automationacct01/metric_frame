@@ -40,7 +40,8 @@ from ..schemas import (
     MetricResponse,
     MetricListResponse
 )
-from ..services.claude_client import claude_client, generate_csf_mapping_suggestions, generate_metric_enhancement_suggestions
+from ..services.catalog_ai import generate_framework_mappings as ai_generate_framework_mappings, enhance_catalog_metrics as ai_enhance_catalog_metrics
+from .ai import get_active_provider
 
 router = APIRouter(prefix="/catalogs", tags=["catalogs"])
 
@@ -335,10 +336,16 @@ async def upload_catalog(
 
         try:
             if items_imported > 0:
-                # Use Claude client for multi-framework mapping
-                suggestions = await claude_client.generate_framework_mappings(catalog.id, framework, db)
-                suggested_mappings = [s.model_dump() for s in suggestions]
-                ai_mapping_status = "success" if suggested_mappings else "no_mappings"
+                # Get AI provider from user's configuration
+                try:
+                    provider = await get_active_provider(db, _editor.id)
+                    suggestions = await ai_generate_framework_mappings(provider, catalog.id, framework, db)
+                    suggested_mappings = [s.model_dump() for s in suggestions]
+                    ai_mapping_status = "success" if suggested_mappings else "no_mappings"
+                except HTTPException:
+                    # No AI provider configured — skip mapping, don't fail upload
+                    ai_mapping_status = "no_provider"
+                    ai_mapping_error = "No AI provider configured. Configure one in Settings > AI Configuration, then retry mapping."
         except Exception as e:
             ai_mapping_status = "failed"
             ai_mapping_error = str(e)
@@ -393,8 +400,11 @@ async def get_catalog_mappings(
         )
 
     try:
-        suggestions = await claude_client.generate_framework_mappings(catalog_id, framework, db)
+        provider = await get_active_provider(db, current_user.id)
+        suggestions = await ai_generate_framework_mappings(provider, catalog_id, framework, db)
         return suggestions
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate mappings: {str(e)}")
 
@@ -417,8 +427,11 @@ async def get_catalog_enhancements(
         raise HTTPException(status_code=404, detail="Catalog not found")
 
     try:
-        enhancements = await claude_client.enhance_catalog_metrics(catalog_id, framework, db)
+        provider = await get_active_provider(db, current_user.id)
+        enhancements = await ai_enhance_catalog_metrics(provider, catalog_id, framework, db)
         return enhancements
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate enhancements: {str(e)}")
 
@@ -688,6 +701,31 @@ async def get_catalog(
     }
     
     return MetricCatalogResponse(**catalog_dict)
+
+
+@router.get("/{catalog_id}/items")
+async def get_catalog_items(
+    catalog_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """Get all items in a catalog (id, name, description) for manual mapping."""
+    catalog = db.query(MetricCatalog).filter(MetricCatalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+
+    items = db.query(MetricCatalogItem).filter(
+        MetricCatalogItem.catalog_id == catalog_id
+    ).all()
+
+    return [
+        {
+            "id": str(item.id),
+            "name": item.name,
+            "description": item.description or "",
+        }
+        for item in items
+    ]
 
 
 @router.delete("/{catalog_id}")

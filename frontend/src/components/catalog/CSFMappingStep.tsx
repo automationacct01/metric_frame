@@ -79,6 +79,8 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
 
   // Use actual suggestions from the wizard state (populated during upload)
   const suggestions = state.suggestedMappings || [];
+  // Total metrics count: prefer suggestions count, fall back to items imported count
+  const totalMetrics = Math.max(suggestions.length, state.itemsImported || 0);
 
   // Try to load mappings if none exist and we have a catalog ID
   useEffect(() => {
@@ -217,19 +219,39 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
     setEditingMapping(null);
   };
 
-  const handleCreateManualMapping = () => {
-    // Create a mock suggestion for manual mapping
-    const mockSuggestion = {
-      catalog_item_id: 'manual-' + Date.now(),
-      metric_name: 'Manual Mapping',
-      suggested_function: 'gv',
-      suggested_category: '',
-      confidence_score: 1.0,
-      reasoning: 'Manual mapping'
-    };
-    
-    setEditingMapping(mockSuggestion);
-    setDialogOpen(true);
+  const handleLoadItemsForManualMapping = async () => {
+    if (!state.catalogId) return;
+
+    try {
+      setLoadingMappings(true);
+      setMappingStatus('Loading catalog items for manual mapping...');
+      const items = await apiClient.getCatalogItems(state.catalogId);
+
+      if (items.length === 0) {
+        setMappingError('No catalog items found. Please go back and re-upload your file.');
+        setLoadingMappings(false);
+        return;
+      }
+
+      // Convert items to suggestion objects with default function assignment
+      const manualSuggestions = items.map((item) => ({
+        catalog_item_id: item.id,
+        metric_name: item.name,
+        suggested_function: frameworkFunctions[0].code,
+        suggested_category: '',
+        suggested_subcategory: '',
+        confidence_score: 0,
+        reasoning: 'Needs manual mapping',
+      }));
+
+      updateState({ suggestedMappings: manualSuggestions });
+      setLoadingMappings(false);
+      setMappingStatus('');
+    } catch (error: any) {
+      setMappingError(error.message || 'Failed to load catalog items');
+      setLoadingMappings(false);
+      setMappingStatus('');
+    }
   };
 
   const isMetricMapped = (metricId: string) => {
@@ -328,12 +350,12 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
             Mapping Progress
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {state.confirmedMappings?.length || 0} of {suggestions.length} metrics accepted
+            {state.confirmedMappings?.length || 0} of {totalMetrics} metrics accepted
           </Typography>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={suggestions.length > 0 ? ((state.confirmedMappings?.length || 0) / suggestions.length) * 100 : 0}
+        <LinearProgress
+          variant="determinate"
+          value={totalMetrics > 0 ? ((state.confirmedMappings?.length || 0) / totalMetrics) * 100 : 0}
           sx={{ height: 8, borderRadius: 4 }}
         />
       </Box>
@@ -363,7 +385,7 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
                 confirmedMappings: [...(state.confirmedMappings || []), ...newMappings]
               });
             }}
-            disabled={(state.confirmedMappings?.length || 0) === suggestions.length}
+            disabled={totalMetrics > 0 && (state.confirmedMappings?.length || 0) >= totalMetrics}
           >
             Accept All
           </Button>
@@ -500,7 +522,7 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
                 confirmedMappings: [...(state.confirmedMappings || []), ...newMappings]
               });
             }}
-            disabled={(state.confirmedMappings?.length || 0) === suggestions.length}
+            disabled={totalMetrics > 0 && (state.confirmedMappings?.length || 0) >= totalMetrics}
           >
             Accept All
           </Button>
@@ -520,9 +542,10 @@ const CSFMappingStep: React.FC<CSFMappingStepProps> = ({ state, updateState, fra
             <Button
               variant="outlined"
               startIcon={<AddIcon />}
-              onClick={handleCreateManualMapping}
+              onClick={handleLoadItemsForManualMapping}
+              disabled={!state.catalogId}
             >
-              Create Manual Mapping
+              Map Metrics Manually
             </Button>
           </>
         )}

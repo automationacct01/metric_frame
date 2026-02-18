@@ -227,9 +227,8 @@ When asked to add or modify metrics, respond ONLY with valid JSON matching this 
         "name": "Clear, specific metric name",
         "description": "Plain-language definition of what this measures",
         "formula": "Human-readable calculation method",
-        "framework": "{framework}",
-        "function_code": "function_code (e.g., gv, id, pr, de, rs, rc for CSF)",
-        "category_code": "category_code (e.g., GV.OC, ID.AM)",
+        "csf_function": "function code (e.g., gv, id, pr, de, rs, rc for CSF 2.0)",
+        "csf_category_code": "category code (e.g., GV.OC, ID.AM, PR.AA)",
         "priority_rank": 1|2|3,
         "direction": "higher_is_better|lower_is_better|target_range|binary",
         "target_value": 95.0,
@@ -289,8 +288,8 @@ Respond with JSON:
     {{
       "metric_name": "Recommended metric name",
       "description": "What it measures",
-      "function_code": "target_function",
-      "category_code": "target_category",
+      "csf_function": "target function code (e.g., gv, id, pr, de, rs, rc)",
+      "csf_category_code": "target category code (e.g., GV.OC, PR.AA)",
       "priority": 1|2|3,
       "rationale": "Why this metric is recommended",
       "expected_impact": "How this improves security visibility"
@@ -557,9 +556,15 @@ async def apply_ai_actions(
                 metric_data = action.metric.model_dump()
 
                 # Capture function/category codes before stripping
-                func_code = (metric_data.get('function_code') or metric_data.get('csf_function') or '').lower()
-                cat_code = metric_data.get('csf_category_code', '')
-                subcat_code = metric_data.get('csf_subcategory_code', '')
+                # csf_function comes from schema (enum value like "pr"), function_code from legacy prompts
+                func_code = (metric_data.get('function_code') or '').lower()
+                if not func_code:
+                    csf_val = metric_data.get('csf_function')
+                    if csf_val:
+                        # Handle both enum value ("pr") and enum name ("protect")
+                        func_code = csf_val.value if hasattr(csf_val, 'value') else str(csf_val).lower()
+                cat_code = (metric_data.get('csf_category_code') or '').strip()
+                subcat_code = (metric_data.get('csf_subcategory_code') or '').strip()
 
                 computed_props = [
                     'csf_function', 'csf_category_code', 'csf_subcategory_code', 'csf_category_name', 'csf_subcategory_outcome',
@@ -571,17 +576,23 @@ async def apply_ai_actions(
                 # Also strip function_code — not a DB column
                 metric_data.pop('function_code', None)
 
-                # Resolve function_code to framework_id/function_id FKs
-                if func_code and not metric_data.get('framework_id'):
-                    from ..models import Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory
+                # Resolve function code to framework_id/function_id FKs
+                from ..models import Framework, FrameworkFunction, FrameworkCategory, FrameworkSubcategory
+                if not metric_data.get('framework_id'):
                     fw = db.query(Framework).filter(Framework.code == 'csf_2_0').first()
                     if not fw:
                         fw = db.query(Framework).first()
                     if fw:
-                        func = db.query(FrameworkFunction).filter(
-                            FrameworkFunction.code == func_code,
-                            FrameworkFunction.framework_id == fw.id
-                        ).first()
+                        if func_code:
+                            func = db.query(FrameworkFunction).filter(
+                                FrameworkFunction.code == func_code,
+                                FrameworkFunction.framework_id == fw.id
+                            ).first()
+                        else:
+                            # Default to first function if AI didn't specify
+                            func = db.query(FrameworkFunction).filter(
+                                FrameworkFunction.framework_id == fw.id
+                            ).first()
                         if func:
                             metric_data['framework_id'] = func.framework_id
                             metric_data['function_id'] = func.id
@@ -603,12 +614,19 @@ async def apply_ai_actions(
                                             metric_data['subcategory_id'] = subcategory.id
                             # Generate metric_number
                             prefix = "CSF" if fw.code == 'csf_2_0' else "AIRMF"
-                            func_prefix = func_code.upper()
+                            func_prefix = func_code.upper() if func_code else func.code.upper()
                             existing_nums = db.query(Metric).filter(
                                 Metric.metric_number.like(f"{prefix}-{func_prefix}-%")
                             ).all()
                             next_num = len(existing_nums) + 1
                             metric_data['metric_number'] = f"{prefix}-{func_prefix}-{next_num:03d}"
+                        else:
+                            # Fallback: assign framework_id even without function resolution
+                            metric_data['framework_id'] = fw.id
+
+                if not metric_data.get('framework_id'):
+                    errors.append(f"Could not resolve framework for metric '{action.metric.name}'")
+                    continue
 
                 # Strip None values to use model defaults
                 metric_data = {k: v for k, v in metric_data.items() if v is not None}
@@ -726,9 +744,13 @@ async def apply_ai_actions(
                 errors.append(f"Unknown action type: {action.action}")
         
         except Exception as e:
+            db.rollback()
             errors.append(f"Error applying {action.action}: {str(e)}")
-    
-    db.commit()
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
     
     return {
         "message": f"Applied {len(applied_results)} actions with {len(errors)} errors",

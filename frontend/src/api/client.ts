@@ -677,6 +677,13 @@ class APIClient {
     return response.data;
   }
 
+  async getCatalogItems(catalogId: string): Promise<{ id: string; name: string; description: string }[]> {
+    const response = await this.client.get<{ id: string; name: string; description: string }[]>(
+      `/catalogs/${catalogId}/items`
+    );
+    return response.data;
+  }
+
   async uploadCatalog(
     file: File,
     catalogName: string,
