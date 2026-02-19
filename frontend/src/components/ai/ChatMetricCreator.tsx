@@ -253,20 +253,64 @@ const ChatMetricCreator: React.FC = () => {
 
     // Extract a metric name from the response or generate from input
     let name = userInput.length > 50 ? userInput.substring(0, 50) + '...' : userInput;
-    const nameMatch = response.match(/(?:metric[:\s]+)?["']([^"']+)["']/i);
-    if (nameMatch) {
-      name = nameMatch[1];
+    // Try patterns from most specific to least specific
+    // 1. Look for "Metric Name:" or "Name:" followed by text (with or without quotes/bold)
+    const labelMatch = response.match(/(?:metric\s*name|name)\s*[:]\s*\**\s*"?([^"\n*]+)"?\s*\**/i);
+    // 2. Look for a double-quoted name near "metric" (avoid single quotes — they match contractions like "I'm")
+    const quotedMatch = response.match(/(?:metric[:\s]+)?"([^"]{3,80})"/i);
+    // 3. Look for **bold text** that looks like a metric name (3-80 chars, no markdown headers)
+    const boldMatch = response.match(/\*\*([^*]{3,80})\*\*/);
+
+    if (labelMatch && labelMatch[1].trim().length <= 100) {
+      name = labelMatch[1].trim();
+    } else if (quotedMatch && quotedMatch[1].trim().length <= 100) {
+      name = quotedMatch[1].trim();
+    } else if (boldMatch && boldMatch[1].trim().length <= 80 && !boldMatch[1].includes(':')) {
+      name = boldMatch[1].trim();
+    }
+
+    // Safety cap: truncate to max schema length
+    if (name.length > 200) {
+      name = name.substring(0, 200);
+    }
+
+    // Extract description from AI response
+    let description = `Metric to track: ${userInput}`;
+    const descMatch = response.match(/(?:description|what it measures)\s*[:]\s*\**\s*"?([^"\n]{10,300})"?\s*\**/i);
+    if (descMatch) {
+      description = descMatch[1].trim();
+    }
+
+    // Extract target value from AI response
+    let target_value = direction === 'higher_is_better' ? 95 : 5;
+    const targetMatch = response.match(/(?:target\s*(?:value)?|suggested\s*target)\s*[:]\s*\**\s*(\d+(?:\.\d+)?)/i);
+    if (targetMatch) {
+      target_value = parseFloat(targetMatch[1]);
+    }
+
+    // Extract unit from AI response
+    let unit = '%';
+    const unitMatch = response.match(/(?:unit|units)\s*[:]\s*\**\s*"?([^"\n]{1,20})"?\s*\**/i);
+    if (unitMatch) {
+      unit = unitMatch[1].trim();
+    }
+
+    // Extract owner function from AI response
+    let owner_function = 'SecOps';
+    const ownerMatch = response.match(/(?:owner|team|owned by)\s*[:]\s*\**\s*"?([^"\n]{2,50})"?\s*\**/i);
+    if (ownerMatch) {
+      owner_function = ownerMatch[1].trim();
     }
 
     return {
       name: name,
-      description: `Metric to track: ${userInput}`,
+      description,
       csf_function,
       direction,
-      target_value: direction === 'higher_is_better' ? 95 : 5,
-      unit: '%',
+      target_value,
+      unit,
       priority_rank: 2,
-      owner_function: 'SecOps',
+      owner_function,
       collection_frequency: 'monthly',
       rationale: 'AI-suggested metric based on user description',
     };
