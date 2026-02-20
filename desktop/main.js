@@ -8,7 +8,7 @@
  * - Application lifecycle (start, quit)
  */
 
-const { app, BrowserWindow, dialog, shell, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -17,8 +17,9 @@ const https = require('https');
 const crypto = require('crypto');
 const Store = require('electron-store');
 
-// Configuration store
+// Configuration store — no encryption to avoid macOS Keychain prompt
 const store = new Store({
+  encryptionKey: undefined,
   defaults: {
     windowBounds: { width: 1400, height: 900 },
     backendPort: 8000,
@@ -67,26 +68,26 @@ function initLogging() {
  * Get or create a per-installation encryption master key.
  *
  * On first launch, generates a unique Fernet-compatible key and stores it
- * encrypted in the macOS Keychain via Electron's safeStorage API.
- * On subsequent launches, reads the key back from the keychain-protected file.
+ * in a file with restrictive permissions (0o600).
+ * On subsequent launches, reads the key back from the file.
+ *
+ * Note: We intentionally avoid Electron's safeStorage/Keychain API because
+ * it triggers a macOS Keychain password prompt on first launch, which is
+ * confusing for users. File-based storage with restrictive permissions is
+ * sufficient for a single-user desktop app.
  */
 function getOrCreateMasterKey() {
   const keyFilePath = path.join(app.getPath('userData'), '.credentials_key');
 
-  // Try to read existing key from keychain-protected file
+  // Try to read existing key from file
   if (fs.existsSync(keyFilePath)) {
     try {
-      const encryptedBuffer = fs.readFileSync(keyFilePath);
-      if (safeStorage.isEncryptionAvailable()) {
-        const key = safeStorage.decryptString(encryptedBuffer);
-        log('Loaded per-installation encryption key from keychain');
-        return key;
-      } else {
-        // Fallback: file was stored as plain text
-        const key = encryptedBuffer.toString('utf-8');
-        log('Loaded per-installation encryption key from file (no OS encryption)');
+      const key = fs.readFileSync(keyFilePath, 'utf-8').trim();
+      if (key && key.length >= 32) {
+        log('Loaded per-installation encryption key from file');
         return key;
       }
+      log('Stored key appears invalid, generating new one', 'WARN');
     } catch (e) {
       log(`Failed to read stored key, generating new one: ${e.message}`, 'WARN');
     }
@@ -98,16 +99,10 @@ function getOrCreateMasterKey() {
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
 
-  // Store with OS keychain protection
+  // Store with restrictive file permissions
   try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(newKey);
-      fs.writeFileSync(keyFilePath, encrypted);
-      log('Generated and stored new per-installation encryption key (keychain-protected)');
-    } else {
-      fs.writeFileSync(keyFilePath, newKey, { mode: 0o600 });
-      log('Generated and stored new per-installation encryption key (file-based, no OS encryption)');
-    }
+    fs.writeFileSync(keyFilePath, newKey, { mode: 0o600 });
+    log('Generated and stored new per-installation encryption key');
   } catch (e) {
     log(`Failed to persist encryption key: ${e.message}`, 'ERROR');
     // Key is still usable for this session even if we couldn't persist it
