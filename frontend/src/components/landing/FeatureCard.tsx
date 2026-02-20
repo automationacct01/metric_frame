@@ -4,8 +4,8 @@
  * Individual feature card with screenshot/GIF or styled placeholder.
  */
 
-import React from 'react';
-import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Card, CardContent, Typography, Chip, IconButton, Dialog } from '@mui/material';
 
 // Mock placeholder components for each feature type
 
@@ -473,6 +473,204 @@ const placeholderComponents: Record<string, React.FC> = {
   'ai-providers': AIProviderPlaceholder,
 };
 
+// GIF Player with play/pause overlay and fullscreen support
+function GifPlayer({ image, alt }: { image: string; alt: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [firstFrame, setFirstFrame] = useState<string | null>(null);
+
+  // Capture first frame using a hidden Image() to avoid visible GIF autoplay flash
+  React.useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        setFirstFrame(canvas.toDataURL('image/jpeg', 0.85));
+      }
+    };
+    img.src = image;
+    return () => { img.onload = null; };
+  }, [image]);
+
+  const displaySrc = isPlaying ? image : firstFrame;
+
+  return (
+    <>
+      {/* Show static first frame or animated GIF */}
+      {displaySrc ? (
+        <Box
+          component="img"
+          src={displaySrc}
+          alt={alt}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <Box sx={{ width: '100%', height: '100%', backgroundColor: '#f1f5f9' }} />
+      )}
+
+      {/* Play/Pause overlay */}
+      <Box
+        onClick={() => setIsPlaying(!isPlaying)}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isPlaying ? 'transparent' : 'rgba(0, 0, 0, 0.35)',
+          cursor: 'pointer',
+          transition: 'background-color 0.3s ease',
+          '&:hover': {
+            backgroundColor: isPlaying ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.45)',
+          },
+          '&:hover .play-icon, &:hover .pause-icon': {
+            opacity: 1,
+          },
+        }}
+      >
+        {/* Play button */}
+        {!isPlaying && (
+          <Box
+            className="play-icon"
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+              transition: 'transform 0.2s ease',
+              '&:hover': { transform: 'scale(1.1)' },
+            }}
+          >
+            <Box
+              sx={{
+                width: 0,
+                height: 0,
+                borderStyle: 'solid',
+                borderWidth: '10px 0 10px 18px',
+                borderColor: 'transparent transparent transparent #1a2744',
+                ml: '3px',
+              }}
+            />
+          </Box>
+        )}
+
+        {/* Pause indicator (shown on hover when playing) */}
+        {isPlaying && (
+          <Box
+            className="pause-icon"
+            sx={{
+              opacity: 0,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            <Box sx={{ width: 4, height: 16, backgroundColor: '#1a2744', borderRadius: 1 }} />
+            <Box sx={{ width: 4, height: 16, backgroundColor: '#1a2744', borderRadius: 1 }} />
+          </Box>
+        )}
+      </Box>
+
+      {/* Fullscreen button */}
+      <IconButton
+        onClick={(e) => { e.stopPropagation(); setFullscreen(true); setIsPlaying(true); }}
+        size="small"
+        sx={{
+          position: 'absolute',
+          bottom: 8,
+          right: 8,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+          '&:hover': { backgroundColor: '#ffffff' },
+          zIndex: 2,
+          width: 32,
+          height: 32,
+        }}
+      >
+        {/* Expand icon (4 corners) */}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" stroke="#1a2744" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </IconButton>
+
+      {/* Fullscreen Dialog */}
+      <Dialog
+        open={fullscreen}
+        onClose={() => setFullscreen(false)}
+        maxWidth={false}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            borderRadius: 2,
+            position: 'relative',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: { backgroundColor: 'rgba(0, 0, 0, 0.85)' },
+          },
+        }}
+      >
+        <Box sx={{ position: 'relative' }}>
+          <Box
+            component="img"
+            src={image}
+            alt={alt}
+            sx={{
+              maxWidth: '90vw',
+              maxHeight: '85vh',
+              objectFit: 'contain',
+              display: 'block',
+              borderRadius: 2,
+            }}
+          />
+          {/* Close button */}
+          <IconButton
+            onClick={() => setFullscreen(false)}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              color: '#ffffff',
+              '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.8)' },
+              width: 36,
+              height: 36,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </IconButton>
+        </Box>
+      </Dialog>
+    </>
+  );
+}
+
 interface FeatureCardProps {
   title: string;
   description: string;
@@ -525,16 +723,7 @@ export default function FeatureCard({
         }}
       >
         {image ? (
-          <Box
-            component="img"
-            src={image}
-            alt={imageAlt || title}
-            sx={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
+          <GifPlayer image={image} alt={imageAlt || title} />
         ) : PlaceholderComponent ? (
           // Styled placeholder
           <Box

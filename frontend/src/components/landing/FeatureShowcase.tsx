@@ -15,7 +15,7 @@ const features = [
       'See your entire AI and cybersecurity posture at a glance. Risk scores across NIST CSF 2.0 and AI RMF frameworks give you instant visibility into what needs attention.',
     badge: 'Visual',
     badgeColor: '#0ea5e9',
-    placeholderType: 'dual-dashboard',
+    image: './landing/gifs/dashboard.gif',
   },
   {
     title: 'Coverage Map',
@@ -23,7 +23,7 @@ const features = [
       'Visualize your metric coverage across all NIST CSF categories. Quickly identify gaps in your measurement strategy and prioritize where to focus next.',
     badge: 'Coverage',
     badgeColor: '#059669',
-    placeholderType: 'coverage-map',
+    image: './landing/gifs/coverage-map.gif',
   },
   {
     title: 'Metrics Grid',
@@ -31,7 +31,7 @@ const features = [
       'View, filter, and manage all 350+ metrics in one place. Sort by function, priority, or score to focus on what matters most.',
     badge: 'Data',
     badgeColor: '#7c3aed',
-    placeholderType: 'metrics-grid',
+    image: './landing/gifs/metrics-grid.gif',
   },
   {
     title: 'AI-Powered Metrics',
@@ -39,7 +39,7 @@ const features = [
       'Create metrics using natural language. Describe what you want to measure, and our AI generates the metric, formula, and framework mapping automatically.',
     badge: 'AI Chat',
     badgeColor: '#8b5cf6',
-    placeholderType: 'ai-chat',
+    image: './landing/gifs/ai-chat.gif',
   },
   {
     title: 'Catalog Wizard',
@@ -47,15 +47,15 @@ const features = [
       'Import your existing metrics via CSV with our guided wizard. AI automatically maps them to NIST subcategories while preserving your original categorization.',
     badge: 'Import',
     badgeColor: '#ec4899',
-    placeholderType: 'catalog-wizard',
+    image: './landing/gifs/catalog-wizard.gif',
   },
   {
-    title: 'Inline Editing',
+    title: 'Drill-Down Analytics',
     description:
-      'Update metric values directly in the grid—whether entering baseline data manually or updating as automated feeds come online. Lock/unlock controls ensure data integrity while keeping updates quick and easy.',
-    badge: 'Edit',
+      'Click any function to drill down into category-level scores, trend charts, and detailed breakdowns. Instantly see which areas need attention with color-coded risk badges.',
+    badge: 'Insights',
     badgeColor: '#0891b2',
-    placeholderType: 'inline-editing',
+    image: './landing/gifs/inline-editing.gif',
   },
 ];
 
@@ -114,7 +114,7 @@ export default function FeatureShowcase() {
                 description={feature.description}
                 badge={feature.badge}
                 badgeColor={feature.badgeColor}
-                placeholderType={feature.placeholderType}
+                image={feature.image}
               />
             </Grid>
           ))}
