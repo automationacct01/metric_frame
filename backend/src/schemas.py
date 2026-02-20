@@ -66,7 +66,8 @@ class MetricBase(BaseModel):
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
     # NIST CSF 2.0 fields (computed from relationships)
-    csf_function: Optional[CSFFunction] = None
+    # Accepts both CSF 2.0 (gv, id, pr, de, rs, rc) and AI RMF (govern, map, measure, manage) codes
+    csf_function: Optional[Union[CSFFunction, AIRMFFunction]] = None
     csf_category_code: Optional[str] = Field(None, max_length=30)
     csf_subcategory_code: Optional[str] = Field(None, max_length=40)
     csf_category_name: Optional[str] = Field(None, max_length=200)
@@ -116,7 +117,7 @@ class MetricUpdate(BaseModel):
     formula: Optional[str] = None
     calc_expr_json: Optional[Dict[str, Any]] = None
     # NIST CSF 2.0 fields
-    csf_function: Optional[CSFFunction] = None
+    csf_function: Optional[Union[CSFFunction, AIRMFFunction]] = None
     csf_category_code: Optional[str] = Field(None, max_length=30)
     csf_subcategory_code: Optional[str] = Field(None, max_length=40)
     csf_category_name: Optional[str] = Field(None, max_length=200)
@@ -257,12 +258,13 @@ class AIResponse(BaseModel):
     actions: List[AIAction] = []
     needs_confirmation: bool = True
     search_used: bool = False
+    resolved_mode: Optional[str] = None
 
 
 class AIChatRequest(BaseModel):
     """AI chat request."""
     message: str = Field(..., min_length=1, max_length=2000)
-    mode: str = Field("metrics", pattern=r"^(metrics|explain|report)$")
+    mode: str = Field("auto", pattern=r"^(auto|metrics|explain|report)$")
     context_opts: Optional[Dict[str, Any]] = None
     web_search: bool = Field(False, description="Enable web search for additional context")
 

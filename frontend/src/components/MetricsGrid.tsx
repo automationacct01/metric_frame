@@ -1081,7 +1081,10 @@ export default function MetricsGrid() {
 
   // Get formatted metric display name from description with unit prefix
   const getMetricDisplayName = (metric: Metric): string => {
-    const description = metric.description || metric.name || '';
+    // For metrics with long descriptions (AI-created), prefer the name field
+    // Seed metrics have short, formula-like descriptions that work as display names
+    const rawDescription = metric.description || metric.name || '';
+    const description = (rawDescription.length > 120 && metric.name) ? metric.name : rawDescription;
     const units = metric.target_units?.toLowerCase() || '';
 
     // Check for time-based metrics - use the name with unit suffix

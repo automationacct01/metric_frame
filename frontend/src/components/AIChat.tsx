@@ -61,6 +61,7 @@ interface ChatMessage {
   actions?: AIAction[];
   needsConfirmation?: boolean;
   searchUsed?: boolean;
+  resolvedMode?: string;
 }
 
 type AIView = 'chat' | 'recommendations' | 'create' | 'gaps';
@@ -68,7 +69,7 @@ type AIView = 'chat' | 'recommendations' | 'create' | 'gaps';
 interface AIChatState {
   messages: ChatMessage[];
   currentMessage: string;
-  mode: 'metrics' | 'explain' | 'report';
+  mode: 'auto' | 'metrics' | 'explain' | 'report';
   loading: boolean;
   error: string | null;
   snackbarOpen: boolean;
@@ -88,14 +89,14 @@ export default function AIChat() {
   const { isEditor } = useAuth();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
 
-  // Viewers can only use read-only modes (explain, report)
-  // Editors/Admins can use all modes including metrics
-  const defaultMode = isEditor ? 'metrics' : 'explain';
+  // Default to auto mode for all roles
+  // Auto mode classifies intent and routes to the appropriate mode
+  const defaultMode = 'auto';
 
   const [state, setState] = useState<AIChatState>({
     messages: [],
     currentMessage: '',
-    mode: defaultMode as 'metrics' | 'explain' | 'report',
+    mode: defaultMode as 'auto' | 'metrics' | 'explain' | 'report',
     loading: false,
     error: null,
     snackbarOpen: false,
@@ -234,6 +235,7 @@ export default function AIChat() {
         timestamp: new Date(),
         actions: response.actions,
         needsConfirmation: response.needs_confirmation,
+        resolvedMode: response.resolved_mode || 'report',
       };
 
       setState(prev => ({
@@ -303,7 +305,7 @@ export default function AIChat() {
         context_opts: {
           conversation_history: state.messages.slice(-5), // Last 5 messages for context
         },
-        web_search: state.webSearchEnabled && (state.mode === 'explain' || state.mode === 'report'),
+        web_search: state.webSearchEnabled && (state.mode === 'auto' || state.mode === 'explain' || state.mode === 'report'),
       };
 
       const response = await apiClient.chatWithAI(request, frameworkCode);
@@ -316,6 +318,7 @@ export default function AIChat() {
         actions: response.actions,
         needsConfirmation: response.needs_confirmation,
         searchUsed: response.search_used,
+        resolvedMode: response.resolved_mode || state.mode,
       };
 
       setState(prev => ({
@@ -395,6 +398,8 @@ export default function AIChat() {
 
   const getModeDescription = (mode: string): string => {
     switch (mode) {
+      case 'auto':
+        return 'Automatically detects whether to explain, report, or manage metrics';
       case 'metrics':
         return 'Manage metrics, create new ones, and update existing data';
       case 'explain':
@@ -406,8 +411,10 @@ export default function AIChat() {
     }
   };
 
-  const getModeColor = (mode: string): 'primary' | 'secondary' | 'success' => {
+  const getModeColor = (mode: string): 'primary' | 'secondary' | 'success' | 'info' => {
     switch (mode) {
+      case 'auto':
+        return 'info';
       case 'metrics':
         return 'primary';
       case 'explain':
@@ -602,13 +609,33 @@ export default function AIChat() {
                       label="AI Mode"
                       onChange={(e) => setState(prev => ({
                         ...prev,
-                        mode: e.target.value as 'metrics' | 'explain' | 'report'
+                        mode: e.target.value as 'auto' | 'metrics' | 'explain' | 'report'
                       }))}
+                      renderValue={(value) => {
+                        const labels: Record<string, string> = {
+                          auto: 'Auto (Recommended)',
+                          metrics: 'Metrics Management',
+                          explain: 'Explanations',
+                          report: 'Report Generation',
+                        };
+                        return labels[value] || value;
+                      }}
                     >
+                      <MenuItem value="auto">
+                        <ListItemText primary="Auto (Recommended)" secondary="Detects your intent and routes to the right mode" />
+                      </MenuItem>
                       {/* Metrics mode only available to editors/admins */}
-                      {isEditor && <MenuItem value="metrics">Metrics Management</MenuItem>}
-                      <MenuItem value="explain">Explanations</MenuItem>
-                      <MenuItem value="report">Report Generation</MenuItem>
+                      {isEditor && (
+                        <MenuItem value="metrics">
+                          <ListItemText primary="Metrics Management" secondary="Create, update, or delete metrics" />
+                        </MenuItem>
+                      )}
+                      <MenuItem value="explain">
+                        <ListItemText primary="Explanations" secondary="Ask about frameworks, scores, or concepts" />
+                      </MenuItem>
+                      <MenuItem value="report">
+                        <ListItemText primary="Report Generation" secondary="Executive summaries and risk narratives" />
+                      </MenuItem>
                     </Select>
                   </FormControl>
                   <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
@@ -623,7 +650,7 @@ export default function AIChat() {
           <Box sx={{ mb: 2 }}>
             <Chip
               icon={<AIIcon />}
-              label={`Mode: ${state.mode.charAt(0).toUpperCase() + state.mode.slice(1)}`}
+              label={state.mode === 'auto' ? 'Mode: Auto' : `Mode: ${state.mode.charAt(0).toUpperCase() + state.mode.slice(1)}`}
               color={getModeColor(state.mode)}
               variant="filled"
             />
@@ -646,8 +673,12 @@ export default function AIChat() {
             </Typography>
             <Typography variant="body2" textAlign="center">
               Ask questions about your metrics, request explanations, or generate reports.
-              <br />
-              Current mode: <strong>{state.mode}</strong>
+              {state.mode !== 'auto' && (
+                <>
+                  <br />
+                  Current mode: <strong>{state.mode}</strong>
+                </>
+              )}
             </Typography>
           </Box>
         ) : (
@@ -721,6 +752,20 @@ export default function AIChat() {
                     <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                       {message.content}
                     </Typography>
+                  )}
+                  {/* Per-message mode badge for assistant messages */}
+                  {message.role === 'assistant' && message.resolvedMode && (
+                    <Chip
+                      size="small"
+                      label={
+                        state.mode === 'auto' || message.resolvedMode !== state.mode
+                          ? `Auto → ${message.resolvedMode.charAt(0).toUpperCase() + message.resolvedMode.slice(1)}`
+                          : message.resolvedMode.charAt(0).toUpperCase() + message.resolvedMode.slice(1)
+                      }
+                      color={getModeColor(message.resolvedMode)}
+                      variant="outlined"
+                      sx={{ mt: 1, mb: 0.5, fontSize: '0.7rem', height: 22 }}
+                    />
                   )}
                   {message.actions && message.actions.length > 0 && (
                     <Box sx={{ mt: 2 }}>
@@ -897,7 +942,7 @@ export default function AIChat() {
               fullWidth
               multiline
               maxRows={4}
-              placeholder={`Ask the AI assistant about ${state.mode}...`}
+              placeholder={state.mode === 'auto' ? 'Ask anything — explain metrics, generate reports, or create new metrics...' : `Ask the AI assistant about ${state.mode}...`}
               value={state.currentMessage}
               onChange={(e) => setState(prev => ({ ...prev, currentMessage: e.target.value }))}
               onKeyPress={handleKeyPress}
@@ -906,7 +951,7 @@ export default function AIChat() {
           </Grid>
           <Grid item>
             <Box display="flex" gap={1} alignItems="center">
-              {(state.mode === 'explain' || state.mode === 'report') && (
+              {(state.mode === 'auto' || state.mode === 'explain' || state.mode === 'report') && (
                 <Tooltip title={state.webSearchEnabled ? 'Web search ON — AI will search the web for current info' : 'Enable web search for additional context'}>
                   <IconButton
                     onClick={() => setState(prev => ({ ...prev, webSearchEnabled: !prev.webSearchEnabled }))}

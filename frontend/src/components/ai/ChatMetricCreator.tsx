@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import {
   Box,
   Typography,
@@ -180,27 +181,15 @@ const ChatMetricCreator: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Call AI to generate metric suggestion
+      // Call AI to generate metric suggestion — use metrics mode which returns structured actions
       const response = await apiClient.chatWithAI({
-        message: `Based on this description, suggest a specific security metric I can track: "${inputMessage}".
-
-        Please provide a structured response with:
-        1. A clear metric name
-        2. A description of what it measures
-        3. The best CSF function it maps to (gv, id, pr, de, rs, rc)
-        4. Whether higher values are better or lower values are better
-        5. A suggested target value and unit
-        6. Recommended priority (1=high, 2=medium, 3=low)
-        7. Which team should own this metric
-        8. Where the data might come from
-        9. How often it should be collected
-        10. Brief rationale for why this metric is valuable`,
+        message: inputMessage,
         mode: 'metrics',
         framework: frameworkCode,
       }, frameworkCode);
 
-      // Parse AI response into structured metric (simplified parsing)
-      const suggestedMetric = parseAIResponseToMetric(response.assistant_message, inputMessage);
+      // Extract metric from the backend's structured actions (preferred) or parse from text
+      const suggestedMetric = extractMetricFromResponse(response, inputMessage);
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -224,93 +213,56 @@ const ChatMetricCreator: React.FC = () => {
     }
   };
 
-  const parseAIResponseToMetric = (response: string, userInput: string): SuggestedMetric => {
-    // Basic parsing - in production, the AI would return structured JSON
-    // This is a fallback that creates a reasonable metric from the context
-    const responseLower = response.toLowerCase();
+  const extractMetricFromResponse = (response: any, userInput: string): SuggestedMetric => {
+    // Primary: extract from the backend's structured actions array
+    const actions = response.actions || [];
+    const addAction = actions.find((a: any) => a.action === 'add_metric' && a.metric);
+    if (addAction?.metric) {
+      const m = addAction.metric;
+      return {
+        name: (m.name || userInput).substring(0, 200),
+        description: m.description || `Metric to track: ${userInput}`,
+        csf_function: m.csf_function || 'pr',
+        direction: m.direction || 'higher_is_better',
+        target_value: m.target_value ?? 95,
+        unit: m.target_units || '%',
+        priority_rank: m.priority_rank ?? 2,
+        owner_function: m.owner_function || 'SecOps',
+        data_source: m.data_source,
+        collection_frequency: m.collection_frequency || 'monthly',
+        rationale: 'AI-suggested metric',
+      };
+    }
 
-    // Determine direction
+    // Fallback: basic extraction from assistant_message text
+    const text = response.assistant_message || '';
+    const textLower = text.toLowerCase();
+
     let direction = 'higher_is_better';
-    if (responseLower.includes('lower is better') ||
-        responseLower.includes('minimize') ||
-        responseLower.includes('reduce')) {
+    if (textLower.includes('lower_is_better') || textLower.includes('lower is better')) {
       direction = 'lower_is_better';
     }
 
-    // Determine CSF function
-    let csf_function = 'pr'; // Default to Protect
-    if (responseLower.includes('govern') || responseLower.includes('policy')) {
-      csf_function = 'gv';
-    } else if (responseLower.includes('identify') || responseLower.includes('asset') || responseLower.includes('inventory')) {
-      csf_function = 'id';
-    } else if (responseLower.includes('detect') || responseLower.includes('monitor') || responseLower.includes('alert')) {
-      csf_function = 'de';
-    } else if (responseLower.includes('respond') || responseLower.includes('incident') || responseLower.includes('mttr')) {
-      csf_function = 'rs';
-    } else if (responseLower.includes('recover') || responseLower.includes('backup') || responseLower.includes('restore')) {
-      csf_function = 'rc';
-    }
+    let csf_function = 'pr';
+    if (textLower.includes('"rs"') || textLower.includes('respond')) csf_function = 'rs';
+    else if (textLower.includes('"de"') || textLower.includes('detect')) csf_function = 'de';
+    else if (textLower.includes('"gv"') || textLower.includes('govern')) csf_function = 'gv';
+    else if (textLower.includes('"id"') || textLower.includes('identify')) csf_function = 'id';
+    else if (textLower.includes('"rc"') || textLower.includes('recover')) csf_function = 'rc';
 
-    // Extract a metric name from the response or generate from input
     let name = userInput.length > 50 ? userInput.substring(0, 50) + '...' : userInput;
-    // Try patterns from most specific to least specific
-    // 1. Look for "Metric Name:" or "Name:" followed by text (with or without quotes/bold)
-    const labelMatch = response.match(/(?:metric\s*name|name)\s*[:]\s*\**\s*"?([^"\n*]+)"?\s*\**/i);
-    // 2. Look for a double-quoted name near "metric" (avoid single quotes — they match contractions like "I'm")
-    const quotedMatch = response.match(/(?:metric[:\s]+)?"([^"]{3,80})"/i);
-    // 3. Look for **bold text** that looks like a metric name (3-80 chars, no markdown headers)
-    const boldMatch = response.match(/\*\*([^*]{3,80})\*\*/);
-
-    if (labelMatch && labelMatch[1].trim().length <= 100) {
-      name = labelMatch[1].trim();
-    } else if (quotedMatch && quotedMatch[1].trim().length <= 100) {
-      name = quotedMatch[1].trim();
-    } else if (boldMatch && boldMatch[1].trim().length <= 80 && !boldMatch[1].includes(':')) {
-      name = boldMatch[1].trim();
-    }
-
-    // Safety cap: truncate to max schema length
-    if (name.length > 200) {
-      name = name.substring(0, 200);
-    }
-
-    // Extract description from AI response
-    let description = `Metric to track: ${userInput}`;
-    const descMatch = response.match(/(?:description|what it measures)\s*[:]\s*\**\s*"?([^"\n]{10,300})"?\s*\**/i);
-    if (descMatch) {
-      description = descMatch[1].trim();
-    }
-
-    // Extract target value from AI response
-    let target_value = direction === 'higher_is_better' ? 95 : 5;
-    const targetMatch = response.match(/(?:target\s*(?:value)?|suggested\s*target)\s*[:]\s*\**\s*(\d+(?:\.\d+)?)/i);
-    if (targetMatch) {
-      target_value = parseFloat(targetMatch[1]);
-    }
-
-    // Extract unit from AI response
-    let unit = '%';
-    const unitMatch = response.match(/(?:unit|units)\s*[:]\s*\**\s*"?([^"\n]{1,20})"?\s*\**/i);
-    if (unitMatch) {
-      unit = unitMatch[1].trim();
-    }
-
-    // Extract owner function from AI response
-    let owner_function = 'SecOps';
-    const ownerMatch = response.match(/(?:owner|team|owned by)\s*[:]\s*\**\s*"?([^"\n]{2,50})"?\s*\**/i);
-    if (ownerMatch) {
-      owner_function = ownerMatch[1].trim();
-    }
+    const boldMatch = text.match(/\*\*([^*]{3,80})\*\*/);
+    if (boldMatch && !boldMatch[1].includes(':')) name = boldMatch[1].trim();
 
     return {
-      name: name,
-      description,
+      name,
+      description: `Metric to track: ${userInput}`,
       csf_function,
       direction,
-      target_value,
-      unit,
+      target_value: direction === 'higher_is_better' ? 95 : 5,
+      unit: '%',
       priority_rank: 2,
-      owner_function,
+      owner_function: 'SecOps',
       collection_frequency: 'monthly',
       rationale: 'AI-suggested metric based on user description',
     };
@@ -470,9 +422,17 @@ const ChatMetricCreator: React.FC = () => {
                       color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
                     }}
                   >
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                      {message.content}
-                    </Typography>
+                    {message.role === 'assistant' ? (
+                      <Box sx={{ '& p': { my: 0.5 }, '& ul, & ol': { my: 0.5, pl: 2 }, '& h1,& h2,& h3,& h4': { mt: 1.5, mb: 0.5 } }}>
+                        <ReactMarkdown>
+                          {message.content.replace(/```json[\s\S]*?```\n?/g, '').trim()}
+                        </ReactMarkdown>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {message.content}
+                      </Typography>
+                    )}
                     <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7 }}>
                       {message.timestamp.toLocaleTimeString()}
                     </Typography>
@@ -616,10 +576,19 @@ const ChatMetricCreator: React.FC = () => {
               </Grid>
               <Grid item xs={6}>
                 <FormControl fullWidth>
-                  <InputLabel>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
+                  <InputLabel shrink>{frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}</InputLabel>
                   <Select
-                    value={editingMetric.csf_function}
+                    value={editingMetric.csf_function || ''}
                     label={frameworkCode === 'ai_rmf' ? 'AI RMF Function' : 'CSF Function'}
+                    displayEmpty
+                    notched
+                    renderValue={(value) => {
+                      if (!value) return '';
+                      const labels: Record<string, string> = frameworkCode === 'ai_rmf'
+                        ? { govern: 'Govern', map: 'Map', measure: 'Measure', manage: 'Manage' }
+                        : { gv: 'Govern (GV)', id: 'Identify (ID)', pr: 'Protect (PR)', de: 'Detect (DE)', rs: 'Respond (RS)', rc: 'Recover (RC)' };
+                      return labels[value as string] || String(value);
+                    }}
                     onChange={(e) => setEditingMetric(prev => prev ? { ...prev, csf_function: e.target.value } : null)}
                   >
                     {frameworkCode === 'ai_rmf' ? (

@@ -353,6 +353,7 @@ export interface AIResponse {
   actions: AIAction[];
   needs_confirmation: boolean;
   search_used?: boolean;
+  resolved_mode?: string;
 }
 
 export interface AIChatRequest {

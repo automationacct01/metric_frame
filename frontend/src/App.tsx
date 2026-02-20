@@ -36,6 +36,7 @@ import DesktopForgotPassword from './components/desktop/DesktopForgotPassword';
 import LandingPage from './pages/LandingPage';
 import DownloadPage from './pages/DownloadPage';
 import WikiPage from './pages/WikiPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route wrapper - redirects to login if not authenticated
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -289,6 +290,7 @@ function AppContent() {
           <Route path="/ai-assistant" element={<AIChat />} />
           <Route path="/docs" element={<Documentation />} />
           <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+          <Route path="*" element={<NotFoundPage inApp />} />
         </Routes>
       </Box>
     </Box>
@@ -426,6 +428,9 @@ function App() {
                 <Route path="/catalog-manager" element={<Navigate to="/app/catalog-manager" replace />} />
                 <Route path="/docs" element={<Navigate to="/app/docs" replace />} />
                 <Route path="/functions/:functionCode" element={<Navigate to="/app/functions/:functionCode" replace />} />
+
+                {/* 404 catch-all */}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </AuthProvider>
           </DesktopAuthProvider>

@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import re
+import traceback
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID
@@ -211,6 +212,17 @@ def get_system_prompt_for_mode(mode: str, framework: str = "csf_2_0") -> str:
     framework_context = f"{fw['name']}\n{fw['functions']}\n{fw['categories']}"
     fw_name = fw['name']
 
+    # Framework-specific examples for function codes and category codes
+    if framework == "ai_rmf":
+        func_example = "govern, map, measure, or manage"
+        cat_example = "GOVERN-1, MAP-2, MEASURE-3, MANAGE-1"
+    elif framework == "cyber_ai_profile":
+        func_example = "gv, id, pr, de, rs, rc (CSF 2.0 codes)"
+        cat_example = "GV.OC, ID.AM, PR.AA, DE.CM"
+    else:
+        func_example = "gv, id, pr, de, rs, rc"
+        cat_example = "GV.OC, ID.AM, PR.AA, DE.CM"
+
     if mode == "metrics":
         return f"""You are a cybersecurity metrics assistant specializing in {fw_name}.
 
@@ -227,8 +239,8 @@ When asked to add or modify metrics, respond ONLY with valid JSON matching this 
         "name": "Clear, specific metric name",
         "description": "Plain-language definition of what this measures",
         "formula": "Human-readable calculation method",
-        "csf_function": "function code (e.g., gv, id, pr, de, rs, rc for CSF 2.0)",
-        "csf_category_code": "category code (e.g., GV.OC, ID.AM, PR.AA)",
+        "csf_function": "function code ({func_example})",
+        "csf_category_code": "category code (e.g., {cat_example})",
         "priority_rank": 1|2|3,
         "direction": "higher_is_better|lower_is_better|target_range|binary",
         "target_value": 95.0,
@@ -288,8 +300,8 @@ Respond with JSON:
     {{
       "metric_name": "Recommended metric name",
       "description": "What it measures",
-      "csf_function": "target function code (e.g., gv, id, pr, de, rs, rc)",
-      "csf_category_code": "target category code (e.g., GV.OC, PR.AA)",
+      "csf_function": "target function code ({func_example})",
+      "csf_category_code": "target category code (e.g., {cat_example})",
       "priority": 1|2|3,
       "rationale": "Why this metric is recommended",
       "expected_impact": "How this improves security visibility"
@@ -351,6 +363,45 @@ def get_default_model_for_provider(provider: BaseAIProvider) -> str:
     return "default"
 
 
+INTENT_CLASSIFICATION_PROMPT = """Classify this user message into exactly one mode. Reply with ONLY the mode name, nothing else.
+
+Modes:
+- metrics: User wants to create, modify, delete, or manage metrics (e.g., "create a metric for...", "add a KRI for...", "update the target for...", "delete the metric...")
+- report: User wants to generate a report, executive summary, or risk narrative (e.g., "generate a report", "executive summary", "summarize our posture", "board briefing")
+- explain: User wants to understand a concept, metric, score, or framework topic (e.g., "what is...", "explain...", "how does...", "why is...", general questions)
+
+Default to "explain" if unclear.
+
+User message: """
+
+
+async def classify_intent(message: str, provider, model: str) -> str:
+    """Classify user message intent to determine the appropriate AI mode.
+
+    Uses a lightweight AI call with a short prompt to classify the message.
+    Returns one of: 'metrics', 'explain', 'report'.
+    """
+    try:
+        response = await provider.generate_response(
+            messages=[{"role": "user", "content": INTENT_CLASSIFICATION_PROMPT + message}],
+            model=model,
+            system_prompt="You are a message classifier. Reply with exactly one word: metrics, explain, or report.",
+            max_tokens=10,
+            temperature=0.0,
+        )
+        mode = response.content.strip().lower().rstrip(".")
+        if mode in ("metrics", "explain", "report"):
+            return mode
+        # Check if the response contains one of the modes
+        for m in ("metrics", "report", "explain"):
+            if m in mode:
+                return m
+        return "explain"
+    except Exception as e:
+        logger.warning(f"Intent classification failed, defaulting to explain: {e}")
+        return "explain"
+
+
 @router.post("/chat", response_model=AIResponseSchema)
 @limiter.limit("20/minute")
 async def ai_chat(
@@ -388,10 +439,16 @@ async def ai_chat(
         provider = await get_active_provider(db, user_id)
         model = get_default_model_for_provider(provider)
 
+        # Auto mode: classify intent to determine actual mode
+        resolved_mode = chat_request.mode
+        if chat_request.mode == "auto":
+            resolved_mode = await classify_intent(chat_request.message, provider, model)
+            logger.info(f"Auto mode classified '{chat_request.message[:50]}...' as '{resolved_mode}'")
+
         # Prepare context based on mode
         context_str = ""
 
-        if chat_request.mode == "report":
+        if resolved_mode == "report":
             # Get current scores for report generation
             function_scores = compute_function_scores(db)
             attention_metrics = get_metrics_needing_attention(db, limit=5)
@@ -401,7 +458,7 @@ async def ai_chat(
                 "metrics_needing_attention": attention_metrics[:3],
             })
 
-        elif chat_request.mode == "metrics" and chat_request.context_opts:
+        elif resolved_mode == "metrics" and chat_request.context_opts:
             # Get existing metrics context if requested
             if chat_request.context_opts.get("include_existing_metrics"):
                 existing_metrics = db.query(Metric).filter(Metric.active == True).limit(20).all()
@@ -420,7 +477,7 @@ async def ai_chat(
         # Web search integration (only for explain/report modes)
         search_context = ""
         search_used = False
-        if chat_request.web_search and chat_request.mode in ("explain", "report"):
+        if chat_request.web_search and resolved_mode in ("explain", "report"):
             try:
                 from ..services.search import SearchService, SearchProvider
                 tavily_key = os.getenv("TAVILY_API_KEY")
@@ -435,7 +492,7 @@ async def ai_chat(
                 logger.warning(f"Web search failed (non-fatal): {e}")
 
         # Build messages for provider
-        system_prompt = get_system_prompt_for_mode(chat_request.mode, framework)
+        system_prompt = get_system_prompt_for_mode(resolved_mode, framework)
         if search_used:
             system_prompt += "\n\nYou have been provided with web search results for additional context. Use these results to supplement your knowledge when relevant. Cite sources when using specific information from search results."
 
@@ -461,7 +518,7 @@ async def ai_chat(
         )
 
         # Parse response based on mode
-        if chat_request.mode == "metrics":
+        if resolved_mode == "metrics":
             # Try to parse JSON response for metrics mode
             # Extract JSON from markdown code blocks — AI may add text after the closing fence
             content = response.content.strip()
@@ -496,8 +553,9 @@ async def ai_chat(
                 "needs_confirmation": False,
             }
 
-        # Add search indicator
+        # Add search indicator and resolved mode
         ai_response["search_used"] = search_used
+        ai_response["resolved_mode"] = resolved_mode
 
         # Log the interaction
         change_log = AIChangeLog(
@@ -516,6 +574,7 @@ async def ai_chat(
     except AIProviderError as e:
         raise HTTPException(status_code=503, detail=f"AI provider error: {str(e)}")
     except Exception as e:
+        logger.error(f"AI chat error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"AI chat error: {str(e)}")
 
 
@@ -881,7 +940,7 @@ async def get_ai_status(current_user: User = Depends(get_current_user), db: Sess
         "dev_provider": dev_provider,
         "legacy_api_key_present": legacy_available,
         "supported_providers": ["anthropic", "openai", "together", "azure", "bedrock", "vertex", "local"],
-        "supported_modes": ["metrics", "explain", "report", "recommendations"],
+        "supported_modes": ["auto", "metrics", "explain", "report", "recommendations"],
         "supported_frameworks": ["csf_2_0", "ai_rmf", "cyber_ai_profile"],
     }
 

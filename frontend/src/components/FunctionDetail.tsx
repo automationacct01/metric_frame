@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -63,34 +63,86 @@ export default function FunctionDetail() {
   const [showTrendComparison, setShowTrendComparison] = useState(false);
   const { selectedFramework } = useFramework();
   const frameworkCode = selectedFramework?.code || 'csf_2_0';
+  const isLegacyCSF = frameworkCode === 'csf_2_0';
 
-  // Fetch function categories
+  // Fetch function categories — use multi-framework endpoint for non-CSF
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery<CategoryScoresResponse>({
-    queryKey: ['function-categories', functionCode],
-    queryFn: () => apiClient.getFunctionCategories(functionCode!),
+    queryKey: ['function-categories', frameworkCode, functionCode],
+    queryFn: async () => {
+      if (isLegacyCSF) {
+        return apiClient.getFunctionCategories(functionCode!);
+      }
+      // Multi-framework endpoint returns compatible shape
+      const data = await apiClient.getFrameworkCategoryScores(frameworkCode, functionCode!);
+      return {
+        function_code: data.function_code,
+        function_name: data.function_name || functionCode,
+        category_scores: data.category_scores || [],
+        total_categories: data.total_categories || 0,
+        last_updated: data.last_updated,
+      } as CategoryScoresResponse;
+    },
     enabled: !!functionCode,
   });
 
-  // Fetch function score
-  const { data: functionScore, isLoading: functionScoreLoading } = useQuery<FunctionScore>({
+  // Fetch function score — for non-CSF, fetch all function scores and find the matching one
+  const { data: allFunctionScores } = useQuery<any[]>({
+    queryKey: ['framework-function-scores', frameworkCode],
+    queryFn: () => apiClient.getFrameworkFunctionScores(frameworkCode),
+    enabled: !!functionCode && !isLegacyCSF,
+  });
+
+  const { data: legacyFunctionScore, isLoading: legacyScoreLoading } = useQuery<FunctionScore>({
     queryKey: ['function-score', functionCode],
     queryFn: () => apiClient.getFunctionScore(functionCode!),
-    enabled: !!functionCode,
+    enabled: !!functionCode && isLegacyCSF,
   });
 
-  // Fetch trend data
+  // Normalize function score from either source
+  const functionScore: FunctionScore | undefined = useMemo(() => {
+    if (isLegacyCSF) return legacyFunctionScore;
+    if (!allFunctionScores) return undefined;
+    const match = allFunctionScores.find((fs: any) => fs.function_code === functionCode);
+    if (!match) return undefined;
+    return {
+      function: functionCode as any,
+      score_pct: match.score_pct,
+      risk_rating: match.risk_rating,
+      metrics_count: match.metrics_count,
+      metrics_below_target_count: match.metrics_below_target_count ?? 0,
+      weighted_score: match.weighted_score,
+    };
+  }, [isLegacyCSF, legacyFunctionScore, allFunctionScores, functionCode]);
+
+  const functionScoreLoading = isLegacyCSF ? legacyScoreLoading : (!allFunctionScores && !functionScore);
+
+  // Fetch trend data — only available for CSF (mock data anyway)
   const { data: trendData } = useQuery({
-    queryKey: ['function-trend', functionCode, selectedTimeframe],
+    queryKey: ['function-trend', frameworkCode, functionCode, selectedTimeframe],
     queryFn: () => apiClient.getFunctionTrend(functionCode!, selectedTimeframe),
-    enabled: !!functionCode,
+    enabled: !!functionCode && isLegacyCSF,
   });
 
   // Fetch metrics needing attention for this function
   const { data: attentionMetrics } = useQuery({
-    queryKey: ['metrics-attention', functionCode],
-    queryFn: () => apiClient.getMetricsNeedingAttention(10),
+    queryKey: ['metrics-attention', frameworkCode, functionCode],
+    queryFn: async () => {
+      if (isLegacyCSF) {
+        const data = await apiClient.getMetricsNeedingAttention(10);
+        return data.filter((metric: any) => metric.csf_function === functionCode);
+      }
+      return apiClient.getFrameworkAttentionMetrics(frameworkCode, 10);
+    },
     enabled: !!functionCode,
-    select: (data) => data.filter((metric: any) => metric.csf_function === functionCode),
+    select: (data) => {
+      if (!isLegacyCSF) {
+        // Filter framework attention metrics to this function
+        return data.filter((metric: any) =>
+          metric.function_code === functionCode || metric.csf_function === functionCode
+        );
+      }
+      return data;
+    },
   });
 
   if (!functionCode) {
@@ -101,8 +153,16 @@ export default function FunctionDetail() {
     );
   }
 
-  const functionName = CSF_FUNCTION_NAMES[functionCode as keyof typeof CSF_FUNCTION_NAMES];
-  const functionDescription = CSF_FUNCTION_DESCRIPTIONS[functionCode as keyof typeof CSF_FUNCTION_DESCRIPTIONS];
+  // Get function name/description — from API data for non-CSF, from constants for CSF
+  const matchedFunctionData = !isLegacyCSF
+    ? allFunctionScores?.find((fs: any) => fs.function_code === functionCode)
+    : null;
+  const functionName = isLegacyCSF
+    ? CSF_FUNCTION_NAMES[functionCode as keyof typeof CSF_FUNCTION_NAMES]
+    : (matchedFunctionData?.function_name || functionCode);
+  const functionDescription = isLegacyCSF
+    ? CSF_FUNCTION_DESCRIPTIONS[functionCode as keyof typeof CSF_FUNCTION_DESCRIPTIONS]
+    : (matchedFunctionData?.function_description || '');
 
   if (categoriesLoading || functionScoreLoading) {
     return (

@@ -448,10 +448,16 @@ def compute_category_score(db: Session, category_code: str) -> Optional[Dict]:
     
     risk_rating = get_risk_rating(score_pct)
     
-    # Get category information from CSF reference service
-    csf_category = csf_service.get_category(category_code)
-    category_name = csf_category.name if csf_category else (metrics[0].csf_category_name or category_code)
-    category_description = csf_category.description if csf_category else None
+    # Get category information from FrameworkCategory table (works for all frameworks)
+    fw_category = db.query(FrameworkCategory).filter(FrameworkCategory.code == category_code).first()
+    if fw_category:
+        category_name = fw_category.name
+        category_description = fw_category.description
+    else:
+        # Fallback to CSF reference service for legacy data
+        csf_category = csf_service.get_category(category_code)
+        category_name = csf_category.name if csf_category else (metrics[0].csf_category_name or category_code)
+        category_description = csf_category.description if csf_category else None
     
     return {
         'category_code': category_code,
