@@ -358,7 +358,7 @@ export interface AIResponse {
 
 export interface AIChatRequest {
   message: string;
-  mode: 'metrics' | 'explain' | 'report' | 'recommendations';
+  mode: 'auto' | 'metrics' | 'explain' | 'report' | 'recommendations';
   framework?: string;  // Framework code (csf_2_0, ai_rmf, cyber_ai_profile)
   context_opts?: Record<string, any>;
   web_search?: boolean;
