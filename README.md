@@ -1,6 +1,6 @@
 # MetricFrame - AI & Cyber Risk Metrics
 
-A free, open source application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with **NIST Cybersecurity Framework 2.0** and **NIST AI Risk Management Framework 1.0**.
+A professional application for managing and visualizing cybersecurity Key Risk Indicators (KRIs) aligned with **NIST Cybersecurity Framework 2.0** and **NIST AI Risk Management Framework 1.0**.
 
 ## Overview
 
@@ -222,7 +222,7 @@ AI_CREDENTIALS_MASTER_KEY=  # python -c "from cryptography.fernet import Fernet;
 - **Role-Based Access Control**: Admin, Editor, and Viewer roles with enforced permissions
 - **Encrypted Credentials**: API keys stored with Fernet encryption
 - **Password Recovery**: Recovery key + security questions for account recovery
-- **Open Source**: Full code transparency - audit it yourself
+- **Code Transparency**: Full audit capability for your security team
 - **No Telemetry**: We don't track usage or collect any data
 
 ### Docker Security
@@ -236,17 +236,9 @@ AI_CREDENTIALS_MASTER_KEY=  # python -c "from cryptography.fernet import Fernet;
 
 See the [Security Documentation](wiki/security.md) for detailed architecture information.
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MetricFrame is proprietary software. All rights reserved. See [LICENSE](LICENSE) for terms.
 
 ## Support
 

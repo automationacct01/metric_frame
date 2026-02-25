@@ -9,7 +9,7 @@ This guide covers macOS code signing and SHA256 checksum verification for Metric
 | Platform | Approach | Why |
 |----------|----------|-----|
 | **macOS** | Code signed + notarized | Gatekeeper blocks unsigned apps aggressively |
-| **Windows** | Unsigned + SHA256 checksums | Standard for open-source; SmartScreen has a simple bypass |
+| **Windows** | Unsigned + SHA256 checksums | SmartScreen has a simple bypass |
 | **Linux** | Unsigned + SHA256 checksums | Standard for all Linux apps |
 
 **Cost:** $99/year (Apple Developer Program only)

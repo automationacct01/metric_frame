@@ -28,12 +28,12 @@ The installer:
 - Does not require `sudo` or root privileges
 - Only needs Docker to be installed and running
 
-### 4. Transparent Source Code
+### 4. Transparent Installation
 
-All installation scripts are open source and can be reviewed:
-- Repository: https://github.com/automationacct01/metric_frame
+All installation scripts can be reviewed before execution:
 - Install script: `install.sh`
 - Docker Compose: `docker-compose.prod.yml`
+- Documentation: https://www.metricframe.ai/wiki
 
 ---
 

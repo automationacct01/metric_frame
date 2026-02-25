@@ -17,9 +17,9 @@ import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 
 const faqs = [
   {
-    question: 'Is MetricFrame really free?',
+    question: 'How does MetricFrame work?',
     answer:
-      'Yes! MetricFrame is 100% free and open source. You can download it, run it on your own infrastructure, and use all features without any cost. The source code is available on GitHub.',
+      'MetricFrame runs entirely on your infrastructure — as a desktop app or Docker deployment. Your data never leaves your systems. AI features use your own API keys, so even AI interactions stay private between you and your chosen provider.',
   },
   {
     question: 'Do I need my own API key?',

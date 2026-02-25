@@ -23,7 +23,7 @@
 #   - All downloads use HTTPS
 #   - Configuration files are verified with SHA256 checksums
 #   - No sudo/root required (uses user's home directory)
-#   - Source code is open at: https://github.com/automationacct01/metric_frame
+#   - Documentation: https://www.metricframe.ai/wiki
 
 set -euo pipefail
 

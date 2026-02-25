@@ -75,7 +75,7 @@ export default function CTASection() {
               mt: 3,
             }}
           >
-            Free and open source
+            Self-hosted on your infrastructure
           </Typography>
         </Box>
       </Container>

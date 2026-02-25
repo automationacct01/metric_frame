@@ -375,7 +375,7 @@ export default function DownloadPage() {
                     mt={1}
                     fontStyle="italic"
                   >
-                    We're working on providing open access to the repository
+                    Source code available with license
                   </Typography>
                 </Box>
 
