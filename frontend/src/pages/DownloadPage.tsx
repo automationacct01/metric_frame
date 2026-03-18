@@ -39,9 +39,7 @@ import { useNavigate } from 'react-router-dom';
 
 // Valid access codes — update these as needed
 const VALID_ACCESS_CODES = [
-  'METRICFRAME-EARLY-2026',
-  'MF-BETA-ACCESS',
-  'MF-PREVIEW-2026',
+  'MF-FF39F29F',
 ];
 
 const dockerCommand = 'curl -fsSL https://get.metricframe.ai/install.sh | bash';
@@ -145,11 +143,11 @@ export default function DownloadPage() {
               </Box>
 
               <Typography variant="h4" color="white" fontWeight={700} mb={1}>
-                Early Access
+                Licensed Download
               </Typography>
               <Typography variant="body1" color={alpha('#fff', 0.6)} mb={4}>
-                MetricFrame downloads require an access code.
-                Enter your code below to continue.
+                MetricFrame downloads are available to licensed users.
+                Enter your access code below to continue.
               </Typography>
 
               <TextField

@@ -33,7 +33,7 @@ INSTALL_DIR="${METRICFRAME_HOME:-$HOME/metricframe}"
 VERSION="${METRICFRAME_VERSION:-latest}"
 
 # Valid access codes
-VALID_CODES="METRICFRAME-EARLY-2026 MF-BETA-ACCESS MF-PREVIEW-2026"
+VALID_CODES="MF-FF39F29F"
 
 # Colors for output
 RED='\033[0;31m'
@@ -51,7 +51,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 # ── Access Code Verification ──────────────────────────────────────────
 echo ""
 echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║${NC}     MetricFrame — Early Access Installer     ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC}       MetricFrame — Licensed Installer        ${BLUE}║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
