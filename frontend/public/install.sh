@@ -32,6 +32,9 @@ REPO_URL="https://get.metricframe.ai"
 INSTALL_DIR="${METRICFRAME_HOME:-$HOME/metricframe}"
 VERSION="${METRICFRAME_VERSION:-latest}"
 
+# Valid access codes
+VALID_CODES="METRICFRAME-EARLY-2026 MF-BETA-ACCESS MF-PREVIEW-2026"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,6 +47,37 @@ info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+
+# ── Access Code Verification ──────────────────────────────────────────
+echo ""
+echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║${NC}     MetricFrame — Early Access Installer     ${BLUE}║${NC}"
+echo -e "${BLUE}╚══════════════════════════════════════════════╝${NC}"
+echo ""
+
+ACCESS_CODE="${METRICFRAME_ACCESS_CODE:-}"
+if [ -z "$ACCESS_CODE" ]; then
+    echo -e "${YELLOW}An access code is required to install MetricFrame.${NC}"
+    echo -e "Contact ${BLUE}sales@metricframe.ai${NC} if you don't have one."
+    echo ""
+    printf "Enter access code: "
+    read -r ACCESS_CODE
+fi
+
+ACCESS_CODE=$(echo "$ACCESS_CODE" | tr '[:lower:]' '[:upper:]' | xargs)
+CODE_VALID=false
+for code in $VALID_CODES; do
+    if [ "$ACCESS_CODE" = "$code" ]; then
+        CODE_VALID=true
+        break
+    fi
+done
+
+if [ "$CODE_VALID" = false ]; then
+    error "Invalid access code. Please check your code and try again."
+fi
+success "Access code verified"
+echo ""
 
 # Run a command with a timeout and progress dots
 # Returns 124 on timeout, or the command's exit code

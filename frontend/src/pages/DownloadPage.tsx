@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -10,6 +10,9 @@ import {
   Chip,
   Divider,
   alpha,
+  TextField,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
 import {
   Apple as AppleIcon,
@@ -27,14 +30,26 @@ import {
   Build as BuildIcon,
   Storage as StorageIcon,
   Info as InfoIcon,
+  Lock as LockIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  VpnKey as VpnKeyIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+
+// Valid access codes — update these as needed
+const VALID_ACCESS_CODES = [
+  'METRICFRAME-EARLY-2026',
+  'MF-BETA-ACCESS',
+  'MF-PREVIEW-2026',
+];
 
 const dockerCommand = 'curl -fsSL https://get.metricframe.ai/install.sh | bash';
 const secureInstallCommand = `# Download and verify before running
 curl -fsSL https://get.metricframe.ai/install.sh -o install.sh
 less install.sh  # Review the script
-chmod +x install.sh && ./install.sh`;
+chmod +x install.sh && ./install.sh
+# You will be prompted for your access code during install`;
 const offlineBundleUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz';
 const checksumUrl = 'https://github.com/automationacct01/metric_frame/releases/latest/download/metricframe-offline-bundle.tar.gz.sha256';
 
@@ -47,6 +62,28 @@ export default function DownloadPage() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [copiedSecure, setCopiedSecure] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [showCode, setShowCode] = useState(false);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('mf_download_access');
+    if (stored && VALID_ACCESS_CODES.includes(stored)) {
+      setUnlocked(true);
+    }
+  }, []);
+
+  const handleUnlock = () => {
+    const trimmed = accessCode.trim().toUpperCase();
+    if (VALID_ACCESS_CODES.includes(trimmed)) {
+      sessionStorage.setItem('mf_download_access', trimmed);
+      setUnlocked(true);
+      setCodeError('');
+    } else {
+      setCodeError('Invalid access code. Please check your code and try again.');
+    }
+  };
 
   const handleCopyCommand = () => {
     navigator.clipboard.writeText(dockerCommand);
@@ -59,6 +96,133 @@ export default function DownloadPage() {
     setCopiedSecure(true);
     setTimeout(() => setCopiedSecure(false), 2000);
   };
+
+  // Access code gate
+  if (!unlocked) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          background: `linear-gradient(135deg, ${alpha('#0f172a', 0.97)} 0%, ${alpha('#1e3a5f', 0.97)} 100%)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Container maxWidth="sm">
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/')}
+            sx={{ color: 'white', mb: 4, position: 'absolute', top: 32, left: 32 }}
+          >
+            Back to Home
+          </Button>
+
+          <Card
+            sx={{
+              background: alpha('#fff', 0.05),
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${alpha('#fff', 0.1)}`,
+              borderRadius: 4,
+              overflow: 'visible',
+            }}
+          >
+            <CardContent sx={{ p: 5, textAlign: 'center' }}>
+              <Box
+                sx={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  bgcolor: alpha('#f59e0b', 0.15),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3,
+                }}
+              >
+                <LockIcon sx={{ fontSize: 36, color: '#f59e0b' }} />
+              </Box>
+
+              <Typography variant="h4" color="white" fontWeight={700} mb={1}>
+                Early Access
+              </Typography>
+              <Typography variant="body1" color={alpha('#fff', 0.6)} mb={4}>
+                MetricFrame downloads require an access code.
+                Enter your code below to continue.
+              </Typography>
+
+              <TextField
+                fullWidth
+                placeholder="Enter access code"
+                value={accessCode}
+                onChange={(e) => { setAccessCode(e.target.value); setCodeError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                type={showCode ? 'text' : 'password'}
+                error={!!codeError}
+                helperText={codeError}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <VpnKeyIcon sx={{ color: alpha('#fff', 0.4) }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowCode(!showCode)} edge="end" sx={{ color: alpha('#fff', 0.4) }}>
+                        {showCode ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    bgcolor: alpha('#000', 0.2),
+                    borderRadius: 2,
+                    '& fieldset': { borderColor: alpha('#fff', 0.15) },
+                    '&:hover fieldset': { borderColor: alpha('#fff', 0.3) },
+                    '&.Mui-focused fieldset': { borderColor: '#f59e0b' },
+                  },
+                  '& .MuiFormHelperText-root': { color: '#ef4444' },
+                }}
+              />
+
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleUnlock}
+                disabled={!accessCode.trim()}
+                sx={{
+                  py: 1.5,
+                  bgcolor: '#f59e0b',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  borderRadius: 2,
+                  '&:hover': { bgcolor: '#d97706' },
+                  '&.Mui-disabled': { bgcolor: alpha('#f59e0b', 0.3), color: alpha('#000', 0.4) },
+                }}
+              >
+                Unlock Downloads
+              </Button>
+
+              <Divider sx={{ borderColor: alpha('#fff', 0.08), my: 3 }} />
+
+              <Typography variant="body2" color={alpha('#fff', 0.4)}>
+                Don't have a code? Contact{' '}
+                <Box component="span" sx={{ color: '#0ea5e9' }}>
+                  sales@metricframe.ai
+                </Box>
+                {' '}for access.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box
